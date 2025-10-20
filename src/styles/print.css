@@ -1,0 +1,481 @@
+/* ========================================
+   Korean ERP System Print Styles
+   태창 자동차 부품 제조 ERP 시스템 인쇄 스타일
+   ======================================== */
+
+/* Reset print styles */
+@media print {
+  /* Basic Print Setup */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page setup for A4 */
+  @page {
+    size: A4;
+    margin: 15mm 10mm 15mm 10mm;
+
+    /* Header with company info */
+    @top-center {
+      content: "태창 자동차 부품 제조 ERP 시스템";
+      font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+      font-size: 12pt;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    /* Footer with page numbers */
+    @bottom-right {
+      content: "페이지 " counter(page) " / " counter(pages);
+      font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+      font-size: 10pt;
+      color: #6b7280;
+    }
+
+    @bottom-left {
+      content: "인쇄일시: " attr(data-print-date);
+      font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+      font-size: 10pt;
+      color: #6b7280;
+    }
+  }
+
+  /* Portrait orientation */
+  @page portrait {
+    size: A4 portrait;
+  }
+
+  /* Landscape orientation */
+  @page landscape {
+    size: A4 landscape;
+    margin: 10mm 15mm 10mm 15mm;
+  }
+
+  /* Named page layouts */
+  @page items-list {
+    size: A4 landscape;
+    margin: 15mm 10mm 15mm 10mm;
+  }
+
+  @page companies-list {
+    size: A4 portrait;
+    margin: 15mm 10mm 15mm 10mm;
+  }
+
+  @page transactions-report {
+    size: A4 portrait;
+    margin: 20mm 15mm 20mm 15mm;
+  }
+
+  /* Hide non-printable elements */
+  .no-print,
+  .print-hidden,
+  nav,
+  aside,
+  header:not(.print-header),
+  footer:not(.print-footer),
+  .sidebar,
+  .header,
+  button,
+  .btn,
+  .modal,
+  .toast,
+  .tooltip,
+  .dropdown,
+  .pagination,
+  .search-bar,
+  .filters,
+  .action-buttons,
+  .edit-controls,
+  .mobile-menu,
+  .dark-mode-toggle,
+  .notifications,
+  .user-menu,
+  .breadcrumb,
+  .back-button,
+  .loading-spinner {
+    display: none !important;
+  }
+
+  /* Body styles */
+  body {
+    background: white !important;
+    color: #1f2937 !important;
+    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Container styles */
+  .print-container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Print Header */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 20pt;
+    padding-bottom: 10pt;
+    border-bottom: 2pt solid #1f2937;
+  }
+
+  .print-header h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #1f2937 !important;
+    margin: 0 0 8pt 0;
+    font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+  }
+
+  .print-header .company-info {
+    font-size: 12pt;
+    color: #4b5563 !important;
+    margin-bottom: 4pt;
+  }
+
+  .print-header .report-title {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1f2937 !important;
+    margin-top: 8pt;
+  }
+
+  .print-header .print-date {
+    font-size: 10pt;
+    color: #6b7280 !important;
+    margin-top: 4pt;
+  }
+
+  /* Table styles */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 0 15pt 0 !important;
+    background: white !important;
+    page-break-inside: avoid;
+  }
+
+  table.print-table {
+    font-size: 9pt;
+    border: 1pt solid #374151 !important;
+  }
+
+  table.print-table th {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    font-weight: bold;
+    padding: 6pt 4pt !important;
+    border: 1pt solid #374151 !important;
+    text-align: left;
+    vertical-align: middle;
+    font-size: 9pt;
+  }
+
+  table.print-table td {
+    padding: 4pt !important;
+    border: 1pt solid #d1d5db !important;
+    color: #1f2937 !important;
+    vertical-align: top;
+    font-size: 9pt;
+    line-height: 1.3;
+  }
+
+  /* Striped table rows */
+  table.print-table tbody tr:nth-child(even) {
+    background: #f9fafb !important;
+  }
+
+  table.print-table tbody tr:nth-child(odd) {
+    background: white !important;
+  }
+
+  /* Table alignment */
+  .text-center { text-align: center !important; }
+  .text-right { text-align: right !important; }
+  .text-left { text-align: left !important; }
+
+  /* Number formatting */
+  .number {
+    text-align: right !important;
+    font-family: 'Consolas', 'Monaco', monospace;
+  }
+
+  .currency {
+    text-align: right !important;
+    font-family: 'Consolas', 'Monaco', monospace;
+  }
+
+  /* Status badges in print */
+  .status-badge {
+    display: inline-block;
+    padding: 1pt 4pt;
+    border: 1pt solid #d1d5db;
+    border-radius: 2pt;
+    font-size: 8pt;
+    font-weight: bold;
+    background: white !important;
+    color: #1f2937 !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+
+  /* Avoid page breaks in table rows */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Summary sections */
+  .print-summary {
+    margin: 15pt 0;
+    padding: 8pt;
+    border: 1pt solid #d1d5db;
+    background: #f9fafb !important;
+    page-break-inside: avoid;
+  }
+
+  .print-summary h3 {
+    margin: 0 0 8pt 0;
+    font-size: 12pt;
+    font-weight: bold;
+    color: #1f2937 !important;
+  }
+
+  .print-summary .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150pt, 1fr));
+    gap: 8pt;
+  }
+
+  .print-summary .summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2pt 0;
+    border-bottom: 0.5pt dotted #d1d5db;
+  }
+
+  .print-summary .summary-label {
+    font-weight: bold;
+    color: #374151 !important;
+  }
+
+  .print-summary .summary-value {
+    color: #1f2937 !important;
+    text-align: right;
+  }
+
+  /* Print metadata */
+  .print-metadata {
+    margin-top: 20pt;
+    padding-top: 10pt;
+    border-top: 1pt solid #e5e7eb;
+    font-size: 9pt;
+    color: #6b7280 !important;
+    text-align: center;
+  }
+
+  /* Korean typography optimization */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
+    font-weight: bold;
+    color: #1f2937 !important;
+    margin: 8pt 0 4pt 0;
+  }
+
+  /* Specific layouts for different report types */
+
+  /* Items List Layout */
+  .items-print-layout {
+    page: items-list;
+  }
+
+  .items-print-layout table {
+    font-size: 8pt;
+  }
+
+  .items-print-layout th,
+  .items-print-layout td {
+    padding: 3pt 2pt !important;
+    font-size: 8pt;
+  }
+
+  /* Companies List Layout */
+  .companies-print-layout {
+    page: companies-list;
+  }
+
+  /* Transactions Report Layout */
+  .transactions-print-layout {
+    page: transactions-report;
+  }
+
+  /* BOM Structure Layout */
+  .bom-print-layout .bom-level-0 {
+    font-weight: bold;
+    background: #f3f4f6 !important;
+  }
+
+  .bom-print-layout .bom-level-1 {
+    padding-left: 10pt !important;
+  }
+
+  .bom-print-layout .bom-level-2 {
+    padding-left: 20pt !important;
+  }
+
+  .bom-print-layout .bom-level-3 {
+    padding-left: 30pt !important;
+  }
+
+  /* Stock Report specific styles */
+  .stock-report .low-stock {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+  }
+
+  .stock-report .out-of-stock {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    font-weight: bold;
+  }
+
+  /* Print utilities */
+  .print-only {
+    display: block !important;
+  }
+
+  .no-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Responsive print table */
+  .print-responsive-table {
+    font-size: 8pt;
+  }
+
+  @media print and (max-width: 210mm) {
+    .print-responsive-table {
+      font-size: 7pt;
+    }
+
+    .print-responsive-table th,
+    .print-responsive-table td {
+      padding: 2pt 1pt !important;
+    }
+  }
+
+  /* Print landscape table adjustments */
+  .print-landscape-table {
+    width: 100%;
+    font-size: 8pt;
+  }
+
+  .print-landscape-table th,
+  .print-landscape-table td {
+    padding: 3pt 2pt !important;
+    font-size: 8pt;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Footer information */
+  .print-footer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 15mm;
+    background: white;
+    border-top: 1pt solid #e5e7eb;
+    padding: 2mm 0;
+    text-align: center;
+    font-size: 9pt;
+    color: #6b7280 !important;
+  }
+
+  /* Print signature section */
+  .print-signature {
+    margin-top: 30pt;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20pt;
+    page-break-inside: avoid;
+  }
+
+  .print-signature .signature-box {
+    text-align: center;
+    border-top: 1pt solid #374151;
+    padding-top: 5pt;
+    margin-top: 15pt;
+  }
+
+  .print-signature .signature-label {
+    font-size: 10pt;
+    font-weight: bold;
+    color: #374151 !important;
+  }
+
+  /* Korean number formatting */
+  .korean-number::after {
+    content: "";
+  }
+}
+
+/* Screen preview styles for print preview */
+.print-preview {
+  background: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin: 20px auto;
+  padding: 15mm 10mm;
+  max-width: 210mm;
+  min-height: 297mm; /* A4 height */
+  font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+  font-size: 11pt;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.print-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+  font-size: 9pt;
+}
+
+.print-preview th,
+.print-preview td {
+  border: 1px solid #d1d5db;
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.print-preview th {
+  background: #f3f4f6;
+  font-weight: bold;
+}
+
+.print-preview tbody tr:nth-child(even) {
+  background: #f9fafb;
+}

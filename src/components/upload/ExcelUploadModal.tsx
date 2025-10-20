@@ -1,0 +1,348 @@
+'use client';
+
+import { useState, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { Upload, Download, FileSpreadsheet, X, Loader2, AlertCircle } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+
+// Dynamic import for Modal component to reduce initial bundle size
+const Modal = dynamic(() => import('../Modal'), {
+  loading: () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded mb-4"></div>
+          <div className="h-32 bg-gray-300 dark:bg-gray-600 rounded"></div>
+        </div>
+      </div>
+    </div>
+  ),
+  ssr: false
+});
+
+interface ExcelUploadModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  uploadUrl: string;
+  title: string;
+  onUploadSuccess: () => void;
+}
+
+export default function ExcelUploadModal({
+  isOpen,
+  onClose,
+  uploadUrl,
+  title,
+  onUploadSuccess
+}: ExcelUploadModalProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { success, error: toastError } = useToast();
+
+  // Allowed file types
+  const allowedTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel' // .xls
+  ];
+
+  const allowedExtensions = ['.xlsx', '.xls'];
+
+  const validateFile = (file: File): boolean => {
+    // Check file type
+    if (!allowedTypes.includes(file.type)) {
+      const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!allowedExtensions.includes(extension)) {
+        setError('Excel 파일만 업로드 가능합니다. (.xlsx, .xls)');
+        return false;
+      }
+    }
+
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setError('파일 크기는 10MB를 초과할 수 없습니다.');
+      return false;
+    }
+
+    setError('');
+    return true;
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (validateFile(file)) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  }, []);
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setError('');
+
+    try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + 10;
+        });
+      }, 100);
+
+      // Upload file using FormData
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setTimeout(() => {
+            resetModal();
+            onUploadSuccess();
+          }, 500);
+        } else {
+          throw new Error(result.error || '업로드에 실패했습니다.');
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '업로드에 실패했습니다.');
+      }
+    } catch (err: any) {
+      setError(err.message || '업로드 중 오류가 발생했습니다.');
+      toastError('업로드 실패', err.message || '업로드 중 오류가 발생했습니다.');
+      setUploadProgress(0);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const resetModal = () => {
+    setSelectedFile(null);
+    setIsDragOver(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClose = () => {
+    if (!isUploading) {
+      resetModal();
+      onClose();
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleTemplateDownload = async () => {
+    try {
+      const templateUrl = uploadUrl.replace('/upload/', '/download/template/');
+      const response = await fetch(templateUrl);
+
+      if (!response.ok) {
+        throw new Error('템플릿을 찾을 수 없습니다.');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      // Determine filename based on upload URL
+      const fileName = uploadUrl.includes('items') ? '품목_템플릿.xlsx' : '거래처_템플릿.xlsx';
+      a.download = fileName;
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      success('템플릿 다운로드 완료', `${fileName}이 다운로드되었습니다.`);
+    } catch (err: any) {
+      toastError('다운로드 실패', err.message || '템플릿 다운로드에 실패했습니다.');
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title={title} size="md">
+      <div className="space-y-6">
+        {/* Template Download Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={handleTemplateDownload}
+            disabled={isUploading}
+            className="flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            템플릿 다운로드
+          </button>
+        </div>
+
+        {/* Upload Area */}
+        <div
+          className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            isDragOver
+              ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileInputChange}
+            className="hidden"
+            disabled={isUploading}
+          />
+
+          {!selectedFile ? (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <FileSpreadsheet className="w-12 h-12 text-gray-400" />
+              </div>
+              <div>
+                <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  Excel 파일을 여기에 드래그하거나
+                </p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  파일 선택
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                지원 형식: .xlsx, .xls (최대 10MB)
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-3">
+                <FileSpreadsheet className="w-8 h-8 text-green-500" />
+                <div className="text-left">
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <button
+                  onClick={removeFile}
+                  disabled={isUploading}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Upload Progress */}
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">업로드 중...</span>
+                    <span className="text-gray-600 dark:text-gray-400">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleClose}
+            disabled={isUploading}
+            className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleUpload}
+            disabled={!selectedFile || isUploading}
+            className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                업로드 중...
+              </>
+            ) : (
+              <>
+                <Upload className="w-5 h-5" />
+                업로드
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

@@ -1,0 +1,74 @@
+
+> erp-app@0.1.0 type-check
+> tsc --noEmit
+
+.next/types/app/api/stock/route.ts(49,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: { params: Promise<Record<string, string>>; } | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type '{ params: Promise<Record<string, string>>; } | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/stock/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: Promise<Record<string, string>>; } | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type '{ params: Promise<Record<string, string>>; } | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+src/app/login/page.tsx(61,22): error TS2322: Type '"destructive"' is not assignable to type 'AlertVariant | undefined'.
+src/app/master/items/page.tsx(11,15): error TS2305: Module '"@/types/supabase"' has no exported member 'ItemCategory'.
+src/app/master/items/page.tsx(11,29): error TS2305: Module '"@/types/supabase"' has no exported member 'ItemTypeCode'.
+src/app/master/items/page.tsx(11,43): error TS2305: Module '"@/types/supabase"' has no exported member 'MaterialTypeCode'.
+src/app/master/items/page.tsx(536,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ItemFormProps, context?: any): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | ... 4 more ... | undefined', gave the following error.
+    Type 'Item | null' is not assignable to type 'Partial<ItemFormValues> | null | undefined'.
+      Type 'Item' is not assignable to type 'Partial<ItemFormValues>'.
+        Types of property 'vehicle_model' are incompatible.
+          Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+            Type 'null' is not assignable to type 'string | undefined'.
+  Overload 2 of 2, '(props: ItemFormProps): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | ... 4 more ... | undefined', gave the following error.
+    Type 'Item | null' is not assignable to type 'Partial<ItemFormValues> | null | undefined'.
+      Type 'Item' is not assignable to type 'Partial<ItemFormValues>'.
+        Types of property 'vehicle_model' are incompatible.
+          Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+            Type 'null' is not assignable to type 'string | undefined'.
+src/app/stock/history/page.tsx(128,14): error TS2339: Property 'reference_no' does not exist on type 'StockHistoryItem'.
+src/components/bom/CoilSpecsForm.tsx(5,38): error TS2307: Cannot find module '@/lib/toastNotifications' or its corresponding type declarations.
+src/components/dashboard/RealTimeDashboard.tsx(95,11): error TS2322: Type 'import("C:/Users/USER/claude_code/FITaeYoungERP/src/hooks/useDashboardData").MonthlyTrendsData[] | null' is not assignable to type 'MonthlyTrendsData[] | null'.
+  Type 'import("C:/Users/USER/claude_code/FITaeYoungERP/src/hooks/useDashboardData").MonthlyTrendsData[]' is not assignable to type 'MonthlyTrendsData[]'.
+    Type 'MonthlyTrendsData' is missing the following properties from type 'MonthlyTrendsData': 입고량, 출고량, 생산량
+src/components/dashboard/TransactionChart.tsx(70,28): error TS2339: Property '입고' does not exist on type 'MonthlyTrendsData | TransactionDistributionData'.
+  Property '입고' does not exist on type 'TransactionDistributionData'.
+src/components/dashboard/TransactionChart.tsx(71,28): error TS2339: Property '출고' does not exist on type 'MonthlyTrendsData | TransactionDistributionData'.
+  Property '출고' does not exist on type 'TransactionDistributionData'.
+src/components/dashboard/TransactionChart.tsx(72,28): error TS2339: Property '생산' does not exist on type 'MonthlyTrendsData | TransactionDistributionData'.
+  Property '생산' does not exist on type 'TransactionDistributionData'.
+src/components/ItemForm.tsx(6,15): error TS2305: Module '"@/types/supabase"' has no exported member 'ItemCategory'.
+src/components/ItemForm.tsx(6,29): error TS2305: Module '"@/types/supabase"' has no exported member 'ItemTypeCode'.
+src/components/ItemForm.tsx(6,43): error TS2305: Module '"@/types/supabase"' has no exported member 'MaterialTypeCode'.
+src/components/ItemSelect.tsx(6,15): error TS2305: Module '"@/types/supabase"' has no exported member 'ItemTypeCode'.
+src/components/ItemSelect.tsx(135,30): error TS2339: Property 'error' does not exist on type 'ApiResponse'.
+  Property 'error' does not exist on type 'ApiSuccessResponse'.
+src/components/ProductionForm.tsx(139,27): error TS2345: Argument of type 'void' is not assignable to parameter of type 'SetStateAction<ProductionResponse | null>'.
+src/components/ProductionForm.tsx(376,11): error TS2322: Type 'boolean | null' is not assignable to type 'boolean | undefined'.
+  Type 'null' is not assignable to type 'boolean | undefined'.
+src/components/ProductionForm.tsx(514,41): error TS2339: Property 'transaction' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(520,41): error TS2339: Property 'transaction' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(520,98): error TS2339: Property 'transaction' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(526,42): error TS2339: Property 'transaction' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(526,99): error TS2339: Property 'transaction' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(532,50): error TS2339: Property 'transaction' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(539,33): error TS2339: Property 'auto_deductions' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(539,69): error TS2339: Property 'auto_deductions' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(556,43): error TS2339: Property 'auto_deductions' does not exist on type 'ProductionResponse'.
+src/components/ProductionForm.tsx(556,64): error TS7006: Parameter 'deduction' implicitly has an 'any' type.
+src/components/ProductionForm.tsx(556,75): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/purchases/PurchaseTransactionForm.tsx(260,13): error TS2322: Type 'number | null' is not assignable to type 'number | undefined'.
+  Type 'null' is not assignable to type 'number | undefined'.
+src/lib/excel-bom-parser.ts(326,7): error TS2322: Type '{ item_id: number; item_code: string; item_name: string; unit: string; is_active: boolean | null; }' is not assignable to type '{ item_id: number; item_code: string; item_name: string; unit: string; is_active: boolean; }'.
+  Types of property 'is_active' are incompatible.
+    Type 'boolean | null' is not assignable to type 'boolean'.
+      Type 'null' is not assignable to type 'boolean'.
+src/lib/response.ts(71,37): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
+  Type 'Buffer<ArrayBufferLike>' is missing the following properties from type 'URLSearchParams': size, append, delete, get, and 2 more.
+src/lib/validation.ts(174,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: readonly ["json", "excel"], params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidValue<unknown>> | undefined; message?: string | undefined; } | undefined): ZodEnum<...>', gave the following error.
+    Object literal may only specify known properties, and 'errorMap' does not exist in type '{ error?: string | $ZodErrorMap<$ZodIssueInvalidValue<unknown>> | undefined; message?: string | undefined; }'.
+  Overload 2 of 2, '(entries: Readonly<Record<string, EnumValue>>, params?: string | { error?: string | $ZodErrorMap<$ZodIssueInvalidValue<unknown>> | undefined; message?: string | undefined; } | undefined): ZodEnum<...>', gave the following error.
+    Argument of type 'string[]' is not assignable to parameter of type 'Readonly<Record<string, EnumValue>>'.
+      Index signature for type 'string' is missing in type 'string[]'.
