@@ -3,7 +3,10 @@
     "allow": [
       "Bash(mkdir:*)",
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Read(//c/Users/USER/.claude/**)",
+      "Read(//c/Users/USER/.claude-code-templates/**)"
     ],
     "deny": [],
     "ask": []
