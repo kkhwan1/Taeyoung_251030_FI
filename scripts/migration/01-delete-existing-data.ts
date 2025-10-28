@@ -10,7 +10,13 @@ import { createAdminClient, testConnection, getTableCount, deleteAllRecords } fr
 import { createLogger } from './utils/logger';
 
 // FK 제약조건 순서대로 삭제 (자식 → 부모)
+// ⚠️ users, warehouses는 유지 (실제 데이터 유지 대상)
+// 계약 관련은 사용자의 결정에 따라 유지/삭제 (현재는 삭제로 설정)
 const DELETION_ORDER = [
+  // 계약 관련 (FK를 가진 자식) - 테스트 데이터 삭제
+  'contract_documents',           // FK: contracts
+  'contracts',                    // FK: companies
+  
   // 거래 데이터 (FK를 가진 자식)
   'collections',                  // FK: sales_transactions
   'payments',                     // FK: purchase_transactions
@@ -28,8 +34,9 @@ const DELETION_ORDER = [
 
   // 마스터 데이터 (FK를 주는 부모)
   'items',                        // FK: companies (supplier_id)
-  'companies',                    // No FK
-  'warehouses'                    // No FK
+  'companies'                     // No FK
+  // 'users' 제외 (유지)
+  // 'warehouses' 제외 (유지)
 ];
 
 async function main() {

@@ -221,9 +221,9 @@ export function getStatusLabel(status: DocState): string {
 export function getStatusColor(status: DocState): string {
   const statusColors: Record<DocState, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
-    APPROVED: 'bg-blue-100 text-blue-800',
-    CONFIRMED: 'bg-green-100 text-green-800',
-    CANCELED: 'bg-red-100 text-red-800'
+    APPROVED: 'bg-gray-100 text-gray-800',
+    CONFIRMED: 'bg-gray-100 text-gray-800',
+    CANCELED: 'bg-gray-100 text-gray-800'
   };
 
   return statusColors[status];

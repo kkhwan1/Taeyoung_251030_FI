@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, CheckCircle, Settings, Trash2, Filter, X, AlertCircle, TrendingUp, Wrench } from 'lucide-react';
+import {
+  Bell,
+  CheckCircle,
+  Settings,
+  Trash2,
+  Filter,
+  X,
+  AlertCircle,
+  Wrench
+} from 'lucide-react';
 
 interface Notification {
   id: number;
@@ -99,9 +108,9 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
   const getIcon = (type: string) => {
     switch (type) {
       case 'alert':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-gray-500" />;
       case 'change':
-        return <TrendingUp className="h-5 w-5 text-blue-500" />;
+        return ;
       case 'system':
         return <Wrench className="h-5 w-5 text-gray-500" />;
       default:
@@ -126,10 +135,10 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-blue-600" />
+            <Bell className="h-5 w-5 text-gray-600" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">알림</h3>
             {unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              <span className="bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                 {unreadCount}
               </span>
             )}
@@ -171,7 +180,7 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
                     }}
                     className={`px-3 py-1 text-xs rounded transition-colors ${
                       filterType === type
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-gray-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
@@ -195,7 +204,7 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
                     }}
                     className={`px-3 py-1 text-xs rounded transition-colors ${
                       filterRead === status
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-gray-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
@@ -226,8 +235,8 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
           </div>
         ) : error ? (
           <div className="p-4 text-center">
-            <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <AlertCircle className="h-8 w-8 text-gray-500 mx-auto mb-2" />
+            <p className="text-sm text-gray-600 dark:text-gray-400">{error}</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center">
@@ -240,7 +249,7 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
               <div
                 key={notification.id}
                 className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                  !notification.is_read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                  !notification.is_read ? 'bg-gray-50 dark:bg-gray-900/10' : ''
                 }`}
               >
                 <div className="flex gap-3">
@@ -256,7 +265,7 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
                         {notification.title}
                       </h4>
                       {!notification.is_read && (
-                        <span className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mt-1"></span>
+                        <span className="flex-shrink-0 w-2 h-2 bg-gray-600 rounded-full mt-1"></span>
                       )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -279,7 +288,7 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
                             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                             title="읽음으로 표시"
                           >
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CheckCircle className="h-4 w-4 text-gray-600" />
                           </button>
                         )}
                         <button
@@ -287,7 +296,7 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
                           className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                           title="삭제"
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4 text-gray-600" />
                         </button>
                       </div>
                     </div>

@@ -86,28 +86,34 @@ export function formatValidationError(zodError: ZodError): string {
     switch (err.code) {
       case 'invalid_type':
         return `${fieldKorean}: 올바른 형식이 아닙니다 (${err.expected} 필요)`;
-      case 'too_small':
-        if (err.type === 'string') {
-          return `${fieldKorean}: 최소 ${err.minimum}자 이상이어야 합니다`;
-        } else if (err.type === 'number') {
-          return `${fieldKorean}: 최소값은 ${err.minimum}입니다`;
+      case 'too_small': {
+        const issue = err as any; // Type assertion needed for Zod's complex union types
+        if (issue.type === 'string') {
+          return `${fieldKorean}: 최소 ${issue.minimum}자 이상이어야 합니다`;
+        } else if (issue.type === 'number') {
+          return `${fieldKorean}: 최소값은 ${issue.minimum}입니다`;
         }
-        break;
-      case 'too_big':
-        if (err.type === 'string') {
-          return `${fieldKorean}: 최대 ${err.maximum}자까지 입력 가능합니다`;
-        } else if (err.type === 'number') {
-          return `${fieldKorean}: 최대값은 ${err.maximum}입니다`;
+        return `${fieldKorean}: 최소값 제한을 만족하지 않습니다`;
+      }
+      case 'too_big': {
+        const issue = err as any; // Type assertion needed for Zod's complex union types
+        if (issue.type === 'string') {
+          return `${fieldKorean}: 최대 ${issue.maximum}자까지 입력 가능합니다`;
+        } else if (issue.type === 'number') {
+          return `${fieldKorean}: 최대값은 ${issue.maximum}입니다`;
         }
-        break;
-      case 'invalid_string':
-        return `${fieldKorean}: 올바른 ${err.validation} 형식이 아닙니다`;
+        return `${fieldKorean}: 최대값 제한을 초과했습니다`;
+      }
       case 'custom':
         return `${fieldKorean}: ${err.message}`;
       default:
+        // Handle other validation errors including invalid_string
+        if ('validation' in err) {
+          const issue = err as any;
+          return `${fieldKorean}: 올바른 ${issue.validation} 형식이 아닙니다`;
+        }
         return `${fieldKorean}: ${err.message}`;
     }
-    return `${fieldKorean}: ${err.message}`;
   });
 
   return errors.join(', ');

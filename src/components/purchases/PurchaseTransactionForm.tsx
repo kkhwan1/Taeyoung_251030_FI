@@ -1,11 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Building2, Package, Hash, DollarSign, Truck, FileText, Loader2, Save } from 'lucide-react';
+import {
+  Calendar,
+  Building2,
+  Hash,
+  Loader2,
+  Save
+} from 'lucide-react';
 import CompanySelect from '@/components/CompanySelect';
 import ItemSelect from '@/components/ItemSelect';
 
-type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETED';
+type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';
 
 type PurchaseTransaction = {
   transaction_id?: number;
@@ -23,7 +29,6 @@ type PurchaseTransaction = {
   total_amount?: number;
   payment_status?: PaymentStatus;
   payment_due_date?: string;
-  delivery_date?: string;
   notes?: string;
   is_active?: boolean;
   created_at?: string;
@@ -49,7 +54,7 @@ interface PurchaseTransactionFormProps {
 const PAYMENT_STATUS_OPTIONS = [
   { value: 'PENDING', label: '대기' },
   { value: 'PARTIAL', label: '부분' },
-  { value: 'COMPLETED', label: '완료' }
+  { value: 'COMPLETE', label: '완료' }
 ];
 
 export default function PurchaseTransactionForm({ transaction, onSave, onCancel }: PurchaseTransactionFormProps) {
@@ -67,7 +72,6 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
     total_amount: 0,
     payment_status: 'PENDING',
     payment_due_date: '',
-    delivery_date: '',
     notes: ''
   });
 
@@ -91,7 +95,6 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         total_amount: transaction.total_amount,
         payment_status: transaction.payment_status || 'PENDING',
         payment_due_date: transaction.payment_due_date || '',
-        delivery_date: transaction.delivery_date || '',
         notes: transaction.notes || ''
       });
     }
@@ -178,13 +181,6 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
       }
     }
 
-    // Validate delivery_date if provided
-    if (formData.delivery_date && formData.transaction_date) {
-      if (new Date(formData.delivery_date) < new Date(formData.transaction_date)) {
-        newErrors.delivery_date = '납품일자는 거래일자 이후여야 합니다';
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -199,11 +195,33 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
     setLoading(true);
     try {
       // Remove server-generated and relation fields
-      const { transaction_no, supplier, item, created_at, updated_at, is_active, ...dataToSave } = formData as any;
+      const { 
+        transaction_no, 
+        supplier, 
+        item, 
+        created_at, 
+        updated_at, 
+        is_active, 
+        ...dataToSave 
+      } = formData as any;
 
-      // Clean up empty strings
+      // Explicitly remove unwanted fields
+      delete dataToSave.supplier_name;
+      delete dataToSave.item_name;
+      delete dataToSave.spec;
+      delete dataToSave.vehicle_model;
+      delete dataToSave.material_type;
+      delete dataToSave.unit;
+      delete dataToSave.receiving_date;
+      delete dataToSave.warehouse_location;
+      delete dataToSave.tax_invoice_id;
+      delete dataToSave.tax_invoice_received;
+      delete dataToSave.created_by;
+      delete dataToSave.updated_by;
+
+      // Clean up empty strings and null values but preserve notes
       Object.keys(dataToSave).forEach(key => {
-        if (dataToSave[key] === '') {
+        if ((dataToSave[key] === '' || dataToSave[key] === null) && key !== 'notes') {
           delete dataToSave[key];
         }
       });
@@ -221,18 +239,18 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4" />
-            거래일자 <span className="text-red-500">*</span>
+            거래일자 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
             value={formData.transaction_date}
             onChange={(e) => handleInputChange('transaction_date', e.target.value)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -240,7 +258,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Building2 className="w-4 h-4" />
-            공급사 <span className="text-red-500">*</span>
+            공급사 <span className="text-gray-500">*</span>
           </label>
           <CompanySelect
             companyType="SUPPLIER"
@@ -253,11 +271,11 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 품목 */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Package className="w-4 h-4" />
-            품목 <span className="text-red-500">*</span>
+            
+            품목 <span className="text-gray-500">*</span>
           </label>
           <ItemSelect
-            value={formData.item_id || null}
+            value={formData.item_id || undefined}
             onChange={handleItemChange}
             error={errors.item_id}
           />
@@ -266,7 +284,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 품목명 (읽기전용) */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Package className="w-4 h-4" />
+            
             품목명
           </label>
           <input
@@ -280,7 +298,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 규격 (읽기전용) */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <FileText className="w-4 h-4" />
+            
             규격
           </label>
           <input
@@ -294,7 +312,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 차종 (편집 가능) */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Truck className="w-4 h-4" />
+            
             차종
           </label>
           <input
@@ -310,7 +328,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Hash className="w-4 h-4" />
-            수량 <span className="text-red-500">*</span>
+            수량 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -318,19 +336,19 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
             value={formData.quantity || ''}
             onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.quantity && (
-            <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
           )}
         </div>
 
         {/* 단가 */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <DollarSign className="w-4 h-4" />
-            단가 <span className="text-red-500">*</span>
+            
+            단가 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -339,18 +357,18 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
             value={formData.unit_price || ''}
             onChange={(e) => handleInputChange('unit_price', parseFloat(e.target.value) || 0)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.unit_price ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              errors.unit_price ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.unit_price && (
-            <p className="mt-1 text-sm text-red-500">{errors.unit_price}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.unit_price}</p>
           )}
         </div>
 
         {/* 공급가액 (자동계산, 읽기전용) */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <DollarSign className="w-4 h-4" />
+            
             공급가액
           </label>
           <input
@@ -364,7 +382,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 세액 (자동계산, 읽기전용) */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <DollarSign className="w-4 h-4" />
+            
             세액 (10%)
           </label>
           <input
@@ -378,7 +396,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 총액 (자동계산, 읽기전용) */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <DollarSign className="w-4 h-4" />
+            
             총액
           </label>
           <input
@@ -392,7 +410,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         {/* 지급상태 */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <FileText className="w-4 h-4" />
+            
             지급상태
           </label>
           <select
@@ -419,37 +437,18 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
             value={formData.payment_due_date || ''}
             onChange={(e) => handleInputChange('payment_due_date', e.target.value)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.payment_due_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              errors.payment_due_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.payment_due_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.payment_due_date}</p>
-          )}
-        </div>
-
-        {/* 납품일자 */}
-        <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Calendar className="w-4 h-4" />
-            납품일자
-          </label>
-          <input
-            type="date"
-            value={formData.delivery_date || ''}
-            onChange={(e) => handleInputChange('delivery_date', e.target.value)}
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.delivery_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            }`}
-          />
-          {errors.delivery_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.delivery_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.payment_due_date}</p>
           )}
         </div>
 
         {/* 비고 (전체 너비) */}
         <div className="md:col-span-2">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <FileText className="w-4 h-4" />
+            
             비고
           </label>
           <textarea
@@ -475,7 +474,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />

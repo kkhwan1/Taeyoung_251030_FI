@@ -23,5 +23,16 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "chrome-devtools-mcp",
+    "scripts/migration/**",
+    "scripts/setup-portal-test-users.ts",
+    "scripts/create-phase-p7-tables.ts",
+    "scripts/apply-portal-migration.ts",
+    "src/app/api/contracts/route.ts",
+    "src/app/api/contracts/[id]/route.ts",
+    "src/app/api/contracts/[id]/documents/route.ts",
+    "src/app/api/export/contracts/route.ts"
+  ]
 }

@@ -74,6 +74,15 @@ export async function POST(request: NextRequest) {
       path: '/'
     });
 
+    // user_id 쿠키 저장 (기존 인증 시스템 호환)
+    response.cookies.set('user_id', user.user_id.toString(), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24시간
+      path: '/'
+    });
+
     return response;
   } catch (error) {
     console.error('Login error:', error);

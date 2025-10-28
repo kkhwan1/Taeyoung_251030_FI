@@ -147,11 +147,16 @@ test.describe('Current Stock View (현재 재고)', () => {
 
     if (await statusFilter.count() > 0) {
       // Filter by low stock
-      if (statusFilter.first().evaluate(el => el.tagName) === 'SELECT') {
+      const tagName = await statusFilter.first().evaluate(el => el.tagName);
+      if (tagName === 'SELECT') {
         await statusFilter.first().selectOption('LOW_STOCK');
       } else {
         await statusFilter.first().click();
-        await page.click('text=낮음').or(page.click('text=부족'));
+        try {
+          await page.click('text=낮음', { timeout: 1000 });
+        } catch {
+          await page.click('text=부족');
+        }
       }
 
       await page.waitForTimeout(500);

@@ -6,8 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, Calendar, DollarSign, TrendingUp, Package } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import {
+  Loader2,
+  Search,
+  Calendar
+} from 'lucide-react';
+import { useToastNotification } from '@/hooks/useToast';
 
 interface PriceHistory {
   price_id: number;
@@ -32,7 +36,7 @@ export default function PriceHistoryTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
-  const { toast } = useToast();
+  const toast = useToastNotification();
 
   useEffect(() => {
     fetchPriceHistory();
@@ -47,18 +51,10 @@ export default function PriceHistoryTable() {
       if (data.success) {
         setPriceHistory(data.data.data || []);
       } else {
-        toast({
-          variant: 'destructive',
-          title: '조회 실패',
-          description: data.error || '단가 이력을 불러올 수 없습니다'
-        });
+        toast.error('조회 실패', data.error || '단가 이력을 불러올 수 없습니다');
       }
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: '단가 이력을 불러오는 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', '단가 이력을 불러오는 중 오류가 발생했습니다');
     } finally {
       setLoading(false);
     }
@@ -155,7 +151,7 @@ export default function PriceHistoryTable() {
       {/* Table */}
       {filteredHistory.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          
           <p>단가 이력이 없습니다</p>
         </div>
       ) : (
@@ -173,13 +169,13 @@ export default function PriceHistoryTable() {
             </TableHeader>
             <TableBody>
               {filteredHistory.map((price) => (
-                <TableRow key={price.price_id} className={price.is_current ? 'bg-green-50/50 dark:bg-green-950/20' : ''}>
+                <TableRow key={price.price_id} className={price.is_current ? 'bg-gray-50/50 dark:bg-gray-950/20' : ''}>
                   <TableCell>
                     <div className="space-y-1">
                       <div className="font-medium flex items-center gap-2">
                         {price.items.item_name}
                         {price.is_current && (
-                          <Badge variant="default" className="text-xs bg-green-600">
+                          <Badge variant="default" className="text-xs bg-gray-600">
                             현재 단가
                           </Badge>
                         )}
@@ -196,8 +192,8 @@ export default function PriceHistoryTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <DollarSign className="h-3 w-3 text-muted-foreground" />
-                      <span className={price.is_current ? 'font-semibold text-green-700 dark:text-green-400' : 'font-medium'}>
+                      
+                      <span className={price.is_current ? 'font-semibold text-gray-700 dark:text-gray-400' : 'font-medium'}>
                         {price.unit_price.toLocaleString('ko-KR')}
                       </span>
                       <span className="text-xs text-muted-foreground">/{price.items.unit}</span>
@@ -211,8 +207,8 @@ export default function PriceHistoryTable() {
                   </TableCell>
                   <TableCell>
                     {price.is_current ? (
-                      <Badge variant="default" className="bg-green-600">
-                        <TrendingUp className="h-3 w-3 mr-1" />
+                      <Badge variant="default" className="bg-gray-600">
+                        
                         현재
                       </Badge>
                     ) : (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+;
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -146,8 +147,8 @@ export default function PriceHistoryPage() {
         {
           label: '단가 추이',
           data: sortedHistory.map(h => h.new_price),
-          borderColor: 'rgb(75, 192, 192)',
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgb(107, 114, 128)',
+          backgroundColor: 'rgba(107, 114, 128, 0.2)',
           tension: 0.1
         }
       ]
@@ -193,7 +194,7 @@ export default function PriceHistoryPage() {
   // 단가 변동률 색상
   const getPriceChangeColor = (percent: number | null) => {
     if (percent === null || percent === 0) return 'text-gray-600';
-    return percent > 0 ? 'text-red-600' : 'text-blue-600';
+    return 'text-gray-800 dark:text-gray-100';
   };
 
   // 단가 변동 아이콘
@@ -208,7 +209,7 @@ export default function PriceHistoryPage() {
         <h1 className="text-3xl font-bold">단가 이력 조회</h1>
         <Link
           href="/price-master"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600"
         >
           단가 마스터로 돌아가기
         </Link>
@@ -260,7 +261,7 @@ export default function PriceHistoryPage() {
           <div className="flex gap-2">
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600"
             >
               조회
             </button>
@@ -388,9 +389,9 @@ export default function PriceHistoryPage() {
                           setSelectedItemId(item.item_id);
                           setShowChart(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                       >
-                        📊
+                        
                       </button>
                     </td>
                   </tr>
@@ -441,7 +442,7 @@ export default function PriceHistoryPage() {
                 onClick={() => setShowChart(false)}
                 className="text-gray-500 hover:text-gray-700"
               >
-                ✕
+                
               </button>
             </div>
             <div style={{ height: '400px' }}>

@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ShoppingBag, Plus, Search, Edit2, Trash2 } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Grid,
+  List,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -10,7 +19,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 const SalesTransactionForm = dynamic(() => import('@/components/sales/SalesTransactionForm'), { ssr: false });
 
-type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETED';
+type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';
 
 type SalesTransaction = {
   transaction_id: number;
@@ -27,8 +36,6 @@ type SalesTransaction = {
   total_amount: number;
   payment_status?: PaymentStatus;
   payment_due_date?: string;
-  delivery_address?: string;
-  delivery_date?: string;
   notes?: string;
   is_active: boolean;
   created_at?: string;
@@ -46,9 +53,9 @@ type SalesTransaction = {
 };
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: 'PENDING', label: '대기', color: 'text-yellow-600 dark:text-yellow-400' },
-  { value: 'PARTIAL', label: '부분', color: 'text-blue-600 dark:text-blue-400' },
-  { value: 'COMPLETED', label: '완료', color: 'text-green-600 dark:text-green-400' }
+  { value: 'PENDING', label: '대기', color: 'text-gray-600 dark:text-gray-400' },
+  { value: 'PARTIAL', label: '부분', color: 'text-gray-600 dark:text-gray-400' },
+  { value: 'COMPLETE', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
 ];
 
 export default function SalesPage() {
@@ -60,11 +67,13 @@ export default function SalesPage() {
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
 
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
-  // 판매 거래 목록 조회
+  // 매출 거래 목록 조회
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
@@ -81,11 +90,11 @@ export default function SalesPage() {
         // Phase 6A API structure: { data: { transactions, pagination, summary } }
         setTransactions(result.data?.transactions || result.data || []);
       } else {
-        showToast(result.error || '판매 거래 조회 실패', 'error');
+        showToast(result.error || '매출 거래 조회 실패', 'error');
       }
     } catch (error) {
       console.error('Error fetching sales transactions:', error);
-      showToast('판매 거래 조회 중 오류가 발생했습니다', 'error');
+      showToast('매출 거래 조회 중 오류가 발생했습니다', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -95,22 +104,22 @@ export default function SalesPage() {
     fetchTransactions();
   }, [searchTerm, filterStatus, startDate, endDate]);
 
-  // 판매 거래 추가
+  // 매출 거래 추가
   const handleAdd = () => {
     setSelectedTransaction(null);
     setIsFormOpen(true);
   };
 
-  // 판매 거래 수정
+  // 매출 거래 수정
   const handleEdit = (transaction: SalesTransaction) => {
     setSelectedTransaction(transaction);
     setIsFormOpen(true);
   };
 
-  // 판매 거래 삭제
+  // 매출 거래 삭제
   const handleDelete = async (transaction: SalesTransaction) => {
     const confirmed = await confirm({
-      title: '판매 거래 삭제',
+      title: '매출 거래 삭제',
       message: `거래번호 ${transaction.transaction_no}를 삭제하시겠습니까?`,
       confirmText: '삭제',
       cancelText: '취소'
@@ -125,7 +134,7 @@ export default function SalesPage() {
       const result = await response.json();
 
       if (result.success) {
-        showToast('판매 거래가 삭제되었습니다', 'success');
+        showToast('매출 거래가 삭제되었습니다', 'success');
         fetchTransactions();
       } else {
         showToast(result.error || '삭제 실패', 'error');
@@ -155,7 +164,7 @@ export default function SalesPage() {
 
       if (result.success) {
         showToast(
-          selectedTransaction ? '판매 거래가 수정되었습니다' : '판매 거래가 등록되었습니다',
+          selectedTransaction ? '매출 거래가 수정되었습니다' : '매출 거래가 등록되었습니다',
           'success'
         );
         setIsFormOpen(false);
@@ -187,20 +196,28 @@ export default function SalesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="space-y-6">
       {/* 헤더 */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <ShoppingBag className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">판매 관리</h1>
-        </div>
-        <p className="text-gray-600 dark:text-gray-400 ml-11">
-          판매 거래 내역을 관리합니다
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">매출 관리</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          매출 거래 내역을 관리합니다
         </p>
       </div>
 
       {/* 필터 및 검색 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6 mb-6">
+        {/* 모바일 필터 토글 버튼 */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="sm:hidden flex items-center justify-between w-full mb-3 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        >
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">필터</span>
+          {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {/* 필터 콘텐츠 */}
+        <div className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* 검색 */}
           <div className="relative">
@@ -210,7 +227,7 @@ export default function SalesPage() {
               placeholder="거래번호, 품목명 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
             />
           </div>
 
@@ -218,7 +235,7 @@ export default function SalesPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as PaymentStatus | '')}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
           >
             <option value="">전체 상태</option>
             {PAYMENT_STATUS_OPTIONS.map((option) => (
@@ -233,7 +250,7 @@ export default function SalesPage() {
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
           />
 
           {/* 종료일 */}
@@ -241,109 +258,157 @@ export default function SalesPage() {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
           />
         </div>
 
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base"
           >
-            <Plus className="w-5 h-5" />
-            판매 등록
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">매출 등록</span>
+            <span className="sm:hidden">등록</span>
           </button>
+        </div>
         </div>
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        {/* 뷰 전환 토글 (모바일만) */}
+        <div className="sm:hidden flex items-center justify-end gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'table'
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <List className="w-3 h-3" />
+            테이블
+          </button>
+          <button
+            onClick={() => setViewMode('card')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'card'
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <Grid className="w-3 h-3" />
+            카드
+          </button>
+        </div>
+
+        {/* 테이블 뷰 */}
+        <div className={viewMode === 'card' ? 'hidden' : 'block'}>
+        <div className="overflow-x-auto -mx-2 sm:mx-0">
           {isLoading ? (
             <TableSkeleton />
           ) : (
-            <table className="w-full">
+            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
+                  <th className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     거래일자
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     거래번호
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     고객사
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     품목
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     수량
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     단가
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     총액
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[100px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     수금상태
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="w-[90px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     작업
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                      판매 거래가 없습니다
+                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                      매출 거래가 없습니다
                     </td>
                   </tr>
                 ) : (
                   filteredTransactions.map((transaction) => (
                     <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {transaction.transaction_date}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                          {transaction.transaction_date}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {transaction.transaction_no}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={transaction.transaction_no}>
+                          {transaction.transaction_no}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {transaction.customer?.company_name || '-'}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate" title={transaction.customer?.company_name || '-'}>
+                          {transaction.customer?.company_name || '-'}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                        <div>{transaction.item_name}</div>
-                        {transaction.spec && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{transaction.spec}</div>
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate" title={transaction.item_name || transaction.item?.item_name || '-'}>
+                          {transaction.item_name || transaction.item?.item_name || '-'}
+                        </div>
+                        {(transaction.spec || transaction.item?.spec) && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={transaction.spec || transaction.item?.spec}>
+                            {transaction.spec || transaction.item?.spec}
+                          </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-100">
-                        {transaction.quantity.toLocaleString()}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm text-right text-gray-900 dark:text-gray-100 truncate">
+                          {transaction.quantity.toLocaleString()}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-100">
-                        {transaction.unit_price.toLocaleString()}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm text-right text-gray-900 dark:text-gray-100 truncate">
+                          {transaction.unit_price.toLocaleString()}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-gray-100">
-                        {transaction.total_amount.toLocaleString()}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                        <div className="text-sm text-right font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {transaction.total_amount.toLocaleString()}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <span className={`font-medium ${getPaymentStatusColor(transaction.payment_status)}`}>
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
+                        <span className={`font-medium text-sm truncate ${getPaymentStatusColor(transaction.payment_status)}`}>
                           {getPaymentStatusLabel(transaction.payment_status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      <td className="px-3 sm:px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEdit(transaction)}
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                            className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                            title="수정"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(transaction)}
-                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                            title="삭제"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -356,13 +421,79 @@ export default function SalesPage() {
             </table>
           )}
         </div>
+        </div>
+
+        {/* 카드 뷰 (모바일만) */}
+        {viewMode === 'card' && (
+          <div className="sm:hidden p-3 space-y-3">
+            {isLoading ? (
+              <div className="text-center py-8">로딩 중...</div>
+            ) : filteredTransactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                매출 거래가 없습니다
+              </div>
+            ) : (
+              filteredTransactions.map((transaction) => (
+                <div key={transaction.transaction_id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                        {transaction.transaction_no}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {transaction.transaction_date}
+                      </div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded ${getPaymentStatusColor(transaction.payment_status)}`}>
+                      {getPaymentStatusLabel(transaction.payment_status)}
+                    </span>
+                  </div>
+                  <div className="text-sm mb-2">
+                    <div className="font-medium">{transaction.item_name || transaction.item?.item_name || '-'}</div>
+                    {(transaction.spec || transaction.item?.spec) && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{transaction.spec || transaction.item?.spec}</div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <span>고객: {transaction.customer?.company_name || '-'}</span>
+                    <span>수량: {transaction.quantity.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      단가: ₩{transaction.unit_price.toLocaleString()}
+                    </span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      ₩{transaction.total_amount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(transaction)}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      수정
+                    </button>
+                    <button
+                      onClick={() => handleDelete(transaction)}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 판매 거래 폼 모달 */}
+      {/* 매출 거래 폼 모달 */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title={selectedTransaction ? '판매 거래 수정' : '판매 거래 등록'}
+        title={selectedTransaction ? '매출 거래 수정' : '매출 거래 등록'}
       >
         <SalesTransactionForm
           transaction={selectedTransaction}

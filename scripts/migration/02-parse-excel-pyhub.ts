@@ -69,7 +69,9 @@ async function parseBomExcel(logger: ReturnType<typeof createLogger>): Promise<P
   const sheets = ['대우공업', '풍기산업', '다인', '호원오토', '인알파코리아'];
 
   try {
-    const { mcp__pyhub_mcptools__excel_get_values } = await import('@/lib/mcp-tools');
+    // 절대 경로로 mcp-tools 모듈 import
+    const mcpToolsPath = path.resolve(process.cwd(), 'src/lib/mcp-tools.ts');
+    const { mcp__pyhub_mcptools__excel_get_values } = await import(mcpToolsPath);
 
     for (const sheetName of sheets) {
       logger.log(`  시트: ${sheetName}`, 'info');
@@ -160,7 +162,9 @@ async function parseInventoryExcel(logger: ReturnType<typeof createLogger>): Pro
   ];
 
   try {
-    const { mcp__pyhub_mcptools__excel_get_values } = await import('@/lib/mcp-tools');
+    // 절대 경로로 mcp-tools 모듈 import
+    const mcpToolsPath = path.resolve(process.cwd(), 'src/lib/mcp-tools.ts');
+    const { mcp__pyhub_mcptools__excel_get_values } = await import(mcpToolsPath);
 
     for (const sheetName of sheets) {
       logger.log(`  시트: ${sheetName}`, 'info');
@@ -231,7 +235,9 @@ async function parseComprehensiveExcel(logger: ReturnType<typeof createLogger>):
   };
 
   try {
-    const { mcp__pyhub_mcptools__excel_get_values } = await import('@/lib/mcp-tools');
+    // 절대 경로로 mcp-tools 모듈 import
+    const mcpToolsPath = path.resolve(process.cwd(), 'src/lib/mcp-tools.ts');
+    const { mcp__pyhub_mcptools__excel_get_values } = await import(mcpToolsPath);
 
     // 종합재고 시트 읽기
     const csvData = await mcp__pyhub_mcptools__excel_get_values({
@@ -309,7 +315,9 @@ async function parsePurchaseSalesExcel(logger: ReturnType<typeof createLogger>):
   };
 
   try {
-    const { mcp__pyhub_mcptools__excel_get_values } = await import('@/lib/mcp-tools');
+    // 절대 경로로 mcp-tools 모듈 import
+    const mcpToolsPath = path.resolve(process.cwd(), 'src/lib/mcp-tools.ts');
+    const { mcp__pyhub_mcptools__excel_get_values } = await import(mcpToolsPath);
 
     // 정리 시트 읽기
     const csvData = await mcp__pyhub_mcptools__excel_get_values({

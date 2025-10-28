@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Award } from 'lucide-react';
+import {
+  Award
+} from 'lucide-react';
 
 interface TopNItem {
   item_id: number;
@@ -88,7 +90,7 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
 
   if (loading) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
           <div className="space-y-3">
@@ -107,29 +109,29 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
 
   if (error) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-800 p-6 ${className}`}>
-        <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2 min-w-fit">
-          {isGainers ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 p-6 ${className}`}>
+        <h3 className="text-base font-semibold text-gray-800 dark:text-gray-300 mb-2 flex items-center gap-2 min-w-fit">
+          {isGainers ?  : }
           {isGainers ? `상위 ${count}개 상승` : `상위 ${count}개 하락`}
         </h3>
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-400">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 min-w-fit">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 min-w-fit">
           {isGainers ? (
-            <TrendingUp className="h-5 w-5 text-red-600" />
+            
           ) : (
-            <TrendingDown className="h-5 w-5 text-green-600" />
+            
           )}
           {isGainers ? `상위 ${count}개 상승` : `상위 ${count}개 하락`}
         </h3>
-        <Award className="h-5 w-5 text-yellow-500" />
+        <Award className="h-5 w-5 text-gray-600 dark:text-gray-400" />
       </div>
 
       {/* Table - Desktop */}
@@ -169,14 +171,14 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
                 return (
                   <tr
                     key={item.item_id}
-                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
                     <td className="py-3 px-2">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-bold ${
-                          index === 0 ? 'text-yellow-600' :
-                          index === 1 ? 'text-gray-400' :
-                          index === 2 ? 'text-orange-600' :
+                          index === 0 ? 'text-gray-900 dark:text-white' :
+                          index === 1 ? 'text-gray-700 dark:text-gray-300' :
+                          index === 2 ? 'text-gray-600 dark:text-gray-400' :
                           'text-gray-600 dark:text-gray-400'
                         }`}>
                           {index + 1}
@@ -196,8 +198,8 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
                     <td className="py-3 px-2 text-right">
                       <span className={`text-sm font-bold ${
                         isPositive
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-green-600 dark:text-green-400'
+                          ? 'text-gray-800 dark:text-gray-300'
+                          : 'text-gray-700 dark:text-gray-400'
                       }`}>
                         {change.percent}
                       </span>
@@ -205,8 +207,8 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
                     <td className="py-3 px-2 text-right">
                       <span className={`text-sm ${
                         isPositive
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-green-600 dark:text-green-400'
+                          ? 'text-gray-800 dark:text-gray-300'
+                          : 'text-gray-700 dark:text-gray-400'
                       }`}>
                         {change.amount}
                       </span>
@@ -238,9 +240,9 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-bold ${
-                      index === 0 ? 'text-yellow-600' :
-                      index === 1 ? 'text-gray-400' :
-                      index === 2 ? 'text-orange-600' :
+                      index === 0 ? 'text-gray-900 dark:text-white' :
+                      index === 1 ? 'text-gray-700 dark:text-gray-300' :
+                      index === 2 ? 'text-gray-600 dark:text-gray-400' :
                       'text-gray-600 dark:text-gray-400'
                     }`}>
                       {index + 1}
@@ -260,8 +262,8 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
                   <div className="text-right">
                     <span className={`font-bold ${
                       isPositive
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-green-600 dark:text-green-400'
+                        ? 'text-gray-800 dark:text-gray-300'
+                        : 'text-gray-700 dark:text-gray-400'
                     }`}>
                       {change.percent}
                     </span>

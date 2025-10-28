@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
-import { APIError, validateRequiredFields } from '@/lib/api-error-handler';
+import { ERPError, ErrorType, handleError as handleErrorResponse } from '@/lib/errorHandler';
 import type { Database } from '@/types/supabase';
 
 type WarehouseRow = Database['public']['Tables']['warehouses']['Row'];
@@ -19,7 +19,7 @@ function parseJsonBody<T>(request: NextRequest): Promise<T> {
   return request
     .json()
     .catch(() => {
-      throw new APIError('요청 본문을 파싱할 수 없습니다. JSON 형식을 확인해주세요.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '요청 본문을 파싱할 수 없습니다. JSON 형식을 확인해주세요.');
     });
 }
 
@@ -47,7 +47,7 @@ function normalizeBoolean(value: unknown): boolean | null {
     }
   }
 
-  throw new APIError('올바르지 않은 boolean 값이 전달되었습니다.', 400, { value });
+  throw new ERPError(ErrorType.VALIDATION, '올바르지 않은 boolean 값이 전달되었습니다.');
 }
 
 function toOptionalNumber(value: unknown, field: string): number | null {
@@ -57,32 +57,10 @@ function toOptionalNumber(value: unknown, field: string): number | null {
 
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    throw new APIError(`${field} 값이 올바르지 않습니다.`, 400, { value });
+    throw new ERPError(ErrorType.VALIDATION, `${field} 값이 올바르지 않습니다.`);
   }
 
   return numeric;
-}
-
-function handleRouteError(error: unknown, fallbackMessage: string): NextResponse {
-  if (error instanceof APIError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        details: error.details,
-      },
-      { status: error.statusCode }
-    );
-  }
-
-  console.error('[warehouses] Unexpected error:', error);
-  return NextResponse.json(
-    {
-      success: false,
-      error: fallbackMessage,
-    },
-    { status: 500 }
-  );
 }
 
 function mapWarehouse(row: WarehouseWithUser) {
@@ -142,7 +120,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      throw new APIError('창고 정보를 조회하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     const warehouses = (data ?? []).map((warehouse) =>
@@ -154,21 +132,23 @@ export async function GET(request: NextRequest) {
       data: warehouses,
     });
   } catch (error) {
-    return handleRouteError(error, '창고 정보를 조회하지 못했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouses', action: 'read' });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await parseJsonBody<Partial<WarehouseInsert>>(request);
-    const validationErrors = validateRequiredFields(payload as Record<string, unknown>, [
-      'warehouse_code',
-      'warehouse_name',
-      'warehouse_type',
-    ]);
+    const text = await request.text();
+    const payload = JSON.parse(text) as Partial<WarehouseInsert>;
 
-    if (validationErrors.length > 0) {
-      throw new APIError('필수 입력값을 확인해주세요.', 400, validationErrors);
+    // Validate required fields
+    const missingFields = [];
+    if (!payload.warehouse_code) missingFields.push('warehouse_code');
+    if (!payload.warehouse_name) missingFields.push('warehouse_name');
+    if (!payload.warehouse_type) missingFields.push('warehouse_type');
+
+    if (missingFields.length > 0) {
+      throw new ERPError(ErrorType.VALIDATION, `필수 입력값을 확인해주세요: ${missingFields.join(', ')}`);
     }
 
     const warehouseCode = String(payload.warehouse_code).trim();
@@ -189,11 +169,11 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (duplicateError) {
-      throw new APIError('창고 중복 여부를 확인하지 못했습니다.', 500, duplicateError.message);
+      throw duplicateError;
     }
 
     if (duplicate) {
-      throw new APIError('이미 사용 중인 창고 코드입니다.', 409);
+      throw new ERPError(ErrorType.CONFLICT, '이미 사용 중인 창고 코드입니다.');
     }
 
     const now = new Date().toISOString();
@@ -237,8 +217,12 @@ export async function POST(request: NextRequest) {
       )
       .maybeSingle();
 
-    if (error || !data) {
-      throw new APIError('창고를 등록하지 못했습니다.', 500, error?.message);
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw new ERPError(ErrorType.NOT_FOUND, '창고를 등록하지 못했습니다.');
     }
 
     return NextResponse.json({
@@ -247,17 +231,18 @@ export async function POST(request: NextRequest) {
       message: '창고가 성공적으로 등록되었습니다.',
     });
   } catch (error) {
-    return handleRouteError(error, '창고 등록 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouses', action: 'create' });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const payload = await parseJsonBody<Record<string, unknown>>(request);
+    const text = await request.text();
+    const payload = JSON.parse(text) as Record<string, unknown>;
     const warehouseId = toOptionalNumber(payload.id ?? payload.warehouse_id, 'warehouse_id');
 
     if (!warehouseId || !Number.isInteger(warehouseId)) {
-      throw new APIError('창고 ID가 올바르지 않습니다.', 400, { warehouseId: payload.id });
+      throw new ERPError(ErrorType.VALIDATION, '창고 ID가 올바르지 않습니다.');
     }
 
     const updatedFields: WarehouseUpdate = {};
@@ -292,13 +277,13 @@ export async function PUT(request: NextRequest) {
     if (payload.is_active !== undefined) {
       const active = normalizeBoolean(payload.is_active);
       if (active === null) {
-        throw new APIError('is_active 값이 올바르지 않습니다.', 400, { value: payload.is_active });
+        throw new ERPError(ErrorType.VALIDATION, 'is_active 값이 올바르지 않습니다.');
       }
       updatedFields.is_active = active;
     }
 
     if (Object.keys(updatedFields).length === 0) {
-      throw new APIError('수정할 값이 없습니다.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '수정할 값이 없습니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -312,11 +297,11 @@ export async function PUT(request: NextRequest) {
         .maybeSingle();
 
       if (duplicateError) {
-        throw new APIError('창고 중복 여부를 확인하지 못했습니다.', 500, duplicateError.message);
+        throw duplicateError;
       }
 
       if (duplicate) {
-        throw new APIError('이미 사용 중인 창고 코드입니다.', 409);
+        throw new ERPError(ErrorType.CONFLICT, '이미 사용 중인 창고 코드입니다.');
       }
     }
 
@@ -351,11 +336,11 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      throw new APIError('창고 정보를 수정하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     if (!data) {
-      throw new APIError('수정 대상 창고를 찾을 수 없습니다.', 404);
+      throw new ERPError(ErrorType.NOT_FOUND, '수정 대상 창고를 찾을 수 없습니다.');
     }
 
     return NextResponse.json({
@@ -364,7 +349,7 @@ export async function PUT(request: NextRequest) {
       message: '창고 정보가 수정되었습니다.',
     });
   } catch (error) {
-    return handleRouteError(error, '창고 수정 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouses', action: 'update' });
   }
 }
 
@@ -373,13 +358,13 @@ export async function DELETE(request: NextRequest) {
     const idParam = request.nextUrl.searchParams.get('id');
 
     if (!idParam) {
-      throw new APIError('창고 ID가 필요합니다.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '창고 ID가 필요합니다.');
     }
 
     const warehouseId = Number(idParam);
 
     if (!Number.isInteger(warehouseId)) {
-      throw new APIError('창고 ID가 올바르지 않습니다.', 400, { id: idParam });
+      throw new ERPError(ErrorType.VALIDATION, '창고 ID가 올바르지 않습니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -391,11 +376,11 @@ export async function DELETE(request: NextRequest) {
       .gt('current_quantity', 0);
 
     if (stockError) {
-      throw new APIError('창고 재고 정보를 확인하지 못했습니다.', 500, stockError.message);
+      throw stockError;
     }
 
     if ((count ?? 0) > 0) {
-      throw new APIError('재고가 남아 있는 창고는 비활성화할 수 없습니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '재고가 남아 있는 창고는 비활성화할 수 없습니다.');
     }
 
     const now = new Date().toISOString();
@@ -410,11 +395,11 @@ export async function DELETE(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      throw new APIError('창고를 비활성화하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     if (!data) {
-      throw new APIError('대상 창고를 찾을 수 없습니다.', 404);
+      throw new ERPError(ErrorType.NOT_FOUND, '대상 창고를 찾을 수 없습니다.');
     }
 
     return NextResponse.json({
@@ -422,6 +407,6 @@ export async function DELETE(request: NextRequest) {
       message: '창고가 비활성화되었습니다.',
     });
   } catch (error) {
-    return handleRouteError(error, '창고 비활성화 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouses', action: 'delete' });
   }
 }

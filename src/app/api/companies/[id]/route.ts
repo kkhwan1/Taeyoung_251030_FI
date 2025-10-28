@@ -90,7 +90,7 @@ export async function PATCH(
 
     const companyId = parseInt(id);
 
-    // ✅ CRITICAL: Use request.text() + JSON.parse() for proper Korean UTF-8 encoding
+    // CRITICAL: Use request.text() + JSON.parse() for proper Korean UTF-8 encoding
     const text = await request.text();
     const data = JSON.parse(text);
 

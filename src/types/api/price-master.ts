@@ -70,6 +70,7 @@ export interface BOMItem {
   item_name: string;
   quantity: number;            // 사용 수량
   unit_price?: number;         // 단가 (하위 부품은 계산됨)
+  subtotal_cost?: number;      // 소계 금액 (quantity * unit_price)
   level: number;               // BOM 레벨 (0=완제품, 1=1차 부품, ...)
   children?: BOMItem[];        // 하위 부품들
 }
@@ -132,6 +133,7 @@ export interface DuplicateGroup {
   item_name: string;
   effective_date: string;
   duplicates: DuplicateItem[]; // 중복된 가격 레코드들 (시간순 정렬)
+  duplicate_prices?: any[]; // Optional: Raw price data for compatibility
   recommended_action: 'keep_latest' | 'keep_oldest' | 'manual_review';
 }
 
@@ -155,8 +157,9 @@ export interface DuplicatesDetectionResponse {
  * 중복 정리 요청
  */
 export interface DuplicatesCleanupRequest {
-  strategy: 'keep_latest' | 'keep_oldest' | 'custom';
+  strategy?: 'keep_latest' | 'keep_oldest' | 'custom';
   custom_keep_ids?: string[];  // strategy='custom'일 때 유지할 ID 목록
+  duplicate_groups?: any[];    // Optional: Array of duplicate groups to clean up
   dry_run?: boolean;           // true면 시뮬레이션만, false면 실제 삭제
 }
 

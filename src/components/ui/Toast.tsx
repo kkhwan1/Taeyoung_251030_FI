@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, CheckCircle, XCircle, AlertTriangle, Info, Undo2, ExternalLink } from 'lucide-react';
+import {
+  X,
+  CheckCircle,
+  XCircle,
+  Info,
+  Undo2,
+  ExternalLink
+} from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -110,13 +117,13 @@ const Toast: React.FC<ToastProps> = ({
 
     switch (type) {
       case 'success':
-        return <CheckCircle className={`${iconClass} text-green-500`} />;
+        return <CheckCircle className={`${iconClass} text-gray-500`} />;
       case 'error':
-        return <XCircle className={`${iconClass} text-red-500`} />;
+        return <XCircle className={`${iconClass} text-gray-500`} />;
       case 'warning':
-        return <AlertTriangle className={`${iconClass} text-yellow-500`} />;
+        return <AlertTriangle className={`${iconClass} text-gray-500`} />;
       case 'info':
-        return <Info className={`${iconClass} text-blue-500`} />;
+        return <Info className={`${iconClass} text-gray-500`} />;
     }
   };
 
@@ -126,25 +133,25 @@ const Toast: React.FC<ToastProps> = ({
         return {
           container: 'bg-white dark:bg-gray-800 border-l-4 border-l-green-500',
           text: 'text-gray-900 dark:text-white',
-          progress: 'bg-green-500'
+          progress: 'bg-gray-500'
         };
       case 'error':
         return {
           container: 'bg-white dark:bg-gray-800 border-l-4 border-l-red-500',
           text: 'text-gray-900 dark:text-white',
-          progress: 'bg-red-500'
+          progress: 'bg-gray-500'
         };
       case 'warning':
         return {
           container: 'bg-white dark:bg-gray-800 border-l-4 border-l-yellow-500',
           text: 'text-gray-900 dark:text-white',
-          progress: 'bg-yellow-500'
+          progress: 'bg-gray-500'
         };
       case 'info':
         return {
           container: 'bg-white dark:bg-gray-800 border-l-4 border-l-blue-500',
           text: 'text-gray-900 dark:text-white',
-          progress: 'bg-blue-500'
+          progress: 'bg-gray-500'
         };
     }
   };
@@ -159,7 +166,7 @@ const Toast: React.FC<ToastProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={`
-        relative max-w-sm w-full shadow-lg rounded-lg pointer-events-auto
+        relative max-w-sm w-full shadow-sm rounded-lg pointer-events-auto
         ring-1 ring-black ring-opacity-5 dark:ring-white dark:ring-opacity-10 overflow-hidden
         transform transition-all duration-300 ease-out backdrop-blur-sm
         ${isVisible && !isExiting
@@ -207,7 +214,7 @@ const Toast: React.FC<ToastProps> = ({
                       transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
                       focus:ring-blue-500 dark:focus:ring-offset-gray-800
                       ${action.style === 'primary'
-                        ? `bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600`
+                        ? `bg-gray-600 text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600`
                         : `bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600`
                       }
                     `}

@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * 간소화된 미들웨어 - 디버깅용
+ */
+export async function middleware(request: NextRequest) {
+  console.log('Middleware called for:', request.nextUrl.pathname);
+  
+  try {
+    // 기본 응답 생성
+    const response = NextResponse.next();
+    
+    // 기본 CORS 헤더만 설정
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    console.log('Middleware completed successfully');
+    return response;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    return NextResponse.json(
+      { error: 'Middleware failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ]
+};

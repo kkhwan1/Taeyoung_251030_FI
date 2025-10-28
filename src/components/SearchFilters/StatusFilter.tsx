@@ -4,7 +4,12 @@
  */
 
 import React from 'react';
-import { CheckCircle, AlertCircle, Clock, XCircle, Package } from 'lucide-react';
+import {
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  XCircle
+} from 'lucide-react';
 import { CategoryFilter, FilterOption } from './CategoryFilter';
 
 export interface StatusOption extends FilterOption {
@@ -48,27 +53,27 @@ const getColorClasses = (color?: string) => {
   switch (color) {
     case 'green':
       return {
-        bg: 'bg-green-100 dark:bg-green-900/20',
-        text: 'text-green-800 dark:text-green-300',
-        icon: 'text-green-600 dark:text-green-400'
+        bg: 'bg-gray-100 dark:bg-gray-900/20',
+        text: 'text-gray-800 dark:text-gray-300',
+        icon: 'text-gray-600 dark:text-gray-400'
       };
     case 'yellow':
       return {
-        bg: 'bg-yellow-100 dark:bg-yellow-900/20',
-        text: 'text-yellow-800 dark:text-yellow-300',
-        icon: 'text-yellow-600 dark:text-yellow-400'
+        bg: 'bg-gray-100 dark:bg-gray-900/20',
+        text: 'text-gray-800 dark:text-gray-300',
+        icon: 'text-gray-600 dark:text-gray-400'
       };
     case 'red':
       return {
-        bg: 'bg-red-100 dark:bg-red-900/20',
-        text: 'text-red-800 dark:text-red-300',
-        icon: 'text-red-600 dark:text-red-400'
+        bg: 'bg-gray-100 dark:bg-gray-900/20',
+        text: 'text-gray-800 dark:text-gray-300',
+        icon: 'text-gray-600 dark:text-gray-400'
       };
     case 'blue':
       return {
-        bg: 'bg-blue-100 dark:bg-blue-900/20',
-        text: 'text-blue-800 dark:text-blue-300',
-        icon: 'text-blue-600 dark:text-blue-400'
+        bg: 'bg-gray-100 dark:bg-gray-900/20',
+        text: 'text-gray-800 dark:text-gray-300',
+        icon: 'text-gray-600 dark:text-gray-400'
       };
     default:
       return {
@@ -104,7 +109,7 @@ export const StatusFilter: React.FC<StatusFilterProps> = ({
               type="checkbox"
               checked={isSelected}
               onChange={() => {}} // 부모에서 처리
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-blue-500"
             />
           )}
 

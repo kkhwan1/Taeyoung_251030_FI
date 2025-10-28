@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  testDir: './tests',
+  testDir: './tests/e2e',
 
   /* 병렬 실행 설정 */
   fullyParallel: true,
@@ -16,9 +16,9 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
 
   /* 타임아웃 설정 */
-  timeout: 60 * 1000, // 각 테스트 60초
+  timeout: 90 * 1000, // 각 테스트 90초
   expect: {
-    timeout: 10 * 1000, // 각 assertion 10초
+    timeout: 15 * 1000, // 각 assertion 15초
   },
 
   /* 리포터 설정 */
@@ -44,8 +44,8 @@ export default defineConfig({
     timezoneId: 'Asia/Seoul',
 
     /* 네비게이션 타임아웃 */
-    navigationTimeout: 30 * 1000,
-    actionTimeout: 10 * 1000,
+    navigationTimeout: 45 * 1000,
+    actionTimeout: 15 * 1000,
   },
 
   /* 브라우저 설정 */

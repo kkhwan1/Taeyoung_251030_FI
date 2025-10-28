@@ -9,9 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
+import { useToastNotification } from '@/hooks/useToast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, CheckCircle2, Package } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
 import BOMDeductionResults from './BOMDeductionResults';
 
 const productionSchema = z.object({
@@ -19,9 +23,7 @@ const productionSchema = z.object({
   item_id: z.string().min(1, '품목을 선택해주세요'),
   quantity: z.number().positive('수량은 0보다 커야 합니다'),
   unit_price: z.number().min(0, '단가는 0 이상이어야 합니다'),
-  transaction_type: z.enum(['생산입고', '생산출고'], {
-    errorMap: () => ({ message: '거래유형을 선택해주세요' })
-  }),
+  transaction_type: z.enum(['생산입고', '생산출고'], '거래유형을 선택해주세요'),
   reference_number: z.string().optional(),
   notes: z.string().optional(),
   created_by: z.number().positive('작성자 ID가 필요합니다')
@@ -60,7 +62,7 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
   const [itemsLoading, setItemsLoading] = useState(true);
   const [bomDeductions, setBomDeductions] = useState<BOMDeduction[]>([]);
   const [stockError, setStockError] = useState<string | null>(null);
-  const { toast } = useToast();
+  const toast = useToastNotification();
 
   const {
     register,
@@ -93,18 +95,10 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
         if (data.success) {
           setItems(data.data.items || []);
         } else {
-          toast({
-            variant: 'destructive',
-            title: '품목 조회 실패',
-            description: data.error || '품목 목록을 불러올 수 없습니다'
-          });
+          toast.error('품목 조회 실패', data.error || '품목 목록을 불러올 수 없습니다');
         }
       } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: '오류 발생',
-          description: '품목 목록을 불러오는 중 오류가 발생했습니다'
-        });
+        toast.error('오류 발생', '품목 목록을 불러오는 중 오류가 발생했습니다');
       } finally {
         setItemsLoading(false);
       }
@@ -141,11 +135,7 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
           if (result.hint) {
             setStockError(`${result.error}\n${result.hint}`);
           }
-          toast({
-            variant: 'destructive',
-            title: '재고 부족',
-            description: result.error
-          });
+          toast.error('재고 부족', result.error);
         } else {
           throw new Error(result.error || '생산 등록에 실패했습니다');
         }
@@ -153,19 +143,11 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
       }
 
       if (result.success) {
-        toast({
-          title: '생산 등록 완료',
-          description: (
-            <div className="space-y-1">
-              <p>{result.message}</p>
-              {result.data.auto_deductions && result.data.auto_deductions.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {result.data.auto_deductions.length}개 원자재 자동 차감 완료
-                </p>
-              )}
-            </div>
-          ),
-        });
+        const deductionMsg = result.data.auto_deductions && result.data.auto_deductions.length > 0
+          ? `${result.message} (${result.data.auto_deductions.length}개 원자재 자동 차감 완료)`
+          : result.message;
+
+        toast.success('생산 등록 완료', deductionMsg);
 
         // Display BOM deduction results
         if (result.data.auto_deductions && result.data.auto_deductions.length > 0) {
@@ -190,11 +172,7 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
         }
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: error.message || '생산 등록 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', error.message || '생산 등록 중 오류가 발생했습니다');
     } finally {
       setLoading(false);
     }

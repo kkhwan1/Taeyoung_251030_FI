@@ -5,7 +5,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Calendar, Package, Weight, DollarSign, TrendingUp } from 'lucide-react';
+import {
+  Loader2,
+  Search,
+  Calendar,
+  Weight
+} from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 interface ScrapTracking {
@@ -53,16 +58,16 @@ export default function ScrapTrackingTable() {
         setTrackings(data.data.data || []);
       } else {
         toast({
-          variant: 'destructive',
+          type: 'error',
           title: '조회 실패',
-          description: data.error || '스크랩 이력을 불러올 수 없습니다'
+          message: data.error || '스크랩 이력을 불러올 수 없습니다'
         });
       }
     } catch (error) {
       toast({
-        variant: 'destructive',
+        type: 'error',
         title: '오류 발생',
-        description: '스크랩 이력을 불러오는 중 오류가 발생했습니다'
+        message: '스크랩 이력을 불러오는 중 오류가 발생했습니다'
       });
     } finally {
       setLoading(false);
@@ -128,7 +133,7 @@ export default function ScrapTrackingTable() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <Package className="h-4 w-4" />
+              
               <span className="text-sm font-medium">총 기록 수</span>
             </div>
             <p className="text-2xl font-bold">{filteredTrackings.length}건</p>
@@ -140,12 +145,12 @@ export default function ScrapTrackingTable() {
             </div>
             <p className="text-2xl font-bold">{totalScrapWeight.toFixed(2)} kg</p>
           </div>
-          <div className="rounded-lg border bg-card p-4 bg-green-50 dark:bg-green-950/20">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-300 mb-2">
-              <TrendingUp className="h-4 w-4" />
+          <div className="rounded-lg border bg-card p-4 bg-gray-50 dark:bg-gray-950/20">
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 mb-2">
+              
               <span className="text-sm font-medium">총 스크랩 수익</span>
             </div>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+            <p className="text-2xl font-bold text-gray-700 dark:text-gray-400">
               {totalScrapRevenue.toLocaleString('ko-KR')}원
             </p>
           </div>
@@ -155,7 +160,7 @@ export default function ScrapTrackingTable() {
       {/* Table */}
       {filteredTrackings.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          
           <p>스크랩 이력이 없습니다</p>
         </div>
       ) : (
@@ -191,7 +196,7 @@ export default function ScrapTrackingTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Package className="h-3 w-3 text-muted-foreground" />
+                      
                       <span>{tracking.production_quantity.toLocaleString('ko-KR')}</span>
                       <span className="text-xs text-muted-foreground">{tracking.items.unit}</span>
                     </div>
@@ -205,15 +210,15 @@ export default function ScrapTrackingTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <DollarSign className="h-3 w-3 text-muted-foreground" />
+                      
                       <span>{tracking.scrap_unit_price.toLocaleString('ko-KR')}</span>
                       <span className="text-xs text-muted-foreground">/kg</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <TrendingUp className="h-3 w-3 text-green-600" />
-                      <span className="font-semibold text-green-700 dark:text-green-400">
+                      
+                      <span className="font-semibold text-gray-700 dark:text-gray-400">
                         {tracking.scrap_revenue.toLocaleString('ko-KR')}
                       </span>
                       <span className="text-xs text-muted-foreground">원</span>

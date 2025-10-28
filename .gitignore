@@ -111,3 +111,11 @@ chrome-devtools-mcp/
 
 # Data directory (may contain sensitive information)
 data/
+
+# Completed documentation (archived)
+docs/completed/
+
+# Output and temporary files
+*-output.txt
+*_response.txt
+test_image.png

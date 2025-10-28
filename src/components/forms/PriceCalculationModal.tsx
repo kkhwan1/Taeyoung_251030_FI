@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calculator, TrendingUp, AlertTriangle } from 'lucide-react';
+import {
+  X,
+  Calculator
+} from 'lucide-react';
 import { useToastNotification } from '@/hooks/useToast';
 
 export interface PriceCalcResult {
@@ -120,12 +123,12 @@ export default function PriceCalculationModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <Calculator className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 bg-gray-100 dark:bg-gray-900 rounded-lg">
+              <Calculator className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">가격 계산</h2>
@@ -148,7 +151,7 @@ export default function PriceCalculationModal({
           {/* Base Price */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              기준 가격 <span className="text-red-500">*</span>
+              기준 가격 <span className="text-gray-500">*</span>
             </label>
             <input
               type="number"
@@ -167,7 +170,7 @@ export default function PriceCalculationModal({
           {/* Increase Rate */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              인상률 (%) <span className="text-red-500">*</span>
+              인상률 (%) <span className="text-gray-500">*</span>
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -178,11 +181,11 @@ export default function PriceCalculationModal({
                 placeholder="0.0"
                 step="0.1"
               />
-              <TrendingUp className={`w-5 h-5 ${formData.increase_rate >= 0 ? 'text-red-500' : 'text-blue-500'}`} />
+              <TrendingUp className={`w-5 h-5 ${formData.increase_rate >= 0 ? 'text-gray-500' : 'text-gray-500'}`} />
             </div>
             {showWarning && (
-              <div className="flex items-center gap-2 mt-2 text-yellow-600 dark:text-yellow-400 text-sm">
-                <AlertTriangle className="w-4 h-4" />
+              <div className="flex items-center gap-2 mt-2 text-gray-600 dark:text-gray-400 text-sm">
+                
                 <span>인상률이 ±100%를 초과합니다</span>
               </div>
             )}
@@ -242,8 +245,8 @@ export default function PriceCalculationModal({
           </div>
 
           {/* Preview Section */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <h3 className="flex items-center gap-2 font-semibold text-blue-900 dark:text-blue-100 mb-3">
+          <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+            <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100 mb-3">
               <Calculator className="w-4 h-4" />
               계산 미리보기
             </h3>
@@ -258,22 +261,22 @@ export default function PriceCalculationModal({
 
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">인상률:</span>
-                <span className={`font-medium ${formData.increase_rate >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                <span className={`font-medium ${formData.increase_rate >= 0 ? 'text-gray-600' : 'text-gray-600'}`}>
                   {formData.increase_rate >= 0 ? '+' : ''}{formData.increase_rate.toFixed(2)}%
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">인상 금액:</span>
-                <span className={`font-medium ${increaseAmount >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                <span className={`font-medium ${increaseAmount >= 0 ? 'text-gray-600' : 'text-gray-600'}`}>
                   {increaseAmount >= 0 ? '+' : ''}{increaseAmount.toLocaleString('ko-KR')}원
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">계산된 가격:</span>
-                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  <span className="text-2xl font-bold text-gray-600 dark:text-gray-400">
                     {newPrice.toLocaleString('ko-KR')}원
                   </span>
                 </div>
@@ -293,7 +296,7 @@ export default function PriceCalculationModal({
           <button
             onClick={handleSubmit}
             disabled={formData.base_price <= 0 || newPrice <= 0}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             적용
           </button>

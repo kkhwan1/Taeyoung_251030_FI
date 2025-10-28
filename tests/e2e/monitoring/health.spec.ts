@@ -624,7 +624,8 @@ test.describe('자동 새로고침', () => {
       await autoRefreshToggle.click();
       await page.waitForTimeout(300);
 
-      if (autoRefreshToggle.getAttribute('type') === 'checkbox') {
+      const inputType = await autoRefreshToggle.getAttribute('type');
+      if (inputType === 'checkbox') {
         const newState = await autoRefreshToggle.isChecked();
         expect(newState).not.toBe(initialState);
       }

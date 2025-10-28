@@ -9,17 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
+import { useToastNotification } from '@/hooks/useToast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, DollarSign } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
 
 const priceMasterSchema = z.object({
   item_id: z.string().min(1, '품목을 선택해주세요'),
   unit_price: z.number().min(0, '단가는 0 이상이어야 합니다'),
   effective_date: z.string().min(1, '적용일자를 선택해주세요'),
-  price_type: z.enum(['purchase', 'production', 'manual'], {
-    errorMap: () => ({ message: '단가 유형을 선택해주세요' })
-  }),
+  price_type: z.enum(['purchase', 'production', 'manual'], '단가 유형을 선택해주세요'),
   notes: z.string().optional()
 });
 
@@ -42,7 +43,7 @@ export default function PriceMasterForm({ onSuccess }: PriceMasterFormProps) {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [itemsLoading, setItemsLoading] = useState(true);
-  const { toast } = useToast();
+  const toast = useToastNotification();
 
   const {
     register,
@@ -71,18 +72,10 @@ export default function PriceMasterForm({ onSuccess }: PriceMasterFormProps) {
         if (data.success) {
           setItems(data.data.data || []);
         } else {
-          toast({
-            variant: 'destructive',
-            title: '품목 조회 실패',
-            description: data.error || '품목 목록을 불러올 수 없습니다'
-          });
+          toast.error('품목 조회 실패', data.error || '품목 목록을 불러올 수 없습니다');
         }
       } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: '오류 발생',
-          description: '품목 목록을 불러오는 중 오류가 발생했습니다'
-        });
+        toast.error('오류 발생', '품목 목록을 불러오는 중 오류가 발생했습니다');
       } finally {
         setItemsLoading(false);
       }
@@ -114,17 +107,7 @@ export default function PriceMasterForm({ onSuccess }: PriceMasterFormProps) {
       }
 
       if (result.success) {
-        toast({
-          title: '단가 등록 완료',
-          description: (
-            <div className="space-y-1">
-              <p>{result.message}</p>
-              <p className="text-sm text-muted-foreground">
-                이전 단가는 자동으로 이력으로 전환되었습니다
-              </p>
-            </div>
-          ),
-        });
+        toast.success('단가 등록 완료', `${result.message} 이전 단가는 자동으로 이력으로 전환되었습니다`);
 
         // Reset form
         reset({
@@ -141,11 +124,7 @@ export default function PriceMasterForm({ onSuccess }: PriceMasterFormProps) {
         }
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: error.message || '단가 등록 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', error.message || '단가 등록 중 오류가 발생했습니다');
     } finally {
       setLoading(false);
     }
@@ -216,7 +195,7 @@ export default function PriceMasterForm({ onSuccess }: PriceMasterFormProps) {
             단가 <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            
             <Input
               id="unit_price"
               type="number"

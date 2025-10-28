@@ -46,11 +46,11 @@ function formatKoreanDate(date) {
 // Color schemes for different themes
 const colorSchemes = {
   light: {
-    primary: '#3B82F6',
-    secondary: '#10B981',
-    accent: '#8B5CF6',
-    warning: '#F59E0B',
-    danger: '#EF4444',
+    primary: '#525252',
+    secondary: '#525252',
+    accent: '#525252',
+    warning: '#525252',
+    danger: '#262626',
     background: '#FFFFFF',
     surface: '#F8FAFC',
     text: '#1F2937',
@@ -60,10 +60,10 @@ const colorSchemes = {
   },
   dark: {
     primary: '#60A5FA',
-    secondary: '#34D399',
+    secondary: '#525252',
     accent: '#A78BFA',
-    warning: '#FBBF24',
-    danger: '#F87171',
+    warning: '#525252',
+    danger: '#525252',
     background: '#111827',
     surface: '#1F2937',
     text: '#F9FAFB',

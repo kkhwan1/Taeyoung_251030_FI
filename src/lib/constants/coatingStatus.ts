@@ -36,11 +36,11 @@ export const COATING_STATUS_LABELS: Record<CoatingStatus, string> = {
   after_coating: '도장 후'
 };
 
-// Color mapping for UI badges (Tailwind CSS classes)
+// Color mapping for UI badges (Tailwind CSS classes) - SAP-style border-only badges
 export const COATING_STATUS_COLORS: Record<CoatingStatus, string> = {
-  no_coating: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  before_coating: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  after_coating: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+  no_coating: 'border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300',
+  before_coating: 'border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300',
+  after_coating: 'border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300'
 };
 
 // Helper function to get Korean label

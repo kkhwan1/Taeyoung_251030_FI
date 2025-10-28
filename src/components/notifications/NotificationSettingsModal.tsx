@@ -99,7 +99,7 @@ export default function NotificationSettingsModal({ isOpen, onClose }: Notificat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -125,20 +125,20 @@ export default function NotificationSettingsModal({ isOpen, onClose }: Notificat
             <>
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                    <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
+                    <AlertCircle className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{error}</span>
                   </div>
                 </div>
               )}
 
               {/* Success Message */}
               {success && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                   <div className="flex items-center gap-2">
-                    <Save className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    <span className="text-sm text-green-700 dark:text-green-300">
+                    <Save className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
                       설정이 저장되었습니다
                     </span>
                   </div>
@@ -159,7 +159,7 @@ export default function NotificationSettingsModal({ isOpen, onClose }: Notificat
                   onClick={() => setPreferences(prev => ({ ...prev, email_enabled: !prev.email_enabled }))}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     preferences.email_enabled
-                      ? 'bg-blue-600'
+                      ? 'bg-gray-600'
                       : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
@@ -185,7 +185,7 @@ export default function NotificationSettingsModal({ isOpen, onClose }: Notificat
                   onClick={() => setPreferences(prev => ({ ...prev, push_enabled: !prev.push_enabled }))}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     preferences.push_enabled
-                      ? 'bg-blue-600'
+                      ? 'bg-gray-600'
                       : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
@@ -254,7 +254,7 @@ export default function NotificationSettingsModal({ isOpen, onClose }: Notificat
                         type="checkbox"
                         checked={preferences.categories.includes(category)}
                         onChange={() => handleCategoryToggle(category)}
-                        className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500"
+                        className="w-4 h-4 text-gray-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500"
                       />
                       <span className="text-sm text-gray-900 dark:text-white">
                         {category}
@@ -279,7 +279,7 @@ export default function NotificationSettingsModal({ isOpen, onClose }: Notificat
           <button
             onClick={handleSave}
             disabled={loading || saving}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
             {saving ? '저장 중...' : '저장'}

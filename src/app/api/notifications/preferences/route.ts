@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient() as any;
 
     // Get user preferences
     const { data, error } = await supabase

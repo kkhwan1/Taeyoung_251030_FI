@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, TrendingUp, TrendingDown, Package, Building2, RefreshCw } from 'lucide-react';
+import {
+  Clock,
+  Building2,
+  RefreshCw
+} from 'lucide-react';
 
 interface RecentTransaction {
   transaction_id: number;
@@ -30,47 +34,47 @@ const getTransactionTypeInfo = (type: string) => {
     case '입고':
       return {
         label: '입고',
-        icon: <TrendingUp className="w-4 h-4" />,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200'
+        icon: ,
+        color: 'text-gray-700 dark:text-gray-400',
+        bgColor: 'bg-gray-100 dark:bg-gray-800',
+        borderColor: 'border-gray-300 dark:border-gray-600'
       };
     case '출고':
       return {
         label: '출고',
-        icon: <TrendingDown className="w-4 h-4" />,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200'
+        icon: ,
+        color: 'text-gray-800 dark:text-gray-300',
+        bgColor: 'bg-gray-200 dark:bg-gray-700',
+        borderColor: 'border-gray-400 dark:border-gray-600'
       };
     case '생산입고':
       return {
         label: '생산입고',
-        icon: <Package className="w-4 h-4" />,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200'
+        icon: ,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200'
       };
     case '생산출고':
       return {
         label: '생산출고',
-        icon: <Package className="w-4 h-4" />,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        borderColor: 'border-purple-200'
+        icon: ,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200'
       };
     case '조정':
       return {
         label: '재고조정',
         icon: <RefreshCw className="w-4 h-4" />,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-200'
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200'
       };
     default:
       return {
         label: type,
-        icon: <Package className="w-4 h-4" />,
+        icon: ,
         color: 'text-gray-600',
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200'
@@ -160,10 +164,10 @@ const RecentActivityWidget: React.FC<RecentActivityProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center min-w-fit">
-            <Clock className="w-5 h-5 mr-2 text-blue-600" />
+          <h3 className="text-base font-semibold text-gray-900 flex items-center min-w-fit">
+            <Clock className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
             최근 활동 ({hoursRange}시간)
           </h3>
         </div>
@@ -190,25 +194,25 @@ const RecentActivityWidget: React.FC<RecentActivityProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center min-w-fit">
-            <Clock className="w-5 h-5 mr-2 text-blue-600" />
+          <h3 className="text-base font-semibold text-gray-900 flex items-center min-w-fit">
+            <Clock className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
             최근 활동 ({hoursRange}시간)
           </h3>
           <button
             onClick={handleRefresh}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-medium"
           >
             새로고침
           </button>
         </div>
         <div className="text-center py-8">
-          <Clock className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <Clock className="w-12 h-12 text-gray-700 dark:text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
           >
             다시 시도
           </button>
@@ -218,15 +222,15 @@ const RecentActivityWidget: React.FC<RecentActivityProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 flex items-center min-w-fit">
-          <Clock className="w-5 h-5 mr-2 text-blue-600" />
+          <Clock className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
           최근 활동 ({hoursRange}시간)
         </h3>
         <button
           onClick={handleRefresh}
-          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-medium"
         >
           새로고침
         </button>
@@ -245,7 +249,7 @@ const RecentActivityWidget: React.FC<RecentActivityProps> = ({
             return (
               <div
                 key={transaction.transaction_id}
-                className={`p-3 rounded-lg border transition-colors ${typeInfo.bgColor} ${typeInfo.borderColor} hover:shadow-sm`}
+                className={`p-3 rounded-lg border ${typeInfo.bgColor} ${typeInfo.borderColor}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">

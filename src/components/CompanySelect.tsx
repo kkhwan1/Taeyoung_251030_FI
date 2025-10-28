@@ -106,9 +106,22 @@ export default function CompanySelect({
 
   // 선택된 값 변경 시 해당 거래처 정보 설정
   useEffect(() => {
-    if (value && companies.length > 0) {
+    if (value) {
+      // 먼저 companies 배열에서 찾기
       const company = companies.find(c => c.company_id === value);
-      setSelectedCompany(company || null);
+      if (company) {
+        setSelectedCompany(company);
+      } else {
+        // companies 배열에 없으면 개별 조회
+        fetch(`/api/companies/${value}`)
+          .then(res => res.json())
+          .then(result => {
+            if (result.success && result.data) {
+              setSelectedCompany(result.data);
+            }
+          })
+          .catch(err => console.error('Failed to fetch company:', err));
+      }
     } else {
       setSelectedCompany(null);
     }
@@ -157,9 +170,9 @@ export default function CompanySelect({
             : 'bg-white hover:border-gray-400'
           }
           ${error
-            ? 'border-red-500'
+            ? 'border-gray-500'
             : isOpen
-              ? 'border-blue-500 ring-1 ring-blue-500'
+              ? 'border-gray-500 ring-1 ring-blue-500'
               : 'border-gray-300'
           }
         `}
@@ -185,7 +198,7 @@ export default function CompanySelect({
                 className="ml-2 text-gray-400 hover:text-gray-600"
                 disabled={disabled}
               >
-                ✕
+                
               </button>
             </div>
           ) : (
@@ -200,12 +213,12 @@ export default function CompanySelect({
 
       {/* 에러 메시지 */}
       {error && (
-        <p className="mt-1 text-sm text-red-500">{error}</p>
+        <p className="mt-1 text-sm text-gray-500">{error}</p>
       )}
 
       {/* 드롭다운 목록 */}
       {isOpen && (
-        <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-hidden">
+        <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm max-h-60 overflow-hidden">
           {/* 검색 입력창 */}
           <div className="p-2 border-b border-gray-200 dark:border-gray-600">
             <input
@@ -255,9 +268,9 @@ export default function CompanySelect({
                       <span className={`
                         px-2 py-0.5 rounded-full text-xs
                         ${company.company_type === '공급사'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                           : company.company_type === '고객사'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                           : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                         }
                       `}>

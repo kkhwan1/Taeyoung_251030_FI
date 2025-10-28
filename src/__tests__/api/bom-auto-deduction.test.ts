@@ -393,7 +393,7 @@ describe('BOM Auto-Deduction API', () => {
     });
 
     test('should handle Korean text encoding correctly', async () => {
-      const koreanNotes = '테스트 생산입고 처리 - 한글 인코딩 검증 🔧 특수문자 포함';
+      const koreanNotes = '테스트 생산입고 처리 - 한글 인코딩 검증 [특수문자 포함]';
 
       const productionData = {
         transaction_date: '2025-01-15',

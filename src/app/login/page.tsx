@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,20 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+
+  // 이미 로그인되어 있으면 대시보드로 리디렉션
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.user) {
+          router.push('/');
+        }
+      })
+      .catch(() => {
+        // 로그인되지 않은 상태
+      });
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +48,7 @@ export default function LoginPage() {
 
       if (data.success) {
         // 로그인 성공 시 대시보드로 이동
-        router.push('/');
+        window.location.href = '/';
       } else {
         setError(data.error || '로그인에 실패했습니다.');
       }
@@ -58,7 +72,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <Alert variant="destructive">
+              <Alert>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}

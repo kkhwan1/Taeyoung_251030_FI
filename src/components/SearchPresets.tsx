@@ -138,7 +138,7 @@ export default function SearchPresets({
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-yellow-500" />
+            <Star className="w-5 h-5 text-gray-500" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">검색 프리셋</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -152,7 +152,7 @@ export default function SearchPresets({
             <button
               onClick={() => setShowSaveModal(true)}
               disabled={!hasActiveFilters}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               title="현재 필터를 프리셋으로 저장"
             >
               <Plus className="w-4 h-4" />
@@ -184,7 +184,7 @@ export default function SearchPresets({
                         {formatPresetDescription(preset)}
                       </div>
                     </div>
-                    <Star className="w-4 h-4 text-yellow-500 ml-2 flex-shrink-0" />
+                    <Star className="w-4 h-4 text-gray-500 ml-2 flex-shrink-0" />
                   </div>
                 </button>
               ))}
@@ -223,7 +223,7 @@ export default function SearchPresets({
                     <div className="flex items-center gap-1 ml-2">
                       <button
                         onClick={() => handleDeletePreset(preset)}
-                        className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                         title="프리셋 삭제"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -246,7 +246,7 @@ export default function SearchPresets({
             <button
               onClick={() => setShowSaveModal(true)}
               disabled={!hasActiveFilters}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               첫 번째 프리셋 저장하기
@@ -321,7 +321,7 @@ export default function SearchPresets({
             <button
               onClick={handleSavePreset}
               disabled={!formData.name.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               저장
             </button>
@@ -347,7 +347,7 @@ export default function SearchPresets({
               <button
                 onClick={handleExportPresets}
                 disabled={userPresets.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4" />
                 프리셋 내보내기 ({userPresets.length}개)
@@ -362,7 +362,7 @@ export default function SearchPresets({
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                 이전에 내보낸 프리셋 JSON 파일을 선택하여 가져옵니다.
               </p>
-              <label className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 cursor-pointer">
+              <label className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 cursor-pointer">
                 <Upload className="w-4 h-4" />
                 프리셋 파일 선택
                 <input

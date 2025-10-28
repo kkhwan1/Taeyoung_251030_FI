@@ -10,9 +10,10 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import { NextRequest } from 'next/server';
-import { GET, POST } from '@/app/api/price-master/duplicates/route';
-import { 
-  duplicatePriceData, 
+import { GET } from '@/app/api/price-master/duplicates/route';
+import { POST } from '@/app/api/price-master/duplicates/cleanup/route';
+import {
+  duplicatePriceData,
   expectedCleanupResults
 } from '../fixtures/price-master-test-data';
 
@@ -246,10 +247,10 @@ describe('Phase P4 Wave 3: Duplicate Detection & Cleanup API 통합 테스트', 
     
     test('트랜잭션 롤백 테스트', async () => {
       // 데이터베이스 에러를 시뮬레이션
-      mockSupabase.from().update().in.mockReturnValue({
+      mockSupabase.from().update().in.mockReturnValueOnce({
         data: null,
         error: { message: 'Database error' }
-      });
+      } as any);
       
       const requestBody = {
         strategy: 'keep_latest',
@@ -273,7 +274,7 @@ describe('Phase P4 Wave 3: Duplicate Detection & Cleanup API 통합 테스트', 
     test('부분 실패 시 롤백', async () => {
       // 첫 번째 업데이트는 성공, 두 번째는 실패
       let callCount = 0;
-      mockSupabase.from().update().in.mockImplementation(() => {
+      mockSupabase.from().update().in.mockImplementation((): any => {
         callCount++;
         if (callCount === 1) {
           return { data: { success: true }, error: null };
@@ -450,11 +451,14 @@ describe('Phase P4 Wave 3: Duplicate Detection & Cleanup API 통합 테스트', 
         item_code: `ITEM-${i}`,
         item_name: `대용량 테스트 부품 ${i}`,
         effective_date: '2025-01-15',
-        unit_price: Math.floor(Math.random() * 100000) + 10000,
-        created_at: new Date().toISOString(),
-        duplicate_count: Math.floor(Math.random() * 5) + 2
+        prices: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, (_, j) => ({
+          price_master_id: `PM-${i}-${j}`,
+          unit_price: Math.floor(Math.random() * 100000) + 10000,
+          created_at: new Date().toISOString(),
+          is_current: true
+        }))
       }));
-      
+
       mockSupabase.rpc.mockReturnValue({
         data: largeDuplicateData,
         error: null
@@ -559,15 +563,15 @@ describe('Phase P4 Wave 3: Duplicate Detection & Cleanup API 통합 테스트', 
         });
         return GET(request);
       });
-      
+
       const responses = await Promise.all(promises);
-      
-      responses.forEach(response => {
+
+      responses.forEach((response: Response) => {
         expect(response.status).toBe(200);
       });
-      
-      const results = await Promise.all(responses.map(r => r.json()));
-      results.forEach(result => {
+
+      const results = await Promise.all(responses.map((r: Response) => r.json()));
+      results.forEach((result: any) => {
         expect(result.success).toBe(true);
       });
     });
@@ -578,24 +582,24 @@ describe('Phase P4 Wave 3: Duplicate Detection & Cleanup API 통합 테스트', 
           strategy: 'keep_latest',
           dry_run: true
         };
-        
+
         const request = new NextRequest('http://localhost:3000/api/price-master/duplicates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody)
         });
-        
+
         return POST(request);
       });
-      
+
       const responses = await Promise.all(promises);
-      
-      responses.forEach(response => {
+
+      responses.forEach((response: Response) => {
         expect(response.status).toBe(200);
       });
-      
-      const results = await Promise.all(responses.map(r => r.json()));
-      results.forEach(result => {
+
+      const results = await Promise.all(responses.map((r: Response) => r.json()));
+      results.forEach((result: any) => {
         expect(result.success).toBe(true);
       });
     });
@@ -604,7 +608,10 @@ describe('Phase P4 Wave 3: Duplicate Detection & Cleanup API 통합 테스트', 
 
 // 테스트 설정
 beforeAll(() => {
-  process.env.NODE_ENV = 'test';
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value: 'test',
+    writable: true
+  });
 });
 
 afterAll(() => {

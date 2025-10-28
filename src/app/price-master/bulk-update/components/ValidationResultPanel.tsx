@@ -93,13 +93,13 @@ export function ValidationResultPanel({ validationResult, loading = false }: Val
             <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
             <div className="text-sm text-gray-500">총 항목</div>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{valid_count}</div>
-            <div className="text-sm text-green-600">유효 항목</div>
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-2xl font-bold text-gray-600">{valid_count}</div>
+            <div className="text-sm text-gray-600">유효 항목</div>
           </div>
-          <div className="text-center p-4 bg-red-50 rounded-lg">
-            <div className="text-2xl font-bold text-red-600">{error_count}</div>
-            <div className="text-sm text-red-600">오류 항목</div>
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-2xl font-bold text-gray-600">{error_count}</div>
+            <div className="text-sm text-gray-600">오류 항목</div>
           </div>
         </div>
 
@@ -160,10 +160,10 @@ export function ValidationResultPanel({ validationResult, loading = false }: Val
               
               <CollapsibleContent className="space-y-3">
                 {Object.entries(errorGroups).map(([field, fieldErrors]) => (
-                  <Card key={field} className="border-red-200">
+                  <Card key={field} className="border-gray-200">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm text-red-800">
+                        <CardTitle className="text-sm text-gray-800">
                           {field === 'item_code' ? '품목코드' :
                            field === 'unit_price' ? '단가' :
                            field === 'effective_date' ? '적용일' :
@@ -179,7 +179,7 @@ export function ValidationResultPanel({ validationResult, loading = false }: Val
                         {fieldErrors.slice(0, 5).map((error, index) => (
                           <div 
                             key={index}
-                            className="text-sm p-2 bg-red-50 rounded border-l-2 border-red-300"
+                            className="text-sm p-2 bg-gray-50 rounded border-l-2 border-gray-300"
                             data-testid={`error-item-${error.row}`}
                           >
                             <div className="flex items-center justify-between">
@@ -190,7 +190,7 @@ export function ValidationResultPanel({ validationResult, loading = false }: Val
                                 </span>
                               )}
                             </div>
-                            <div className="text-red-700 mt-1">
+                            <div className="text-gray-700 mt-1">
                               {error.message}
                             </div>
                           </div>

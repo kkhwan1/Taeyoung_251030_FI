@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // ✅ SECURITY FIX: Validate input with Zod schema to prevent NaN values
+    // SECURITY FIX: Validate input with Zod schema to prevent NaN values
     const rawParams = Object.fromEntries(searchParams.entries());
     const validationResult = DailyCalendarQuerySchema.safeParse(rawParams);
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCcw, BarChart3, DollarSign } from 'lucide-react';
+import {
+  RefreshCcw
+} from 'lucide-react';
 
 interface PriceStats {
   total_items: number;
@@ -103,7 +105,7 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
 
   if (loading && !stats) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
           <div className="grid grid-cols-2 gap-4">
@@ -121,30 +123,30 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
 
   if (error) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-800 p-6 ${className}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 p-6 ${className}`}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 flex items-center gap-2 min-w-fit">
-            <BarChart3 className="h-5 w-5" />
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-300 flex items-center gap-2 min-w-fit">
+            
             가격 현황
           </h3>
           <button
             onClick={handleRefresh}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
           >
             <RefreshCcw className="h-4 w-4" />
           </button>
         </div>
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-400">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 min-w-fit">
-          <BarChart3 className="h-5 w-5 text-blue-600" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 min-w-fit">
+          
           가격 현황
         </h3>
         <div className="flex items-center gap-2">
@@ -154,7 +156,7 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded disabled:opacity-50"
             title="새로고침"
           >
             <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -165,10 +167,10 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
       {/* Summary Statistics - 2x2 Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {/* Total Items */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">추적 품목</span>
-            <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
             {stats?.total_items || 0}
@@ -179,21 +181,21 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
         {/* Average Change */}
         <div className={`rounded-lg p-4 ${
           (stats?.avg_price_change || 0) >= 0
-            ? 'bg-red-50 dark:bg-red-900/20'
-            : 'bg-green-50 dark:bg-green-900/20'
+            ? 'bg-gray-200 dark:bg-gray-700'
+            : 'bg-gray-100 dark:bg-gray-800'
         }`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">평균 변동</span>
             {(stats?.avg_price_change || 0) >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-red-600 dark:text-red-400" />
+              
             ) : (
-              <TrendingDown className="h-4 w-4 text-green-600 dark:text-green-400" />
+              
             )}
           </div>
           <div className={`text-2xl font-bold ${
             (stats?.avg_price_change || 0) >= 0
-              ? 'text-red-600 dark:text-red-400'
-              : 'text-green-600 dark:text-green-400'
+              ? 'text-gray-800 dark:text-gray-300'
+              : 'text-gray-700 dark:text-gray-400'
           }`}>
             {(stats?.avg_price_change || 0) >= 0 ? '+' : ''}
             {(stats?.avg_price_change || 0).toFixed(2)}%
@@ -202,14 +204,14 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
         </div>
 
         {/* Top Increase */}
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+        <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">최대 상승</span>
-            <TrendingUp className="h-4 w-4 text-red-600 dark:text-red-400" />
+            
           </div>
           {stats?.top_increases && stats.top_increases.length > 0 ? (
             <>
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">
+              <div className="text-base font-bold text-gray-800 dark:text-gray-300">
                 +{stats.top_increases[0].change_percent.toFixed(1)}%
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 truncate">
@@ -222,14 +224,14 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
         </div>
 
         {/* Top Decrease */}
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">최대 하락</span>
-            <TrendingDown className="h-4 w-4 text-green-600 dark:text-green-400" />
+            
           </div>
           {stats?.top_decreases && stats.top_decreases.length > 0 ? (
             <>
-              <div className="text-lg font-bold text-green-600 dark:text-green-400">
+              <div className="text-base font-bold text-gray-700 dark:text-gray-400">
                 {stats.top_decreases[0].change_percent.toFixed(1)}%
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 truncate">
@@ -247,7 +249,7 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
         {/* Top Increases */}
         <div>
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-            <TrendingUp className="h-4 w-4 text-red-600" />
+            
             상위 상승 (Top 3)
           </h4>
           <div className="space-y-2">
@@ -262,7 +264,7 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
                       {index + 1}. {item.item_name}
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
+                  <div className="text-sm font-bold text-gray-800 dark:text-gray-300 ml-2">
                     +{item.change_percent.toFixed(1)}%
                   </div>
                 </div>
@@ -278,7 +280,7 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
         {/* Top Decreases */}
         <div>
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-            <TrendingDown className="h-4 w-4 text-green-600" />
+            
             상위 하락 (Top 3)
           </h4>
           <div className="space-y-2">
@@ -293,7 +295,7 @@ export default function PriceDashboardWidget({ className = '' }: PriceDashboardW
                       {index + 1}. {item.item_name}
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-green-600 dark:text-green-400 ml-2">
+                  <div className="text-sm font-bold text-gray-700 dark:text-gray-400 ml-2">
                     {item.change_percent.toFixed(1)}%
                   </div>
                 </div>

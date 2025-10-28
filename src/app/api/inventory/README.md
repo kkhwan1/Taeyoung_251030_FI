@@ -355,26 +355,26 @@ GET /api/inventory/shipping/stock-check?items=[{"item_id":6,"quantity":5},{"item
 ## Features
 
 ### 1. Receiving API Features
-- ✅ Create, read, update, delete receiving transactions
-- ✅ Pagination and filtering
-- ✅ Company and item validation
-- ✅ Automatic total amount calculation
-- ✅ Lot number and expiry date tracking
+- Create, read, update, delete receiving transactions
+- Pagination and filtering
+- Company and item validation
+- Automatic total amount calculation
+- Lot number and expiry date tracking
 
 ### 2. Production API Features
-- ✅ Automatic BOM material deduction
-- ✅ Stock availability validation before production
-- ✅ Multi-level BOM support with scrap rate calculation
-- ✅ Production and material consumption tracking
-- ✅ BOM availability check endpoint
-- ✅ Atomic transactions for data consistency
+- Automatic BOM material deduction
+- Stock availability validation before production
+- Multi-level BOM support with scrap rate calculation
+- Production and material consumption tracking
+- BOM availability check endpoint
+- Atomic transactions for data consistency
 
 ### 3. Shipping API Features
-- ✅ Multi-item shipment support
-- ✅ Stock validation before shipment
-- ✅ Customer order tracking
-- ✅ Stock availability check endpoint
-- ✅ Comprehensive error handling
+- Multi-item shipment support
+- Stock validation before shipment
+- Customer order tracking
+- Stock availability check endpoint
+- Comprehensive error handling
 
 ## Error Handling
 

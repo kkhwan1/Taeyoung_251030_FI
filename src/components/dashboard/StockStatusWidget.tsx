@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, XCircle, Package2 } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  Package2
+} from 'lucide-react';
 
 interface StockItem {
   item_id: number;
@@ -31,25 +35,25 @@ const getStockStatus = (currentStock: number, safetyStock: number): StockStatusI
   if (currentStock === 0) {
     return {
       status: 'critical',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      icon: <XCircle className="w-4 h-4 text-red-500" />,
+      color: 'text-gray-900 dark:text-gray-300',
+      bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+      icon: <XCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />,
       label: '재고없음'
     };
   } else if (currentStock <= safetyStock) {
     return {
       status: 'warning',
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50',
-      icon: <AlertTriangle className="w-4 h-4 text-yellow-500" />,
+      color: 'text-amber-900 dark:text-amber-300',
+      bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+      icon: ,
       label: '부족'
     };
   } else {
     return {
       status: 'normal',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      icon: <CheckCircle className="w-4 h-4 text-green-500" />,
+      color: 'text-emerald-900 dark:text-emerald-300',
+      bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+      icon: <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />,
       label: '정상'
     };
   }
@@ -107,10 +111,10 @@ const StockStatusWidget: React.FC<StockStatusProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center min-w-fit">
-            <Package2 className="w-5 h-5 mr-2 text-blue-600" />
+          <h3 className="text-base font-semibold text-gray-900 flex items-center min-w-fit">
+            <Package2 className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
             재고 현황
           </h3>
         </div>
@@ -139,25 +143,25 @@ const StockStatusWidget: React.FC<StockStatusProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center min-w-fit">
-            <Package2 className="w-5 h-5 mr-2 text-blue-600" />
+          <h3 className="text-base font-semibold text-gray-900 flex items-center min-w-fit">
+            <Package2 className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
             재고 현황
           </h3>
           <button
             onClick={handleRefresh}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 font-medium"
           >
             새로고침
           </button>
         </div>
         <div className="text-center py-8">
-          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <XCircle className="w-12 h-12 text-gray-700 dark:text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
           >
             다시 시도
           </button>
@@ -167,15 +171,15 @@ const StockStatusWidget: React.FC<StockStatusProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 flex items-center min-w-fit">
-          <Package2 className="w-5 h-5 mr-2 text-blue-600" />
+          <Package2 className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
           재고 현황
         </h3>
         <button
           onClick={handleRefresh}
-          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 font-medium"
         >
           새로고침
         </button>
@@ -194,7 +198,7 @@ const StockStatusWidget: React.FC<StockStatusProps> = ({
             return (
               <div
                 key={item.item_id}
-                className={`p-3 rounded-lg border transition-colors ${stockStatus.bgColor} border-gray-200 hover:shadow-sm`}
+                className={`p-3 rounded-lg border transition-colors ${stockStatus.bgColor} border-gray-200`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">

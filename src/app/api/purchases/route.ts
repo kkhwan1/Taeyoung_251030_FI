@@ -19,9 +19,8 @@ const PurchaseTransactionCreateSchema = z.object({
   supply_amount: z.number().min(0, '공급가는 0 이상이어야 합니다'),
   tax_amount: z.number().min(0, '세액은 0 이상이어야 합니다').optional(),
   total_amount: z.number().min(0, '총액은 0 이상이어야 합니다'),
-  payment_status: z.enum(['PENDING', 'PARTIAL', 'COMPLETED']).optional(),
-  payment_amount: z.number().min(0).optional(),
-  balance_amount: z.number().min(0).optional(),
+  payment_status: z.enum(['PENDING', 'PARTIAL', 'COMPLETE']).optional(),
+  paid_amount: z.number().min(0).optional(),
   notes: z.string().optional(),  // Changed from 'description' to match form field
   reference_no: z.string().optional()
 });
@@ -199,8 +198,7 @@ export const POST = async (request: NextRequest) => {
         ...result.data,
         transaction_no: transactionNo,
         payment_status: result.data.payment_status || 'PENDING',
-        payment_amount: result.data.payment_amount || 0,
-        balance_amount: result.data.balance_amount || result.data.total_amount,
+        paid_amount: result.data.paid_amount || 0,
         is_active: true
       })
       .select(`

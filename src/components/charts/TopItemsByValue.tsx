@@ -15,7 +15,13 @@ import {
   Cell,
   ReferenceLine
 } from 'recharts';
-import { TrendingUp, Package, Download, Printer, RefreshCcw, Crown, Filter } from 'lucide-react';
+import {
+  Download,
+  Printer,
+  RefreshCcw,
+  Crown,
+  Filter
+} from 'lucide-react';
 import {
   formatKoreanNumber,
   getRechartsTheme,
@@ -114,8 +120,8 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
     // Add display value and colors
     return topItems.map((item, index) => ({
       ...item,
-      displayName: item.item_name.length > 20
-        ? `${item.item_name.substring(0, 17)}...`
+      displayName: item.item_name.length > 15
+        ? `${item.item_name.substring(0, 12)}...`
         : item.item_name,
       displayValue: sortMetric === 'value' ? item.totalValue
                    : sortMetric === 'volume' ? item.monthlyVolume
@@ -173,11 +179,11 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
 
       return (
         <div
-          className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg min-w-[280px]"
+          className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-lg min-w-[280px]"
           style={theme.tooltip.contentStyle}
         >
           <div className="flex items-center space-x-2 mb-3">
-            <Crown className="w-4 h-4 text-yellow-500" />
+            <Crown className="w-4 h-4 text-gray-500" />
             <p className="font-semibold text-gray-900 dark:text-gray-100">
               #{data.rank} {data.item_name}
             </p>
@@ -202,7 +208,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">재고가치</p>
-                <p className="font-medium text-green-600 text-sm">
+                <p className="font-medium text-gray-600 text-sm">
                   ₩{formatKoreanNumber(data.totalValue)}
                 </p>
               </div>
@@ -239,10 +245,10 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500 dark:text-gray-400">재고상태:</span>
                 <span className={`font-medium text-sm ${
-                  data.stockStatus === 'low' ? 'text-red-600'
-                  : data.stockStatus === 'normal' ? 'text-green-600'
-                  : data.stockStatus === 'high' ? 'text-blue-600'
-                  : 'text-orange-600'
+                  data.stockStatus === 'low' ? 'text-gray-600'
+                  : data.stockStatus === 'normal' ? 'text-gray-600'
+                  : data.stockStatus === 'high' ? 'text-gray-600'
+                  : 'text-gray-600'
                 }`}>
                   {data.stockStatus === 'low' ? '부족'
                    : data.stockStatus === 'normal' ? '정상'
@@ -297,21 +303,21 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
 
   if (error) {
     return (
-      <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm ${className}`}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <div className={`bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 ${className}`}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             상위 품목 (가치별)
           </h3>
         </div>
-        <div className="flex items-center justify-center h-64 text-red-500">
+        <div className="flex items-center justify-center h-64 text-gray-500">
           <div className="text-center">
-            <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            
             <p>차트 데이터 로드 실패</p>
             <p className="text-sm text-gray-500 mt-1">{error}</p>
             {onRefresh && (
               <button
                 onClick={debouncedRefresh}
-                className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-800 dark:text-red-300 rounded-lg font-medium transition-colors"
+                className="mt-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-300 rounded-lg font-medium transition-colors"
               >
                 다시 시도
               </button>
@@ -323,11 +329,11 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-1.5">
-          <Crown className="w-4 h-4 text-yellow-500" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+        <div className="flex flex-row flex-wrap items-center space-x-1.5">
+          <Crown className="w-4 h-4 text-gray-500" />
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             상위 품목 ({getMetricLabel()})
           </h3>
@@ -340,56 +346,28 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
 
         {/* Controls */}
         {showControls && (
-          <div className="flex items-center space-x-1 flex-wrap gap-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Top Count */}
             <select
               value={topCount}
               onChange={(e) => setTopCount(parseInt(e.target.value))}
-              className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+              className="min-w-[100px] px-2 py-2 sm:py-1.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs"
             >
               <option value={5}>상위 5개</option>
               <option value={10}>상위 10개</option>
               <option value={20}>상위 20개</option>
-              <option value={50}>상위 50개</option>
             </select>
 
             {/* Sort Metric */}
             <select
               value={sortMetric}
               onChange={(e) => setSortMetric(e.target.value as SortMetric)}
-              className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+              className="min-w-[120px] px-2 py-2 sm:py-1.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs"
             >
               <option value="value">재고가치</option>
               <option value="volume">거래량</option>
               <option value="turnover">회전율</option>
-              <option value="stock">재고수량</option>
             </select>
-
-            {/* Category Filter */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-            >
-              <option value="all">전체 카테고리</option>
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-
-            {/* Stock Status Toggle */}
-            <button
-              onClick={() => setShowStockStatus(!showStockStatus)}
-              className={`px-2 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                showStockStatus
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-              }`}
-            >
-              재고상태
-            </button>
 
             {/* Refresh Button */}
             {onRefresh && (
@@ -402,37 +380,20 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
                 <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
             )}
-
-            {/* Export buttons */}
-            <button
-              onClick={() => exportChartAsImage(chartRef, '상위품목가치.png')}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title="이미지로 내보내기"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => printChart(chartRef)}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title="인쇄"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
           </div>
         )}
       </div>
 
       {/* Chart */}
-      <div className={`h-${Math.max(400, processedData.length * 40)}px`} ref={chartRef}>
+      <div className="h-64 sm:h-72 lg:h-80" ref={chartRef}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
           </div>
         ) : !processedData.length ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              
               <p>표시할 품목 데이터가 없습니다</p>
               {categoryFilter !== 'all' && (
                 <p className="text-sm text-gray-400 mt-1">
@@ -446,7 +407,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
             <BarChart
               data={processedData}
               layout="horizontal"
-              margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+              margin={{ top: 10, right: 20, left: 110, bottom: 10 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke={theme.cartesianGrid.stroke} />
               <XAxis
@@ -464,9 +425,9 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
               <YAxis
                 type="category"
                 dataKey="displayName"
-                tick={{ ...theme.yAxis.tick, fontSize: 12 }}
+                tick={{ ...theme.yAxis.tick, fontSize: 11 }}
                 axisLine={theme.yAxis.axisLine}
-                width={80}
+                width={90}
               />
               <Tooltip content={<CustomTooltip />} />
 
@@ -510,10 +471,10 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
 
       {/* Statistics Summary */}
       {!loading && processedData.length > 0 && stats && (
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-3 grid grid-cols-3 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">1위 품목</p>
-            <p className="text-sm font-semibold text-yellow-600 truncate">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
               {stats.topItem}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -522,19 +483,13 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">총 재고가치</p>
-            <p className="text-lg font-semibold text-green-600">
+            <p className="text-base font-semibold text-gray-600">
               ₩{formatKoreanNumber(stats.totalValue)}
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">평균 회전율</p>
-            <p className="text-lg font-semibold text-blue-600">
-              {stats.avgTurnover.toFixed(2)}
-            </p>
-          </div>
-          <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">재고 이슈</p>
-            <p className="text-lg font-semibold text-red-600">
+            <p className="text-base font-semibold text-gray-600">
               {stats.lowStockCount + stats.overstockCount}개
             </p>
           </div>
@@ -543,17 +498,17 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
 
       {/* Selected Items Info */}
       {selectedItems.size > 0 && (
-        <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+        <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+              <Filter className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm text-gray-800 dark:text-gray-300 font-medium">
                 선택된 품목: {selectedItems.size}개
               </span>
             </div>
             <button
               onClick={() => setSelectedItems(new Set())}
-              className="text-sm text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200"
+              className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
               선택 해제
             </button>

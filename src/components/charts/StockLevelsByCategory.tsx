@@ -16,7 +16,12 @@ import {
   ReferenceLine,
   Cell
 } from 'recharts';
-import { BarChart3, Package, Download, Printer, Filter, RefreshCcw, AlertTriangle } from 'lucide-react';
+import {
+  Download,
+  Printer,
+  Filter,
+  RefreshCcw
+} from 'lucide-react';
 import {
   formatKoreanNumber,
   getRechartsTheme,
@@ -134,7 +139,7 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
 
       return (
         <div
-          className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg min-w-[250px]"
+          className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-lg min-w-[250px]"
           style={theme.tooltip.contentStyle}
         >
           <p className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
@@ -176,15 +181,15 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">총 품목</p>
-                  <p className="font-medium text-blue-600">{data.품목수}개</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{data.품목수}개</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">부족</p>
-                  <p className="font-medium text-red-600">{data.부족품목수}개</p>
+                  <p className="font-medium text-gray-600">{data.부족품목수}개</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">과재고</p>
-                  <p className="font-medium text-orange-600">{data.과재고품목수}개</p>
+                  <p className="font-medium text-gray-600">{data.과재고품목수}개</p>
                 </div>
               </div>
             </div>
@@ -199,9 +204,9 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500 dark:text-gray-400">재고 비율:</span>
                 <span className={`font-medium ${
-                  (data.재고비율 || 0) < 0.5 ? 'text-red-600'
-                  : (data.재고비율 || 0) < 1 ? 'text-orange-600'
-                  : 'text-green-600'
+                  (data.재고비율 || 0) < 0.5 ? 'text-gray-600'
+                  : (data.재고비율 || 0) < 1 ? 'text-gray-600'
+                  : 'text-gray-600'
                 }`}>
                   {((data.재고비율 || 0) * 100).toFixed(1)}%
                 </span>
@@ -249,21 +254,21 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
 
   if (error) {
     return (
-      <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm ${className}`}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <div className={`bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 ${className}`}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             카테고리별 재고 현황
           </h3>
         </div>
-        <div className="flex items-center justify-center h-64 text-red-500">
+        <div className="flex items-center justify-center h-64 text-gray-500">
           <div className="text-center">
-            <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            
             <p>차트 데이터 로드 실패</p>
             <p className="text-sm text-gray-500 mt-1">{error}</p>
             {onRefresh && (
               <button
                 onClick={debouncedRefresh}
-                className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-800 dark:text-red-300 rounded-lg font-medium transition-colors"
+                className="mt-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-300 rounded-lg font-medium transition-colors"
               >
                 다시 시도
               </button>
@@ -275,11 +280,11 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-1.5">
-          <Package className="w-4 h-4 text-green-500" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+        <div className="flex flex-row flex-wrap items-center space-x-1.5">
+          
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             카테고리별 재고 현황
           </h3>
@@ -292,14 +297,14 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
 
         {/* Controls */}
         {showControls && (
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center gap-2">
             {/* View Mode */}
-            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
               <button
                 onClick={() => setViewMode('quantity')}
-                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+                className={`px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'quantity'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
@@ -307,9 +312,9 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
               </button>
               <button
                 onClick={() => setViewMode('value')}
-                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+                className={`px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'value'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
@@ -317,9 +322,9 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
               </button>
               <button
                 onClick={() => setViewMode('ratio')}
-                className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+                className={`px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-colors ${
                   viewMode === 'ratio'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
@@ -327,41 +332,17 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
               </button>
             </div>
 
-            {/* Sort Order - Hidden on small screens */}
+            {/* Sort Order */}
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-              className="hidden md:block px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+              className="min-w-[120px] px-2 py-2 sm:py-1.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs"
             >
               <option value="current">현재고순</option>
               <option value="shortage">부족품목순</option>
               <option value="turnover">회전율순</option>
               <option value="name">이름순</option>
             </select>
-
-            {/* Options - Hidden on small screens */}
-            <button
-              onClick={() => setShowSafetyStock(!showSafetyStock)}
-              className={`hidden lg:flex px-2 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                showSafetyStock
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-              }`}
-            >
-              안전재고
-            </button>
-
-            <button
-              onClick={() => setHighlightIssues(!highlightIssues)}
-              className={`hidden lg:flex px-2 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                highlightIssues
-                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              이슈 강조
-            </button>
 
             {/* Refresh Button */}
             {onRefresh && (
@@ -374,51 +355,34 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
                 <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
             )}
-
-            {/* Export buttons */}
-            <button
-              onClick={() => exportChartAsImage(chartRef, '카테고리별재고현황.png')}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title="이미지로 내보내기"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => printChart(chartRef)}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title="인쇄"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
           </div>
         )}
       </div>
 
       {/* Chart */}
-      <div className="h-96" ref={chartRef}>
+          <div className="h-48 sm:h-56 lg:h-64" ref={chartRef}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
           </div>
         ) : !processedData.length ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              
               <p>표시할 카테고리 데이터가 없습니다</p>
             </div>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+            <BarChart data={processedData} margin={{ top: 5, right: 15, left: 15, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={theme.cartesianGrid.stroke} />
               <XAxis
                 dataKey="category"
-                tick={theme.xAxis.tick}
+                tick={{ ...theme.xAxis.tick, fontSize: 11 }}
                 axisLine={theme.xAxis.axisLine}
                 angle={0}
                 textAnchor="middle"
-                height={60}
+                height={35}
                 interval={0}
               />
               <YAxis
@@ -433,7 +397,7 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
                 axisLine={theme.yAxis.axisLine}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: '12px', bottom: '10px' }} />
 
               <Bar
                 dataKey="displayValue"
@@ -464,7 +428,12 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
                   y={processedData.reduce((sum, item) => sum + item.최소재고, 0) / processedData.length}
                   stroke={theme.colors[4]}
                   strokeDasharray="5 5"
-                  label={{ value: "평균 최소재고", position: "insideTopLeft" }}
+                  label={{ 
+                    value: "평균 최소재고", 
+                    position: "insideRight",
+                    fill: theme.colors[4],
+                    fontSize: 10
+                  }}
                 />
               )}
 
@@ -473,7 +442,12 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
                   y={processedData.reduce((sum, item) => sum + item.안전재고, 0) / processedData.length}
                   stroke={theme.colors[1]}
                   strokeDasharray="10 5"
-                  label={{ value: "평균 안전재고", position: "insideTopLeft" }}
+                  label={{ 
+                    value: "평균 안전재고", 
+                    position: "insideRight",
+                    fill: theme.colors[1],
+                    fontSize: 10
+                  }}
                 />
               )}
             </BarChart>
@@ -483,31 +457,25 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
 
       {/* Statistics Summary */}
       {!loading && processedData.length > 0 && overallStats && (
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">총 품목 수</p>
-            <p className="text-lg font-semibold text-blue-600">
-              {formatKoreanNumber(overallStats.totalItems)}개
-            </p>
-          </div>
+        <div className="mt-3 grid grid-cols-3 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">부족 품목</p>
-            <p className="text-lg font-semibold text-red-600">
+            <p className="text-lg font-semibold text-gray-600">
               {formatKoreanNumber(overallStats.totalShortage)}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">과재고 품목</p>
-            <p className="text-lg font-semibold text-orange-600">
+            <p className="text-lg font-semibold text-gray-600">
               {formatKoreanNumber(overallStats.totalOverstock)}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">재고 효율성</p>
             <p className={`text-lg font-semibold ${
-              overallStats.efficiency >= 80 ? 'text-green-600'
-              : overallStats.efficiency >= 60 ? 'text-yellow-600'
-              : 'text-red-600'
+              overallStats.efficiency >= 80 ? 'text-gray-600'
+              : overallStats.efficiency >= 60 ? 'text-gray-600'
+              : 'text-gray-600'
             }`}>
               {overallStats.efficiency.toFixed(1)}%
             </p>
@@ -517,17 +485,17 @@ export const StockLevelsByCategory: React.FC<StockLevelsByCategoryProps> = ({
 
       {/* Selected Categories Info */}
       {selectedCategories.size > 0 && (
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-blue-600" />
-              <span className="text-sm text-blue-800 dark:text-blue-300 font-medium">
+              <Filter className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm text-gray-800 dark:text-gray-300 font-medium">
                 선택된 카테고리: {Array.from(selectedCategories).join(', ')}
               </span>
             </div>
             <button
               onClick={() => setSelectedCategories(new Set())}
-              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+              className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
             >
               선택 해제
             </button>

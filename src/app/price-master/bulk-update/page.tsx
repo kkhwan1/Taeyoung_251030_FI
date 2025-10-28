@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToastNotification } from '@/hooks/useToast';
 import { ArrowLeft, Home, ChevronRight } from 'lucide-react';
 import { FileUploadZone } from './components/FileUploadZone';
 import { DataPreviewTable } from './components/DataPreviewTable';
@@ -20,8 +20,8 @@ import type {
 
 export default function BulkUpdatePage() {
   const router = useRouter();
-  const { toast } = useToast();
-  
+  const toast = useToastNotification();
+
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileMetadata, setFileMetadata] = useState<FileUploadMetadata | null>(null);
   const [parsedData, setParsedData] = useState<BulkPriceItem[]>([]);
@@ -59,11 +59,7 @@ export default function BulkUpdatePage() {
         throw new Error(result.error || '파일 파싱에 실패했습니다');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '파일 처리 오류',
-        description: error.message || '파일을 처리하는 중 오류가 발생했습니다'
-      });
+      toast.error('파일 처리 오류', error.message || '파일을 처리하는 중 오류가 발생했습니다');
       setParsedData([]);
       setValidationResult(null);
     } finally {
@@ -93,38 +89,22 @@ export default function BulkUpdatePage() {
 
       if (result.success) {
         setValidationResult(result.data);
-        toast({
-          title: '검증 완료',
-          description: `유효: ${result.data.valid_count}개, 오류: ${result.data.error_count}개`
-        });
+        toast.success('검증 완료', `유효: ${result.data.valid_count}개, 오류: ${result.data.error_count}개`);
       } else {
         throw new Error(result.error || '검증에 실패했습니다');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '검증 오류',
-        description: error.message || '검증 중 오류가 발생했습니다'
-      });
+      toast.error('검증 오류', error.message || '검증 중 오류가 발생했습니다');
     } finally {
       setValidating(false);
     }
   }, [parsedData, toast]);
 
   const handleUpdateSuccess = useCallback((result: BulkUploadResponse) => {
-    toast({
-      title: '대량 업데이트 완료',
-      description: (
-        <div className="space-y-1">
-          <p>{result.data.valid_count}개 항목이 성공적으로 업데이트되었습니다.</p>
-          {result.data.error_count > 0 && (
-            <p className="text-sm text-orange-600">
-              {result.data.error_count}개 항목은 오류로 인해 제외되었습니다.
-            </p>
-          )}
-        </div>
-      ),
-    });
+    const message = `${result.data.valid_count}개 항목이 성공적으로 업데이트되었습니다.${
+      result.data.error_count > 0 ? ` ${result.data.error_count}개 항목은 오류로 인해 제외되었습니다.` : ''
+    }`;
+    toast.success('대량 업데이트 완료', message);
 
     // Reset form
     setUploadedFile(null);
@@ -134,11 +114,7 @@ export default function BulkUpdatePage() {
   }, [toast]);
 
   const handleUpdateError = useCallback((error: string) => {
-    toast({
-      variant: 'destructive',
-      title: '업데이트 실패',
-      description: error
-    });
+    toast.error('업데이트 실패', error);
   }, [toast]);
 
   const resetForm = () => {
@@ -164,7 +140,7 @@ export default function BulkUpdatePage() {
                 <span>가격 마스터</span>
               </button>
               <ChevronRight className="h-4 w-4" />
-              <span className="text-gray-900 font-medium">대량 업데이트</span>
+              <span className="text-gray-800 dark:text-gray-100 font-medium">대량 업데이트</span>
             </nav>
 
             <h1 className="text-3xl font-bold tracking-tight">대량 가격 업데이트</h1>
@@ -222,7 +198,7 @@ export default function BulkUpdatePage() {
                     <Button
                       onClick={handleValidation}
                       disabled={validating}
-                      className="w-full"
+                      className="w-full bg-gray-800 hover:bg-gray-700 disabled:bg-gray-400"
                     >
                       {validating ? '검증 중...' : '데이터 검증'}
                     </Button>
@@ -287,7 +263,7 @@ export default function BulkUpdatePage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
               <div className="space-y-2">
-                <h4 className="font-semibold text-blue-600">1. 파일 준비</h4>
+                <h4 className="font-semibold text-gray-800 dark:text-gray-100">1. 파일 준비</h4>
                 <ul className="space-y-1 text-gray-600">
                   <li>• CSV 또는 Excel (.xlsx) 형식</li>
                   <li>• 최대 파일 크기: 5MB</li>
@@ -295,7 +271,7 @@ export default function BulkUpdatePage() {
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-green-600">2. 데이터 검증</h4>
+                <h4 className="font-semibold text-gray-800 dark:text-gray-100">2. 데이터 검증</h4>
                 <ul className="space-y-1 text-gray-600">
                   <li>• 품목코드 존재 여부 확인</li>
                   <li>• 단가 유효성 검사</li>
@@ -303,7 +279,7 @@ export default function BulkUpdatePage() {
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-purple-600">3. 업데이트 실행</h4>
+                <h4 className="font-semibold text-gray-800 dark:text-gray-100">3. 업데이트 실행</h4>
                 <ul className="space-y-1 text-gray-600">
                   <li>• 유효한 항목만 업데이트</li>
                   <li>• 이전 단가는 자동 이력 전환</li>

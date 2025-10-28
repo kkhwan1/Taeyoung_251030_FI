@@ -1,5 +1,9 @@
 import React from 'react';
-import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle
+} from 'lucide-react';
 import { BOMStockStatus } from '@/types/inventory';
 
 interface BOMStatusBadgeProps {
@@ -33,26 +37,26 @@ export default function BOMStatusBadge({
     sufficient: {
       icon: CheckCircle,
       label: '충족',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      textColor: 'text-green-700 dark:text-green-400',
-      borderColor: 'border-green-200 dark:border-green-800',
-      iconColor: 'text-green-600 dark:text-green-500'
+      bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+      textColor: 'text-gray-700 dark:text-gray-400',
+      borderColor: 'border-gray-200 dark:border-gray-800',
+      iconColor: 'text-gray-600 dark:text-gray-500'
     },
     warning: {
       icon: AlertTriangle,
       label: '주의',
-      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
-      textColor: 'text-yellow-700 dark:text-yellow-400',
-      borderColor: 'border-yellow-200 dark:border-yellow-800',
-      iconColor: 'text-yellow-600 dark:text-yellow-500'
+      bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+      textColor: 'text-gray-700 dark:text-gray-400',
+      borderColor: 'border-gray-200 dark:border-gray-800',
+      iconColor: 'text-gray-600 dark:text-gray-500'
     },
     insufficient: {
       icon: XCircle,
       label: '부족',
-      bgColor: 'bg-red-50 dark:bg-red-900/20',
-      textColor: 'text-red-700 dark:text-red-400',
-      borderColor: 'border-red-200 dark:border-red-800',
-      iconColor: 'text-red-600 dark:text-red-500'
+      bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+      textColor: 'text-gray-700 dark:text-gray-400',
+      borderColor: 'border-gray-200 dark:border-gray-800',
+      iconColor: 'text-gray-600 dark:text-gray-500'
     }
   };
 

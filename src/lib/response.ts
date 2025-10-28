@@ -68,7 +68,8 @@ export function createFileResponse(
   filename: string,
   contentType: string = 'application/octet-stream'
 ): NextResponse {
-  const response = new NextResponse(buffer);
+  // Convert Buffer to Uint8Array for NextResponse compatibility
+  const response = new NextResponse(new Uint8Array(buffer));
   
   // UTF-8 인코딩 명시적 설정
   response.headers.set('Content-Type', `${contentType}; charset=utf-8`);

@@ -22,7 +22,33 @@ export async function GET(): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: { transactions: transactions || [] } });
+    // 각 거래에 대해 BOM 차감 로그 조회하여 부족 정보 계산
+    const transactionsWithShortage = await Promise.all(
+      (transactions || []).map(async (tx: any) => {
+        // 해당 생산입고 거래의 BOM 차감 로그 조회
+        const { data: bomLogs } = await supabase
+          .from('bom_deduction_log')
+          .select(`
+            quantity_required,
+            deducted_quantity
+          `)
+          .eq('transaction_id', tx.transaction_id);
+
+        // 부족 총계 계산
+        const totalShortage = (bomLogs || []).reduce((sum, log) => {
+          const required = parseFloat(log.quantity_required || 0);
+          const deducted = parseFloat(log.deducted_quantity || 0);
+          return sum + Math.max(0, required - deducted);
+        }, 0);
+
+        return {
+          ...tx,
+          shortage_total: totalShortage
+        };
+      })
+    );
+
+    return NextResponse.json({ success: true, data: { transactions: transactionsWithShortage } });
   } catch (error) {
     console.error('Error fetching production history:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch production history' }, { status: 500 });
@@ -35,7 +61,7 @@ export async function GET(): Promise<NextResponse> {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // ✅ Korean text handling pattern - prevents character corruption
+    // Korean text handling pattern - prevents character corruption
     const text = await request.text();
     const body = JSON.parse(text);
 
@@ -65,17 +91,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 400 });
     }
 
-    if (quantity <= 0) {
+    // 데이터 타입 강제 변환 및 검증
+    const parsedQuantity = Math.floor(Number(quantity));
+    const parsedUnitPrice = parseFloat(String(unit_price));
+
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
       return NextResponse.json({
         success: false,
-        error: '수량은 0보다 커야 합니다.'
+        error: '수량은 양의 정수여야 합니다.'
       }, { status: 400 });
     }
 
-    if (unit_price < 0) {
+    if (!Number.isFinite(parsedUnitPrice) || parsedUnitPrice < 0) {
       return NextResponse.json({
         success: false,
-        error: '단가는 0 이상이어야 합니다.'
+        error: '단가는 유효한 숫자여야 합니다.'
       }, { status: 400 });
     }
 
@@ -104,18 +134,94 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 400 });
     }
 
-    // Calculate total amount
-    const total_amount = quantity * unit_price;
+    // Calculate total amount using parsed values
+    const total_amount = parsedQuantity * parsedUnitPrice;
 
-    // Insert production transaction
+    // Initialize stock warnings variable
+    let stockWarnings: any = null;
+
+    // === API 레벨 BOM 검증 및 차감 (이중 보장) ===
+    if (transaction_type === '생산입고') {
+      // 1. BOM 조회
+      const { data: bomData, error: bomError } = await supabase
+        .from('bom')
+        .select(`
+          child_item_id,
+          quantity_required,
+          child_item:items!child_item_id (
+            item_id,
+            item_code,
+            item_name,
+            current_stock,
+            unit
+          )
+        `)
+        .eq('parent_item_id', item_id)
+        .eq('is_active', true);
+
+      if (bomError) {
+        console.error('BOM query error:', bomError);
+        // BOM이 없어도 생산은 가능하도록 허용
+      }
+
+      // 2. 재고 검증 및 부족 원자재 체크 (경고만, 에러 아님)
+      if (bomData && bomData.length > 0) {
+        const stockShortages: Array<{ item_code: string; item_name: string; required: number; available: number }> = [];
+        let maxProducible = Infinity;
+        let bottleneckItem: any = null;
+        
+        for (const bomItem of bomData) {
+          const childItem = bomItem.child_item;
+          if (!childItem) continue;
+          
+          const requiredQuantity = (bomItem.quantity_required || 0) * parsedQuantity;
+          const currentStock = childItem.current_stock || 0;
+          const bomQuantityPerUnit = bomItem.quantity_required || 0;
+          const maxProducibleByThisItem = Math.floor(currentStock / bomQuantityPerUnit);
+          
+          if (currentStock < requiredQuantity) {
+            stockShortages.push({
+              item_code: childItem.item_code,
+              item_name: childItem.item_name,
+              required: requiredQuantity,
+              available: currentStock
+            });
+          }
+          
+          // Track bottleneck
+          if (maxProducibleByThisItem < maxProducible) {
+            maxProducible = maxProducibleByThisItem;
+            bottleneckItem = {
+              item_code: childItem.item_code,
+              item_name: childItem.item_name,
+              required: requiredQuantity,
+              available: currentStock
+            };
+          }
+        }
+        
+        // 재고 부족 시 경고 정보 저장 (에러 아님)
+        if (stockShortages.length > 0) {
+          stockWarnings = {
+            has_shortage: true,
+            max_producible: maxProducible === Infinity ? parsedQuantity : maxProducible,
+            shortage_quantity: Math.max(0, parsedQuantity - (maxProducible === Infinity ? parsedQuantity : maxProducible)),
+            bottleneck_materials: stockShortages
+          };
+        }
+      }
+    }
+    // === API 레벨 BOM 검증 종료 ===
+
+    // Insert production transaction using parsed values
     const { data, error } = await supabase
       .from('inventory_transactions')
       .insert([{
         item_id,
         created_by,
         transaction_type,
-        quantity,
-        unit_price,
+        quantity: parsedQuantity,  // 변환된 정수값
+        unit_price: parsedUnitPrice,  // 변환된 숫자값
         total_amount,
         reference_number: reference_number || null,
         transaction_date,
@@ -129,18 +235,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (error) {
       console.error('Supabase insert error:', error);
+      // Note: stock shortage errors are handled by trigger, don't fail here
 
-      // Check if error is from stock shortage exception
-      if (error.message && error.message.includes('재고 부족')) {
-        return NextResponse.json({
-          success: false,
-          error: '재고 부족으로 생산 등록이 실패했습니다.',
-          details: error.message,
-          hint: error.hint || '원자재 재고를 확인해주세요.'
-        }, { status: 400 });
-      }
-
-      // ✅ SECURITY FIX: Hide schema details in production
+      // SECURITY FIX: Hide schema details in production
       const response: any = {
         success: false,
         error: '생산 등록 중 오류가 발생했습니다.'
@@ -162,6 +259,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const transaction = data[0];
     const transactionId = transaction.transaction_id;
+
+    // Update product stock for 생산입고 transactions
+    if (transaction_type === '생산입고') {
+      // Get current stock first
+      const { data: currentItem, error: getItemError } = await supabase
+        .from('items')
+        .select('current_stock')
+        .eq('item_id', item_id)
+        .single();
+      
+      if (!getItemError && currentItem) {
+        const newStock = (currentItem.current_stock || 0) + quantity;
+        
+        const { error: stockError } = await supabase
+          .from('items')
+          .update({ current_stock: newStock })
+          .eq('item_id', item_id);
+        
+        if (stockError) {
+          console.error('Stock update error:', stockError);
+        }
+      }
+    }
 
     // Fetch auto-generated BOM deduction logs with child item details
     const { data: deductionLogs, error: deductionError } = await supabase
@@ -200,28 +320,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       stock_after: log.stock_after
     }));
 
+    const responseData: any = {
+      transaction,
+      auto_deductions
+    };
+    
+    // Add stock warnings if any
+    if (stockWarnings) {
+      responseData.stock_warning = stockWarnings;
+    }
+    
     return NextResponse.json({
       success: true,
-      message: '생산이 성공적으로 등록되었습니다.',
-      data: {
-        transaction,
-        auto_deductions
-      }
+      message: stockWarnings 
+        ? '생산이 등록되었습니다. (재고 부족 경고 있음)'
+        : '생산이 성공적으로 등록되었습니다.',
+      data: responseData
     });
   } catch (error) {
     console.error('Error creating production transaction:', error);
-
-    // Check if error is from database exception
-    if (error instanceof Error && error.message.includes('재고 부족')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: '재고 부족으로 생산 등록이 실패했습니다.',
-          details: error.message
-        },
-        { status: 400 }
-      );
-    }
 
     return NextResponse.json(
       {
@@ -240,7 +357,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
-    // ✅ Korean text handling pattern - prevents character corruption
+    // Korean text handling pattern - prevents character corruption
     const text = await request.text();
     const body = JSON.parse(text);
     const { id, ...updateData } = body;

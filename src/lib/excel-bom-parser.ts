@@ -323,7 +323,10 @@ async function loadItemCache(): Promise<ItemCache> {
 
     const cache: ItemCache = {};
     data?.forEach(item => {
-      cache[item.item_code.toUpperCase()] = item;
+      cache[item.item_code.toUpperCase()] = {
+        ...item,
+        is_active: item.is_active ?? true // Convert null to default value
+      };
     });
 
     return cache;

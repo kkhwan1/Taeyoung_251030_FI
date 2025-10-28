@@ -160,9 +160,9 @@ export const GET = protectRoute(
               item: itemData,
               material_cost: totalCost,
               item_price: itemData.unit_price || 0,
-              margin: (itemData.unit_price || 0) - totalCost,
+              margin: (itemData.unit_price || 0) - Number(totalCost || 0),
               margin_rate: (itemData.unit_price || 0) > 0
-                ? (((itemData.unit_price || 0) - totalCost) / (itemData.unit_price || 0) * 100).toFixed(2) + '%'
+                ? (((itemData.unit_price || 0) - Number(totalCost || 0)) / (itemData.unit_price || 0) * 100).toFixed(2) + '%'
                 : '0%'
             }
           });

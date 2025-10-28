@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { APIError, handleAPIError } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
+import { metricsCollector } from '@/lib/metrics';
 
 export async function GET(): Promise<NextResponse> {
+  const startTime = Date.now();
+  const endpoint = '/api/inventory/receiving';
+
   try {
+    logger.info('Inventory receiving GET request', { endpoint });
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -40,6 +47,10 @@ export async function GET(): Promise<NextResponse> {
       company: companies?.find(company => company.company_id === transaction.company_id)
     })) || [];
 
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, false);
+    logger.info('Inventory receiving GET success', { endpoint, duration, transactionCount: enrichedTransactions.length });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -50,21 +61,26 @@ export async function GET(): Promise<NextResponse> {
           total_value: enrichedTransactions.reduce((sum, t) => sum + ((t.quantity || 0) * (t.unit_price || 0)), 0)
         }
       }
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
     });
   } catch (error) {
-    console.error('Error fetching receiving transactions:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: '입고 내역 조회에 실패했습니다.'
-      },
-      { status: 500 }
-    );
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, true);
+    logger.error('Inventory receiving GET error', error as Error, { endpoint, duration });
+
+    return handleAPIError(error);
   }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const startTime = Date.now();
+  const endpoint = '/api/inventory/receiving';
+
   try {
+    logger.info('Inventory receiving POST request', { endpoint });
     const body = await request.json();
     const {
       transaction_date,
@@ -73,6 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       unit_price,
       company_id,
       reference_number,
+      reference_no,
       notes
     } = body;
 
@@ -91,24 +108,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Calculate total amount
     const total_amount = quantity * unit_price;
 
-    // Insert receiving transaction
-    const { data, error } = await supabase
-      .from('inventory_transactions')
-      .insert([{
-        item_id,
-        company_id,
-        transaction_type: '입고',
-        quantity,
-        unit_price,
-        total_amount,
-        reference_number,
-        transaction_date,
-        notes
-      }])
-      .select();
+    // OPTIMIZATION: Use transaction to ensure atomicity and reduce trigger overhead
+    const { data, error } = await supabase.rpc('create_receiving_transaction', {
+      p_item_id: item_id,
+      p_quantity: quantity,
+      p_unit_price: unit_price,
+      p_total_amount: total_amount,
+      p_company_id: company_id,
+      p_reference_number: reference_no || reference_number,
+      p_transaction_date: transaction_date,
+      p_notes: notes
+    });
 
     if (error) {
-      console.error('Supabase insert error:', error);
+      console.error('Supabase transaction error:', error);
       return NextResponse.json({
         success: false,
         error: '입고 등록 중 오류가 발생했습니다.',
@@ -116,70 +129,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 500 });
     }
 
-    // Update item current_stock after successful transaction creation
-    const { data: currentItem, error: getError } = await supabase
-      .from('items')
-      .select('current_stock')
-      .eq('item_id', item_id)
-      .single();
-
-    if (getError || !currentItem) {
-      // Rollback: Delete the transaction we just created
-      await supabase
-        .from('inventory_transactions')
-        .delete()
-        .eq('transaction_id', data[0].transaction_id);
-
-      return NextResponse.json({
-        success: false,
-        error: '품목 조회에 실패했습니다. 거래가 롤백되었습니다.'
-      }, { status: 500 });
-    }
-
-    const newStock = (currentItem.current_stock || 0) + quantity;
-    const { data: updatedItem, error: stockError } = await supabase
-      .from('items')
-      .update({
-        current_stock: newStock,
-        updated_at: new Date().toISOString()
-      })
-      .eq('item_id', item_id)
-      .select('current_stock')
-      .single();
-
-    if (stockError || !updatedItem) {
-      console.error('Stock update error:', stockError);
-      // Rollback: Delete the transaction
-      await supabase
-        .from('inventory_transactions')
-        .delete()
-        .eq('transaction_id', data[0].transaction_id);
-
-      return NextResponse.json({
-        success: false,
-        error: '재고 업데이트에 실패했습니다. 거래가 롤백되었습니다.'
-      }, { status: 500 });
-    }
-
-    // Verify the stock was actually updated
-    if (updatedItem.current_stock !== newStock) {
-      console.error('Stock update verification failed:', {
-        expected: newStock,
-        actual: updatedItem.current_stock,
-        item_id
-      });
-
-      // Rollback: Delete the transaction
-      await supabase
-        .from('inventory_transactions')
-        .delete()
-        .eq('transaction_id', data[0].transaction_id);
-
-      return NextResponse.json({
-        success: false,
-        error: `재고 업데이트 검증 실패: 예상값 ${newStock}, 실제값 ${updatedItem.current_stock}`
-      }, { status: 500 });
-    }
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, false);
+    logger.info('Inventory receiving POST success', { endpoint, duration, transactionId: data[0]?.transaction_id });
 
     return NextResponse.json({
       success: true,
@@ -187,13 +139,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       data: data[0]
     });
   } catch (error) {
-    console.error('Error creating receiving transaction:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: '입고 등록 중 오류가 발생했습니다.'
-      },
-      { status: 500 }
-    );
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, true);
+    logger.error('Inventory receiving POST error', error as Error, { endpoint, duration });
+
+    return handleAPIError(error);
   }
 }

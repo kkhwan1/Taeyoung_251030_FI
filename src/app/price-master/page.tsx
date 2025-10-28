@@ -14,11 +14,10 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useToast } from '@/components/ui/use-toast';
-import { 
-  Trash2, 
-  AlertTriangle, 
-  Loader2, 
+import { useToastNotification } from '@/hooks/useToast';
+import {
+  Trash2,
+  Loader2,
   CheckCircle,
   FileSpreadsheet,
   Calculator,
@@ -39,7 +38,7 @@ export default function PriceMasterPage() {
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupStrategy, setCleanupStrategy] = useState<'keep_latest' | 'keep_oldest' | 'custom'>('keep_latest');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
+  const toast = useToastNotification();
 
   const handlePriceSuccess = () => {
     // Refresh history table after successful price entry
@@ -55,27 +54,17 @@ export default function PriceMasterPage() {
       if (result.success) {
         setDuplicates(result.data.duplicate_groups || []);
         setShowDuplicateDialog(true);
-        
+
         if (result.data.duplicate_groups.length === 0) {
-          toast({
-            title: '중복 없음',
-            description: '중복된 가격 데이터가 없습니다.'
-          });
+          toast.info('중복 없음', '중복된 가격 데이터가 없습니다.');
         } else {
-          toast({
-            title: '중복 감지 완료',
-            description: `${result.data.duplicate_groups.length}개 그룹에서 중복이 발견되었습니다.`
-          });
+          toast.success('중복 감지 완료', `${result.data.duplicate_groups.length}개 그룹에서 중복이 발견되었습니다.`);
         }
       } else {
         throw new Error(result.error || '중복 감지에 실패했습니다');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: error.message || '중복 감지를 수행하는 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', error.message || '중복 감지를 수행하는 중 오류가 발생했습니다');
     } finally {
       setDuplicateLoading(false);
     }
@@ -110,15 +99,9 @@ export default function PriceMasterPage() {
 
       if (result.success) {
         if (dryRun) {
-          toast({
-            title: '시뮬레이션 완료',
-            description: `${result.data.deleted_count}개 항목이 삭제될 예정입니다.`
-          });
+          toast.info('시뮬레이션 완료', `${result.data.deleted_count}개 항목이 삭제될 예정입니다.`);
         } else {
-          toast({
-            title: '중복 정리 완료',
-            description: `${result.data.deleted_count}개 항목이 삭제되었습니다.`
-          });
+          toast.success('중복 정리 완료', `${result.data.deleted_count}개 항목이 삭제되었습니다.`);
           setShowDuplicateDialog(false);
           setDuplicates([]);
           setSelectedItems(new Set());
@@ -128,11 +111,7 @@ export default function PriceMasterPage() {
         throw new Error(result.error || '중복 정리에 실패했습니다');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: error.message || '중복 정리를 수행하는 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', error.message || '중복 정리를 수행하는 중 오류가 발생했습니다');
     } finally {
       setCleanupLoading(false);
     }
@@ -235,10 +214,7 @@ export default function PriceMasterPage() {
               </CardHeader>
               <CardContent>
                 <BOMCostCalculator onApplyPrice={(price) => {
-                  toast({
-                    title: 'BOM 계산 완료',
-                    description: `계산된 원가: ${formatCurrency(price)}원`
-                  });
+                  toast.success('BOM 계산 완료', `계산된 원가: ${formatCurrency(price)}원`);
                 }} />
               </CardContent>
             </Card>
@@ -250,7 +226,7 @@ export default function PriceMasterPage() {
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center space-x-2">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                
                 <span>중복 가격 정리</span>
               </DialogTitle>
               <DialogDescription>
@@ -288,7 +264,7 @@ export default function PriceMasterPage() {
                 </Label>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {duplicates.map((group, groupIndex) => (
-                    <Card key={`${group.item_code}-${group.effective_date}`} className="border-orange-200">
+                    <Card key={`${group.item_code}-${group.effective_date}`} className="border-gray-200">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <div>
@@ -296,22 +272,22 @@ export default function PriceMasterPage() {
                               [{group.item_code}] {group.item_name}
                             </CardTitle>
                             <CardDescription className="text-xs">
-                              적용일: {formatDate(group.effective_date)} | 중복 수: {group.duplicate_prices.length}개
+                              적용일: {formatDate(group.effective_date)} | 중복 수: {group.duplicate_prices?.length || group.duplicates?.length || 0}개
                             </CardDescription>
                           </div>
-                          <Badge variant="destructive" className="text-xs">
-                            {group.duplicate_prices.length}개 중복
+                          <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
+                            {group.duplicate_prices?.length || group.duplicates?.length || 0}개 중복
                           </Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="pt-0">
                         <div className="space-y-2">
-                          {group.duplicate_prices.map((price, priceIndex) => (
-                            <div 
+                          {(group.duplicate_prices || group.duplicates || []).map((price, priceIndex) => (
+                            <div
                               key={price.price_id}
                               className={`flex items-center justify-between p-2 rounded border ${
-                                cleanupStrategy === 'custom' && selectedItems.has(price.price_id.toString()) 
-                                  ? 'bg-green-50 border-green-300' 
+                                cleanupStrategy === 'custom' && selectedItems.has(price.price_id.toString())
+                                  ? 'bg-gray-100 border-gray-300'
                                   : 'bg-gray-50 border-gray-200'
                               }`}
                             >
@@ -350,9 +326,9 @@ export default function PriceMasterPage() {
 
               {/* Custom Selection Info */}
               {cleanupStrategy === 'custom' && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
+                <Alert className="bg-gray-50 border-gray-200">
+                  
+                  <AlertDescription className="text-gray-700">
                     수동 선택 모드: 체크된 항목만 유지되고 나머지는 삭제됩니다.
                     현재 {selectedItems.size}개 항목이 선택되었습니다.
                   </AlertDescription>
@@ -380,7 +356,7 @@ export default function PriceMasterPage() {
               <Button
                 onClick={() => handleCleanupDuplicates(false)}
                 disabled={cleanupLoading || (cleanupStrategy === 'custom' && selectedItems.size === 0)}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-gray-800 hover:bg-gray-700"
                 data-testid="execute-cleanup-button"
               >
                 {cleanupLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

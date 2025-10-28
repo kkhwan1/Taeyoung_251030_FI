@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   CheckCircle,
   XCircle,
-  AlertTriangle,
   RefreshCw,
   Database,
   MemoryStick,
@@ -17,44 +16,38 @@ import {
 interface DetailedHealthCheck {
   status: string;
   timestamp: string;
-  uptime: number;
   version: string;
   responseTime: number;
-  basicChecks: {
+  checks: {
     database: {
       status: string;
       responseTime: number;
-      connections: number;
-      error?: string;
+      connectionPool?: {
+        active: number;
+        idle: number;
+        total: number;
+        limit: number;
+        utilizationPercent: number;
+      };
     };
     memory: {
+      status: string;
       usage: number;
       heap: number;
       external: number;
+      limit: number;
     };
-  };
-  detailedChecks: {
-    databaseTables: {
+    system: {
       status: string;
-      tablesChecked: number;
-      failedTables: number;
-      responseTime: number;
-      error?: string;
-    };
-    filesystem: {
-      status: string;
-      logsDirectory: string;
-      writable: boolean;
-      error?: string;
-    };
-    environment: {
-      status: string;
-      requiredVariables: number;
-      missingVariables: string[];
-      nodeEnv: string;
+      nodeVersion: string;
+      platform: string;
+      architecture: string;
+      environment: string;
+      pid: number;
     };
   };
   correlationId: string;
+  environment: string;
 }
 
 export default function HealthCheckPage() {
@@ -69,10 +62,7 @@ export default function HealthCheckPage() {
 
     try {
       const response = await fetch('/api/health', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8'
-        }
+        method: 'GET'
       });
 
       if (!response.ok) {
@@ -98,13 +88,13 @@ export default function HealthCheckPage() {
   const getStatusIcon = (status: string, size = 'w-5 h-5') => {
     switch (status) {
       case 'healthy':
-        return <CheckCircle className={`${size} text-green-500`} />;
+        return <CheckCircle className={`${size} text-green-600 dark:text-green-400`} />;
       case 'degraded':
-        return <AlertTriangle className={`${size} text-yellow-500`} />;
+        return <XCircle className={`${size} text-yellow-600 dark:text-yellow-400`} />;
       case 'unhealthy':
-        return <XCircle className={`${size} text-red-500`} />;
+        return <XCircle className={`${size} text-red-600 dark:text-red-400`} />;
       default:
-        return <AlertTriangle className={`${size} text-gray-500`} />;
+        return <XCircle className={`${size} text-gray-500`} />;
     }
   };
 
@@ -124,19 +114,20 @@ export default function HealthCheckPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">시스템 헬스체크</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            상세한 시스템 상태 검사 및 진단
-          </p>
-        </div>
+      {/* 헤더 */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">시스템 헬스체크</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          상세한 시스템 상태 검사 및 진단
+        </p>
+      </div>
 
+      {/* Refresh Button */}
+      <div className="mb-6">
         <button
           onClick={fetchDetailedHealth}
           disabled={loading}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           <span>헬스체크 실행</span>
@@ -145,10 +136,10 @@ export default function HealthCheckPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-4 mb-6">
           <div className="flex items-center space-x-2">
-            <XCircle className="w-5 h-5 text-red-500" />
-            <span className="text-red-700 dark:text-red-400">오류: {error}</span>
+            <XCircle className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <span className="text-gray-700 dark:text-gray-400">오류: {error}</span>
           </div>
         </div>
       )}
@@ -157,7 +148,7 @@ export default function HealthCheckPage() {
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center space-x-3">
-            <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+            <RefreshCw className="w-6 h-6 animate-spin text-gray-500" />
             <span className="text-gray-600 dark:text-gray-400">상세 헬스체크를 실행하는 중...</span>
           </div>
         </div>
@@ -172,7 +163,7 @@ export default function HealthCheckPage() {
               <div className="flex items-center space-x-3">
                 {getStatusIcon(healthData.status, 'w-8 h-8')}
                 <div>
-                  <h2 className="text-2xl font-bold">전체 시스템 상태</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">전체 시스템 상태</h2>
                   <p className="text-gray-600 dark:text-gray-400">
                     {new Date(healthData.timestamp).toLocaleString('ko-KR')}
                   </p>
@@ -191,203 +182,88 @@ export default function HealthCheckPage() {
 
           {/* Basic Checks */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">기본 상태 검사</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">시스템 상태 검사</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Database Check */}
-              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.basicChecks.database.status)}`}>
+              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.checks.database.status)}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <Database className="w-6 h-6 text-blue-500" />
+                    <Database className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                     <div>
-                      <h4 className="font-semibold">데이터베이스</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-white">데이터베이스</h4>
                       <p className="text-sm text-gray-600 dark:text-gray-400">연결 및 응답성</p>
                     </div>
                   </div>
-                  {getStatusIcon(healthData.basicChecks.database.status)}
+                  {getStatusIcon(healthData.checks.database.status)}
                 </div>
                 <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
                     <span>응답시간</span>
-                    <span className="font-medium">{healthData.basicChecks.database.responseTime}ms</span>
+                    <span className="font-medium">{healthData.checks.database.responseTime}ms</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>연결 수</span>
-                    <span className="font-medium">{healthData.basicChecks.database.connections}</span>
-                  </div>
-                  {healthData.basicChecks.database.error && (
-                    <div className="text-sm text-red-600 dark:text-red-400">
-                      오류: {healthData.basicChecks.database.error}
+                  {healthData.checks.database.connectionPool && (
+                    <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                      <span>연결 풀</span>
+                      <span className="font-medium">{healthData.checks.database.connectionPool.total}/{healthData.checks.database.connectionPool.limit}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Memory Check */}
-              <div className="border rounded-lg p-6 bg-white dark:bg-gray-800">
+              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.checks.memory.status)}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <MemoryStick className="w-6 h-6 text-green-500" />
+                    <MemoryStick className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                     <div>
-                      <h4 className="font-semibold">메모리</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-white">메모리</h4>
                       <p className="text-sm text-gray-600 dark:text-gray-400">사용량 및 힙 상태</p>
                     </div>
                   </div>
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  {getStatusIcon(healthData.checks.memory.status)}
                 </div>
                 <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>RSS 메모리</span>
-                    <span className="font-medium">{Math.round(healthData.basicChecks.memory.usage)}MB</span>
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span>사용량</span>
+                    <span className="font-medium">{healthData.checks.memory.usage}MB</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
                     <span>힙 메모리</span>
-                    <span className="font-medium">{Math.round(healthData.basicChecks.memory.heap)}MB</span>
+                    <span className="font-medium">{healthData.checks.memory.heap}MB</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
                     <span>외부 메모리</span>
-                    <span className="font-medium">{Math.round(healthData.basicChecks.memory.external)}MB</span>
+                    <span className="font-medium">{healthData.checks.memory.external}MB</span>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Detailed Checks */}
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">상세 상태 검사</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Database Tables Check */}
-              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.detailedChecks.databaseTables.status)}`}>
+              {/* System Check */}
+              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.checks.system.status)}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <Database className="w-6 h-6 text-blue-500" />
+                    <Settings className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                     <div>
-                      <h4 className="font-semibold">데이터베이스 테이블</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">테이블 접근성</p>
+                      <h4 className="font-semibold text-gray-900 dark:text-white">시스템</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">환경 정보</p>
                     </div>
                   </div>
-                  {getStatusIcon(healthData.detailedChecks.databaseTables.status)}
+                  {getStatusIcon(healthData.checks.system.status)}
                 </div>
                 <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>검사한 테이블</span>
-                    <span className="font-medium">{healthData.detailedChecks.databaseTables.tablesChecked}</span>
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span>Node.js</span>
+                    <span className="font-medium">{healthData.checks.system.nodeVersion}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>실패한 테이블</span>
-                    <span className="font-medium">{healthData.detailedChecks.databaseTables.failedTables}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>응답시간</span>
-                    <span className="font-medium">{healthData.detailedChecks.databaseTables.responseTime}ms</span>
-                  </div>
-                  {healthData.detailedChecks.databaseTables.error && (
-                    <div className="text-sm text-red-600 dark:text-red-400">
-                      {healthData.detailedChecks.databaseTables.error}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Filesystem Check */}
-              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.detailedChecks.filesystem.status)}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <HardDrive className="w-6 h-6 text-purple-500" />
-                    <div>
-                      <h4 className="font-semibold">파일시스템</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">로그 디렉토리 접근</p>
-                    </div>
-                  </div>
-                  {getStatusIcon(healthData.detailedChecks.filesystem.status)}
-                </div>
-                <div className="mt-4 space-y-2">
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">로그 디렉토리:</span>
-                    <div className="font-mono text-xs mt-1 p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                      {healthData.detailedChecks.filesystem.logsDirectory}
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>쓰기 가능</span>
-                    <span className="font-medium">
-                      {healthData.detailedChecks.filesystem.writable ? '예' : '아니오'}
-                    </span>
-                  </div>
-                  {healthData.detailedChecks.filesystem.error && (
-                    <div className="text-sm text-red-600 dark:text-red-400">
-                      {healthData.detailedChecks.filesystem.error}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Environment Check */}
-              <div className={`border rounded-lg p-6 ${getStatusColor(healthData.detailedChecks.environment.status)}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Settings className="w-6 h-6 text-orange-500" />
-                    <div>
-                      <h4 className="font-semibold">환경 변수</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">필수 설정 확인</p>
-                    </div>
-                  </div>
-                  {getStatusIcon(healthData.detailedChecks.environment.status)}
-                </div>
-                <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>필수 변수</span>
-                    <span className="font-medium">{healthData.detailedChecks.environment.requiredVariables}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>누락된 변수</span>
-                    <span className="font-medium">{healthData.detailedChecks.environment.missingVariables.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
                     <span>환경</span>
-                    <span className="font-medium">{healthData.detailedChecks.environment.nodeEnv}</span>
+                    <span className="font-medium">{healthData.checks.system.environment}</span>
                   </div>
-                  {healthData.detailedChecks.environment.missingVariables.length > 0 && (
-                    <div className="text-sm text-red-600 dark:text-red-400">
-                      누락: {healthData.detailedChecks.environment.missingVariables.join(', ')}
-                    </div>
-                  )}
+                  <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span>플랫폼</span>
+                    <span className="font-medium">{healthData.checks.system.platform}</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* System Information */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">시스템 정보</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <Clock className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {Math.floor(healthData.uptime / 1000 / 60)}분
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">가동시간</div>
-              </div>
-              <div className="text-center">
-                <Activity className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {healthData.responseTime}ms
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">응답시간</div>
-              </div>
-              <div className="text-center">
-                <Settings className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {healthData.version}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">버전</div>
-              </div>
-              <div className="text-center">
-                <Database className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {healthData.basicChecks.database.connections}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">DB 연결</div>
               </div>
             </div>
           </div>

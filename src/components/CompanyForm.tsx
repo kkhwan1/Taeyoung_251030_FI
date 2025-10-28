@@ -7,7 +7,7 @@ interface Company {
   company_id?: number;
   company_name: string;
   company_type: 'CUSTOMER' | 'SUPPLIER' | 'BOTH';
-  business_registration_no?: string;
+  business_number?: string;
   contact_person?: string;
   phone?: string;
   mobile?: string;
@@ -34,7 +34,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
   const [formData, setFormData] = useState<Company>({
     company_name: '',
     company_type: 'CUSTOMER',
-    business_registration_no: '',
+    business_number: '',
     contact_person: '',
     phone: '',
     mobile: '',
@@ -55,7 +55,18 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
 
   useEffect(() => {
     if (company) {
-      setFormData(company);
+      setFormData({
+        ...company,
+        payment_terms: company.payment_terms ?? 0,
+        business_number: company.business_number ?? '',
+        contact_person: company.contact_person ?? '',
+        phone: company.phone ?? '',
+        mobile: company.mobile ?? '',
+        email: company.email ?? '',
+        address: company.address ?? '',
+        notes: company.notes ?? '',
+        company_category: company.company_category ?? '',
+      });
     }
   }, [company]);
 
@@ -141,7 +152,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
         {/* 거래처명 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            거래처명 <span className="text-red-500">*</span>
+            거래처명 <span className="text-gray-500">*</span>
           </label>
           <input
             type="text"
@@ -149,26 +160,26 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             value={formData.company_name}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.company_name ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.company_name ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="예: 현대자동차"
           />
           {errors.company_name && (
-            <p className="mt-1 text-sm text-red-500">{errors.company_name}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.company_name}</p>
           )}
         </div>
 
         {/* 거래처 타입 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            거래처 타입 <span className="text-red-500">*</span>
+            거래처 타입 <span className="text-gray-500">*</span>
           </label>
           <select
             name="company_type"
             value={formData.company_type}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.company_type ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.company_type ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           >
             <option value="CUSTOMER">고객사</option>
@@ -176,7 +187,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             <option value="BOTH">고객사/공급사</option>
           </select>
           {errors.company_type && (
-            <p className="mt-1 text-sm text-red-500">{errors.company_type}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.company_type}</p>
           )}
         </div>
 
@@ -187,8 +198,8 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
           </label>
           <input
             type="text"
-            name="business_registration_no"
-            value={formData.business_registration_no || ''}
+            name="business_number"
+            value={formData.business_number || ''}
             onChange={handleChange}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="예: 123-45-67890"
@@ -221,12 +232,12 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             value={formData.phone || ''}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.phone ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="예: 02-1234-5678"
           />
           {errors.phone && (
-            <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.phone}</p>
           )}
         </div>
 
@@ -241,12 +252,12 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             value={formData.mobile || ''}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.mobile ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.mobile ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="예: 010-1234-5678"
           />
           {errors.mobile && (
-            <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.mobile}</p>
           )}
         </div>
 
@@ -261,12 +272,12 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             value={formData.email || ''}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.email ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="예: admin@company.com"
           />
           {errors.email && (
-            <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.email}</p>
           )}
         </div>
 
@@ -278,16 +289,16 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
           <input
             type="number"
             name="payment_terms"
-            value={formData.payment_terms}
+            value={formData.payment_terms ?? ''}
             onChange={handleChange}
             min="0"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.payment_terms ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.payment_terms ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="예: 30"
           />
           {errors.payment_terms && (
-            <p className="mt-1 text-sm text-red-500">{errors.payment_terms}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.payment_terms}</p>
           )}
         </div>
 
@@ -301,7 +312,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             value={formData.company_category || ''}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.company_category ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.company_category ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           >
             <option value="">선택 안함</option>
@@ -311,7 +322,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             <option value="기타">기타</option>
           </select>
           {errors.company_category && (
-            <p className="mt-1 text-sm text-red-500">{errors.company_category}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.company_category}</p>
           )}
         </div>
       </div>
@@ -412,7 +423,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

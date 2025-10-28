@@ -14,7 +14,10 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { TrendingUp, Download, Printer } from 'lucide-react';
+import {
+  Download,
+  Printer
+} from 'lucide-react';
 import {
   formatKoreanNumber,
   getRechartsTheme,
@@ -121,7 +124,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     if (active && payload && payload.length) {
       return (
         <div
-          className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg min-w-[200px]"
+          className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-lg min-w-[200px]"
           style={theme.tooltip.contentStyle}
         >
           <p className="font-semibold text-gray-900 dark:text-gray-100 mb-3">
@@ -173,20 +176,20 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
   if (loading) {
     return (
-      <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm ${className}`}>
+      <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700 ${className}`}>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700 dark:border-gray-300"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <TrendingUp className="w-5 h-5 text-blue-500" />
+        <div className="flex flex-row flex-wrap items-center space-x-2">
+          
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             가격 추세 분석
           </h3>
@@ -211,7 +214,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               onClick={() => setShowRange(!showRange)}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 showRange
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                  ? 'bg-gray-800 text-white hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600'
                   : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
               }`}
             >
@@ -248,7 +251,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               onClick={() => toggleItem(item.id)}
               className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                 selectedItems.has(item.id)
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                  ? 'bg-gray-800 text-white dark:bg-gray-700'
                   : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
               }`}
             >
@@ -274,7 +277,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
         {!chartData.length ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              
               <p>표시할 가격 추세 데이터가 없습니다</p>
               <p className="text-sm text-gray-400 mt-1">품목을 선택해주세요</p>
             </div>

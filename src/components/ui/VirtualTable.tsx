@@ -186,7 +186,7 @@ export function VirtualTable<T extends Record<string, any>>({
                     placeholder={searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
                   />
                 </div>
               </div>
@@ -199,7 +199,7 @@ export function VirtualTable<T extends Record<string, any>>({
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
                     showFilters
-                      ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-300'
+                      ? 'bg-gray-100 border-gray-400 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
                       : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
@@ -231,7 +231,7 @@ export function VirtualTable<T extends Record<string, any>>({
                     placeholder={`${column.title} 필터...`}
                     value={filters[column.key] || ''}
                     onChange={(e) => handleFilterChange(column.key, e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500"
                   />
                 </div>
               ))}
@@ -270,14 +270,14 @@ export function VirtualTable<T extends Record<string, any>>({
             {/* Sticky Header */}
             {stickyHeader && (
               <div
-                className={`sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 ${headerClassName}`}
+                className={`sticky top-0 z-10 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 ${headerClassName}`}
                 style={{ height: `${rowHeight}px` }}
               >
                 <div className="flex items-center h-full">
                   {columns.map((column, columnIndex) => (
                     <div
                       key={column.key}
-                      className={`flex items-center justify-between px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
+                      className={`flex items-center justify-between px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider ${
                         column.className || ''
                       }`}
                       style={{
@@ -329,7 +329,7 @@ export function VirtualTable<T extends Record<string, any>>({
                   {columns.map((column) => (
                     <div
                       key={column.key}
-                      className={`px-6 py-3 text-sm text-gray-900 dark:text-white ${
+                      className={`px-6 py-3 text-sm text-gray-800 dark:text-gray-200 ${
                         column.className || ''
                       }`}
                       style={{

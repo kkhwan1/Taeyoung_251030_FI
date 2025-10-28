@@ -2,15 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import {
-  BarChart3,
-  Package,
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
   Download,
-  Calendar,
-  PieChart,
-  Activity
+  Calendar
 } from 'lucide-react';
 import {
   XAxis,
@@ -25,6 +18,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
+import { formatKoreanNumber } from '@/utils/chartUtils';
 
 interface StockSummary {
   total_items: number;
@@ -110,8 +104,8 @@ export default function StockReportsPage() {
     }
   }, [reportDate]);
 
-  // Colors for pie chart
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
+  // Chart colors - Grayscale palette for SAP-style UI
+  const COLORS = ['#262626', '#525252', '#737373', '#A3A3A3', '#D4D4D4', '#E5E5E5', '#F5F5F5', '#FAFAFA'];
 
   // Export report to CSV
   const exportReport = () => {
@@ -159,102 +153,79 @@ export default function StockReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">재고 보고서</h1>
-          <p className="text-gray-600 dark:text-gray-400">재고 현황 분석 및 통계 리포트</p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gray-400" />
-            <input
-              type="date"
-              value={reportDate}
-              onChange={(e) => setReportDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">재고 보고서</h1>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">재고 현황 분석 및 통계 리포트</p>
           </div>
 
-          <button
-            onClick={exportReport}
-            disabled={!stockSummary || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-5 h-5" />
-            보고서 내보내기
-          </button>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-gray-400" />
+              <input
+                type="date"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 text-sm"
+              />
+            </div>
+
+            <button
+              onClick={exportReport}
+              disabled={!stockSummary || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              <Download className="w-5 h-5" />
+              보고서 내보내기
+            </button>
+          </div>
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mr-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800 mr-4"></div>
           <span className="text-gray-600 dark:text-gray-400">보고서를 생성하고 있습니다...</span>
         </div>
       ) : (
         <>
           {/* Summary Statistics */}
           {stockSummary && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <Package className="w-8 h-8 text-blue-500" />
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">총 품목수</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {(stockSummary.total_items || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">총 품목수</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
+                  {(stockSummary.total_items || 0).toLocaleString()}
+                </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <BarChart3 className="w-8 h-8 text-green-500" />
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">총 재고금액</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ₩{(stockSummary.total_stock_value || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">총 재고금액</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
+                  ₩{(stockSummary.total_stock_value || 0).toLocaleString()}
+                </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-8 h-8 text-red-500" />
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">부족품목</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {(stockSummary.low_stock_items || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">부족품목</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
+                  {(stockSummary.low_stock_items || 0).toLocaleString()}
+                </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="w-8 h-8 text-orange-500" />
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">과잉재고</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {(stockSummary.excess_stock_items || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">과잉재고</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
+                  {(stockSummary.excess_stock_items || 0).toLocaleString()}
+                </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <TrendingDown className="w-8 h-8 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">품절품목</p>
-                    <p className="text-2xl font-bold text-gray-600">
-                      {(stockSummary.out_of_stock_items || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">품절품목</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
+                  {(stockSummary.out_of_stock_items || 0).toLocaleString()}
+                </p>
               </div>
             </div>
           )}
@@ -262,11 +233,8 @@ export default function StockReportsPage() {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Category Breakdown Pie Chart */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <PieChart className="w-6 h-6 text-blue-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">카테고리별 재고금액</h3>
-              </div>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 sm:mb-6">카테고리별 재고금액</h3>
 
               {categoryBreakdown.length > 0 ? (
                 <div className="h-80">
@@ -298,19 +266,19 @@ export default function StockReportsPage() {
             </div>
 
             {/* Monthly Trend Chart */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <Activity className="w-6 h-6 text-green-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">월별 재고 추이</h3>
-              </div>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 sm:mb-6">월별 재고 추이</h3>
 
               {monthlyTrend.length > 0 ? (
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyTrend}>
+                    <LineChart data={monthlyTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
-                      <YAxis />
+                      <YAxis 
+                        tickFormatter={(value) => formatKoreanNumber(value)} 
+                        width={80}
+                      />
                       <Tooltip
                         formatter={(value: number, name: string) => [
                           name === 'stock_value' ? `₩${value.toLocaleString()}` : value.toLocaleString(),
@@ -323,14 +291,14 @@ export default function StockReportsPage() {
                       <Line
                         type="monotone"
                         dataKey="stock_value"
-                        stroke="#3B82F6"
+                        stroke="#262626"
                         strokeWidth={2}
                         name="재고금액"
                       />
                       <Line
                         type="monotone"
                         dataKey="transaction_count"
-                        stroke="#10B981"
+                        stroke="#525252"
                         strokeWidth={2}
                         name="거래건수"
                       />
@@ -348,12 +316,9 @@ export default function StockReportsPage() {
           {/* Tables Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Value Items */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-6 h-6 text-blue-500" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">고가 품목 TOP 10</h3>
-                </div>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="p-3 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100">고가 품목 TOP 10</h3>
               </div>
 
               <div className="overflow-x-auto">
@@ -399,12 +364,9 @@ export default function StockReportsPage() {
             </div>
 
             {/* Low Stock Items */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-6 h-6 text-red-500" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">재고 부족 품목</h3>
-                </div>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="p-3 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100">재고 부족 품목</h3>
               </div>
 
               <div className="overflow-x-auto">
@@ -435,7 +397,7 @@ export default function StockReportsPage() {
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white truncate max-w-32">
                             {item.item_name}
                           </td>
-                          <td className="px-4 py-3 text-sm text-right text-red-600">
+                          <td className="px-4 py-3 text-sm text-right text-gray-800 dark:text-gray-100">
                             {item.current_stock.toLocaleString()}
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
@@ -458,12 +420,9 @@ export default function StockReportsPage() {
 
           {/* Category Breakdown Table */}
           {categoryBreakdown.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-6 h-6 text-green-500" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">카테고리별 상세 현황</h3>
-                </div>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="p-3 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100">카테고리별 상세 현황</h3>
               </div>
 
               <div className="overflow-x-auto">

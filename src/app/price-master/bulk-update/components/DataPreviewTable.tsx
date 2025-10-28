@@ -225,7 +225,7 @@ export function DataPreviewTable({ data, errors, loading = false }: DataPreviewT
                 return (
                   <TableRow 
                     key={`${item.item_code}-${item.effective_date}`}
-                    className={status === 'error' ? 'bg-red-50' : ''}
+                    className={status === 'error' ? 'bg-gray-50' : ''}
                     data-testid={`table-row-${index}`}
                   >
                     <TableCell className="font-medium">
@@ -248,7 +248,7 @@ export function DataPreviewTable({ data, errors, loading = false }: DataPreviewT
                         {status === 'valid' ? '유효' : '오류'}
                       </Badge>
                       {rowErrors.length > 0 && (
-                        <div className="mt-1 text-xs text-red-600">
+                        <div className="mt-1 text-xs text-gray-600">
                           {rowErrors.map((error, i) => (
                             <div key={i}>{error.message}</div>
                           ))}

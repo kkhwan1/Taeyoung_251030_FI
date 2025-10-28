@@ -267,7 +267,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       query = query.eq('parent_item_id', parseInt(parentItemId));
     }
 
-    // ⚠️ NOTE: Cannot filter by is_active in v_bom_details view (column doesn't exist)
+    // ️ NOTE: Cannot filter by is_active in v_bom_details view (column doesn't exist)
     // Will transform and filter after query
 
     const { data: bomData, error } = await query;
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // ✅ CRITICAL FIX: Transform data to include is_active field
+    // CRITICAL FIX: Transform data to include is_active field
     // v_bom_details view doesn't have is_active column, so we add it with default true
     const transformedData = (bomData || []).map((item: any) => ({
       ...item,

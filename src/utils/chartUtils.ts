@@ -5,8 +5,23 @@
 
 import type { ChartOptions } from 'chart.js';
 
-// Korean number formatting
+// Korean number formatting (천단위 구분만, 축약 없음)
 export const formatKoreanNumber = (value: number): string => {
+  // Handle NaN, null, undefined
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0';
+  }
+
+  return value.toLocaleString('ko-KR');
+};
+
+// Korean number formatting with abbreviation (기존 함수 - 만/억 축약)
+export const formatKoreanNumberAbbrev = (value: number): string => {
+  // Handle NaN, null, undefined
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0';
+  }
+
   if (value >= 100000000) {
     return `${(value / 100000000).toFixed(1)}억`;
   } else if (value >= 10000) {
@@ -24,146 +39,87 @@ export const formatKoreanCurrency = (value: number): string => {
 
 // Korean percentage formatting
 export const formatKoreanPercent = (value: number): string => {
+  // Handle NaN, null, undefined
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0%';
+  }
+  
   return `${value.toFixed(1)}%`;
 };
 
-// Date formatting for Korean locale
-export const formatKoreanDate = (date: Date | string): string => {
-  const d = new Date(date);
-  return d.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
-
-// Color schemes for different themes
+// Color schemes for charts (Grayscale - SAP Style)
 export const colorSchemes = {
   light: {
-    primary: '#3B82F6',
-    secondary: '#10B981',
-    accent: '#8B5CF6',
-    warning: '#F59E0B',
-    danger: '#EF4444',
+    primary: '#262626',      // Gray-800
+    secondary: '#525252',    // Gray-600
+    accent: '#404040',       // Gray-700
+    warning: '#525252',      // Gray-600 (SAP Grayscale)
+    danger: '#262626',       // Gray-800 (SAP Grayscale)
+    success: '#737373',      // Gray-500 (SAP Grayscale)
+    info: '#525252',         // Gray-600 (SAP Grayscale)
+    
     background: '#FFFFFF',
-    surface: '#F8FAFC',
+    surface: '#F9FAFB',
+    border: '#E5E7EB',
+    
     text: '#1F2937',
     textSecondary: '#6B7280',
-    border: '#E5E7EB',
-    gridLines: '#F3F4F6'
+    textTertiary: '#9CA3AF',
+    
+    gridLines: '#E5E7EB',
+    
+    chart: {
+      primary: '#262626',
+      secondary: '#525252',
+      tertiary: '#737373',
+      quaternary: '#A3A3A3',
+      quinary: '#D4D4D4'
+    }
   },
   dark: {
-    primary: '#60A5FA',
-    secondary: '#34D399',
-    accent: '#A78BFA',
-    warning: '#FBBF24',
-    danger: '#F87171',
+    primary: '#E5E5E5',      // Light Gray
+    secondary: '#A3A3A3',    // Gray-400
+    accent: '#737373',       // Gray-500
+    warning: '#A3A3A3',      // Gray-400 (SAP Grayscale)
+    danger: '#E5E5E5',       // Light Gray (SAP Grayscale)
+    success: '#D4D4D4',      // Gray-300 (SAP Grayscale)
+    info: '#A3A3A3',         // Gray-400 (SAP Grayscale)
+    
     background: '#111827',
     surface: '#1F2937',
-    text: '#F9FAFB',
-    textSecondary: '#9CA3AF',
     border: '#374151',
-    gridLines: '#374151'
+    
+    text: '#F9FAFB',
+    textSecondary: '#D1D5DB',
+    textTertiary: '#9CA3AF',
+    
+    gridLines: '#374151',
+    
+    chart: {
+      primary: '#E5E5E5',
+      secondary: '#A3A3A3',
+      tertiary: '#737373',
+      quaternary: '#525252',
+      quinary: '#404040'
+    }
   }
 };
 
-// Chart.js configuration presets
-export const getChartDefaults = (isDark: boolean = false): Partial<ChartOptions<any>> => {
-  const theme = isDark ? colorSchemes.dark : colorSchemes.light;
-
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        labels: {
-          color: theme.text,
-          font: {
-            family: 'Pretendard, -apple-system, BlinkMacSystemFont, sans-serif'
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: theme.surface,
-        titleColor: theme.text,
-        bodyColor: theme.text,
-        borderColor: theme.border,
-        borderWidth: 1,
-        cornerRadius: 8,
-        titleFont: {
-          family: 'Pretendard, -apple-system, BlinkMacSystemFont, sans-serif'
-        },
-        bodyFont: {
-          family: 'Pretendard, -apple-system, BlinkMacSystemFont, sans-serif'
-        }
-      }
-    },
-    scales: {
-      x: {
-        grid: {
-          color: theme.gridLines
-        },
-        ticks: {
-          color: theme.textSecondary,
-          font: {
-            family: 'Pretendard, -apple-system, BlinkMacSystemFont, sans-serif'
-          }
-        }
-      },
-      y: {
-        grid: {
-          color: theme.gridLines
-        },
-        ticks: {
-          color: theme.textSecondary,
-          font: {
-            family: 'Pretendard, -apple-system, BlinkMacSystemFont, sans-serif'
-          }
-        }
-      }
-    }
-  };
+/**
+ * Get theme-appropriate colors
+ * @param isDark Whether dark mode is active
+ * @returns Color scheme object
+ */
+export const getTheme = (isDark: boolean = false) => {
+  return isDark ? colorSchemes.dark : colorSchemes.light;
 };
 
-// Recharts configuration presets
-export const getRechartsTheme = (isDark: boolean = false) => {
-  const theme = isDark ? colorSchemes.dark : colorSchemes.light;
-
-  return {
-    colors: [
-      theme.primary,
-      theme.secondary,
-      theme.accent,
-      theme.warning,
-      theme.danger,
-      '#06B6D4',
-      '#84CC16',
-      '#F97316'
-    ],
-    tooltip: {
-      contentStyle: {
-        backgroundColor: theme.surface,
-        color: theme.text,
-        border: `1px solid ${theme.border}`,
-        borderRadius: '8px',
-        fontFamily: 'Pretendard, -apple-system, BlinkMacSystemFont, sans-serif'
-      }
-    },
-    cartesianGrid: {
-      stroke: theme.gridLines
-    },
-    xAxis: {
-      tick: { fill: theme.textSecondary },
-      axisLine: { stroke: theme.border }
-    },
-    yAxis: {
-      tick: { fill: theme.textSecondary },
-      axisLine: { stroke: theme.border }
-    }
-  };
-};
-
-// Transaction type colors
+/**
+ * Get transaction type color
+ * @param type Transaction type (입고, 출고, 생산, 조정)
+ * @param isDark Whether dark mode is active
+ * @returns Color string
+ */
 export const getTransactionTypeColor = (type: string, isDark: boolean = false) => {
   const theme = isDark ? colorSchemes.dark : colorSchemes.light;
 
@@ -181,210 +137,372 @@ export const getTransactionTypeColor = (type: string, isDark: boolean = false) =
   }
 };
 
-// Stock level colors
-export const getStockLevelColor = (current: number, minimum: number, isDark: boolean = false) => {
-  const theme = isDark ? colorSchemes.dark : colorSchemes.light;
-  const ratio = current / minimum;
-
-  if (ratio < 0.5) return theme.danger;
-  if (ratio < 1) return theme.warning;
-  if (ratio < 1.5) return theme.secondary;
-  return theme.primary;
-};
-
-// Chart data transformation utilities
-export const transformStockData = (items: any[]) => {
-  return items.map(item => ({
-    name: item.item_name || item.name,
-    현재고: item.current_stock || item.current || 0,
-    최소재고: item.minimum_stock || item.minimum || 0,
-    안전재고: (item.minimum_stock || item.minimum || 0) * 1.5,
-    code: item.item_code || item.code
-  }));
-};
-
-interface Transaction {
-  transaction_date?: string;
-  date?: string;
-  transaction_type?: string;
-  type?: string;
-  quantity?: number;
-}
-
-interface GroupedData {
-  date: string;
-  입고: number;
-  출고: number;
-  생산: number;
-}
-
-export const transformTransactionData = (transactions: Transaction[]) => {
-  const grouped = transactions.reduce((acc, transaction) => {
-    const date = transaction.transaction_date || transaction.date || '';
-    const dateStr = formatKoreanDate(date);
-
-    if (!acc[dateStr]) {
-      acc[dateStr] = { date: dateStr, 입고: 0, 출고: 0, 생산: 0 };
+/**
+ * Chart.js default options with Korean settings
+ */
+export const defaultChartOptions: ChartOptions<any> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+      display: true,
+      position: 'top' as const,
+        labels: {
+        usePointStyle: true,
+        padding: 15,
+          font: {
+          size: 12,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
+          }
+        }
+      },
+      tooltip: {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      padding: 12,
+        titleFont: {
+        size: 13,
+        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
+        },
+        bodyFont: {
+        size: 12,
+        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
+      },
+      callbacks: {
+        label: function(context) {
+          let label = context.dataset.label || '';
+          if (label) {
+            label += ': ';
+          }
+          if (context.parsed.y !== null) {
+            label += formatKoreanNumber(context.parsed.y);
+          }
+          return label;
+        }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+        display: false
+        },
+        ticks: {
+          font: {
+          size: 11,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
+          }
+        }
+      },
+      y: {
+      beginAtZero: true,
+        grid: {
+        color: 'rgba(0, 0, 0, 0.05)'
+        },
+        ticks: {
+          font: {
+          size: 11,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
+        },
+        callback: function(value) {
+          return formatKoreanNumber(value as number);
+        }
+      }
     }
-
-    const type = transaction.transaction_type || transaction.type;
-    const quantity = transaction.quantity || 0;
-
-    if (type === '입고') acc[dateStr].입고 += quantity;
-    else if (type === '출고') acc[dateStr].출고 += quantity;
-    else if (type === '생산') acc[dateStr].생산 += quantity;
-
-    return acc;
-  }, {} as Record<string, GroupedData>);
-
-  return Object.values(grouped).sort((a, b) =>
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
-};
-
-// Export chart as image
-export const exportChartAsImage = (chartRef: any, filename: string = 'chart.png') => {
-  if (!chartRef?.current) return;
-
-  const canvas = chartRef.current.canvas || chartRef.current.querySelector('canvas');
-  if (!canvas) return;
-
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-};
-
-// Print chart
-export const printChart = (chartRef: any) => {
-  if (!chartRef?.current) return;
-
-  const canvas = chartRef.current.canvas || chartRef.current.querySelector('canvas');
-  if (!canvas) return;
-
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-
-  printWindow.document.write(`
-    <html>
-      <head><title>차트 인쇄</title></head>
-      <body style="margin: 0; text-align: center;">
-        <img src="${canvas.toDataURL('image/png')}" style="max-width: 100%; height: auto;" />
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
-  printWindow.print();
-};
-
-// Performance optimization utilities
-export const debounce = <T extends (...args: any[]) => void>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
-export const throttle = <T extends (...args: any[]) => void>(
-  func: T,
-  limit: number
-): ((...args: Parameters<T>) => void) => {
-  let inThrottle: boolean;
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
-    }
-  };
-};
-
-// Chart animation presets
-export const animationPresets = {
-  smooth: {
-    animateRotate: true,
-    animateScale: true,
-    duration: 1000,
-    easing: 'easeInOutQuart'
-  },
-  fast: {
-    animateRotate: true,
-    animateScale: true,
-    duration: 300,
-    easing: 'easeOutQuart'
-  },
-  none: {
-    animateRotate: false,
-    animateScale: false,
-    duration: 0
   }
 };
 
-// KPI calculation utilities
-export const calculateKPIs = (data: {
-  items: any[];
-  transactions: Transaction[];
-  companies: any[];
-}) => {
-  const { items, transactions, companies } = data;
+/**
+ * Get chart colors for multiple datasets
+ * @param count Number of colors needed
+ * @param isDark Whether dark mode is active
+ * @returns Array of color strings
+ */
+export const getChartColors = (count: number, isDark: boolean = false): string[] => {
+  const theme = getTheme(isDark);
+  const baseColors = [
+    theme.chart.primary,
+    theme.chart.secondary,
+    theme.chart.tertiary,
+    theme.chart.quaternary,
+    theme.chart.quinary
+  ];
+  
+  const colors: string[] = [];
+  for (let i = 0; i < count; i++) {
+    colors.push(baseColors[i % baseColors.length]);
+  }
+  
+  return colors;
+};
 
-  // Calculate total items
-  const totalItems = items.filter(item => item.is_active).length;
+/**
+ * Create gradient for chart background
+ * @param ctx Canvas rendering context
+ * @param colorStart Start color
+ * @param colorEnd End color
+ * @returns CanvasGradient
+ */
+export const createGradient = (
+  ctx: CanvasRenderingContext2D,
+  colorStart: string,
+  colorEnd: string
+): CanvasGradient => {
+  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+  gradient.addColorStop(0, colorStart);
+  gradient.addColorStop(1, colorEnd);
+  return gradient;
+};
 
-  // Calculate active companies
-  const activeCompanies = companies.filter(company => company.is_active).length;
+/**
+ * Format date for chart labels
+ * @param date Date string or Date object
+ * @param format Format type ('short' | 'long' | 'month')
+ * @returns Formatted date string
+ */
+export const formatChartDate = (
+  date: string | Date,
+  format: 'short' | 'long' | 'month' = 'short'
+): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  switch (format) {
+    case 'long':
+      return d.toLocaleDateString('ko-KR', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    case 'month':
+      return d.toLocaleDateString('ko-KR', { 
+        year: 'numeric', 
+        month: 'short'
+      });
+    case 'short':
+    default:
+      return d.toLocaleDateString('ko-KR', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+  }
+};
 
-  // Calculate monthly transaction volume
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyTransactions = transactions.filter(transaction => {
-    const date = new Date(transaction.transaction_date || transaction.date || '');
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+/**
+ * Calculate percentage change
+ * @param current Current value
+ * @param previous Previous value
+ * @returns Percentage change as number
+ */
+export const calculatePercentChange = (current: number, previous: number): number => {
+  if (previous === 0) return 0;
+  return ((current - previous) / previous) * 100;
+};
+
+/**
+ * Format percentage change with sign
+ * @param change Percentage change value
+ * @returns Formatted string with + or - sign
+ */
+export const formatPercentChange = (change: number): string => {
+  const sign = change >= 0 ? '+' : '';
+  return `${sign}${change.toFixed(1)}%`;
+};
+
+/**
+ * Aggregate data by time period
+ * @param data Array of data with date field
+ * @param period Aggregation period ('day' | 'week' | 'month')
+ * @returns Aggregated data
+ */
+export const aggregateByPeriod = <T extends { date: string }>(
+  data: T[],
+  period: 'day' | 'week' | 'month'
+): { [key: string]: T[] } => {
+  const grouped: { [key: string]: T[] } = {};
+  
+  data.forEach(item => {
+    const date = new Date(item.date);
+    let key: string;
+    
+    switch (period) {
+      case 'month':
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        break;
+      case 'week':
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+        break;
+      case 'day':
+      default:
+        key = date.toISOString().split('T')[0];
+    }
+    
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(item);
   });
+  
+  return grouped;
+};
 
-  const monthlyVolume = monthlyTransactions.reduce((sum, transaction) => {
-    return sum + (transaction.quantity || 0);
-  }, 0);
-
-  // Calculate low stock items
-  const lowStockItems = items.filter(item => {
-    const current = item.current_stock || 0;
-    const minimum = item.minimum_stock || 0;
-    return current < minimum && item.is_active;
-  }).length;
-
-  // Calculate trends (previous month comparison)
-  const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-  const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-  const previousMonthTransactions = transactions.filter(transaction => {
-    const date = new Date(transaction.transaction_date || transaction.date || '');
-    return date.getMonth() === previousMonth && date.getFullYear() === previousYear;
+/**
+ * Format Korean date
+ * @param date Date string or Date object
+ * @returns Formatted Korean date string
+ */
+export const formatKoreanDate = (date: string | Date): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
+};
 
-  const previousMonthVolume = previousMonthTransactions.reduce((sum, transaction) => {
-    return sum + (transaction.quantity || 0);
-  }, 0);
-
-  const volumeChange = previousMonthVolume > 0
-    ? ((monthlyVolume - previousMonthVolume) / previousMonthVolume * 100)
-    : 0;
+/**
+ * Get Recharts theme configuration
+ * @param isDark Whether dark mode is active
+ * @returns Recharts theme object
+ */
+export const getRechartsTheme = (isDark: boolean = false) => {
+  const theme = getTheme(isDark);
 
   return {
-    totalItems,
-    activeCompanies,
-    monthlyVolume,
-    lowStockItems,
-    volumeChange,
-    trends: {
-      items: 0, // Calculate based on historical data if available
-      companies: 0, // Calculate based on historical data if available
-      volume: volumeChange,
-      lowStock: 0 // Calculate based on historical data if available
+    colors: getChartColors(5, isDark),
+    tooltip: {
+      contentStyle: {
+        backgroundColor: isDark ? theme.surface : '#FFFFFF',
+        border: `1px solid ${theme.border}`,
+        borderRadius: '8px',
+        padding: '12px'
+      }
+    },
+    cartesianGrid: {
+      stroke: theme.gridLines
+    },
+    xAxis: {
+      tick: { fill: theme.textSecondary },
+      axisLine: { stroke: theme.border }
+    },
+    yAxis: {
+      tick: { fill: theme.textSecondary },
+      axisLine: { stroke: theme.border }
     }
   };
 };
+
+/**
+ * Export chart as image
+ * @param chartRef Chart reference
+ * @param filename Optional filename
+ */
+export const exportChartAsImage = (chartRef: any, filename: string = 'chart.png'): void => {
+  if (!chartRef?.current) {
+    console.warn('Chart reference is not available');
+    return;
+  }
+
+  try {
+    // For recharts
+    const svg = chartRef.current.querySelector('svg');
+    if (svg) {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = url;
+            link.click();
+          }
+        });
+      };
+
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    }
+  } catch (error) {
+    console.error('Failed to export chart:', error);
+  }
+};
+
+/**
+ * Print chart
+ * @param chartRef Chart reference
+ */
+export const printChart = (chartRef: any): void => {
+  if (!chartRef?.current) {
+    console.warn('Chart reference is not available');
+    return;
+  }
+
+  try {
+    const printWindow = window.open('', '', 'height=600,width=800');
+    if (printWindow) {
+      const svg = chartRef.current.querySelector('svg');
+      if (svg) {
+        printWindow.document.write('<html><head><title>Print Chart</title></head><body>');
+        printWindow.document.write(svg.outerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to print chart:', error);
+  }
+};
+
+/**
+ * Debounce function
+ * @param func Function to debounce
+ * @param wait Wait time in milliseconds
+ * @returns Debounced function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return function(...args: Parameters<T>) {
+    if (timeout) {
+    clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+}
+
+/**
+ * Throttle function
+ * @param func Function to throttle
+ * @param limit Limit time in milliseconds
+ * @returns Throttled function
+ */
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean = false;
+
+  return function(...args: Parameters<T>) {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
+    }
+  };
+}

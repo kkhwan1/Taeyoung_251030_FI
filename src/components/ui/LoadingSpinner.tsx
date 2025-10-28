@@ -21,7 +21,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   const colorClasses = {
-    primary: 'text-blue-600 dark:text-blue-400',
+    primary: 'text-gray-600 dark:text-gray-400',
     secondary: 'text-gray-600 dark:text-gray-400',
     white: 'text-white',
     gray: 'text-gray-500'
@@ -75,7 +75,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
         <LoadingSpinner size="lg" text={text} />
       </div>
     </div>
@@ -105,9 +105,9 @@ export const ButtonLoading: React.FC<ButtonLoadingProps> = ({
   className = ''
 }) => {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+    primary: 'bg-gray-600 hover:bg-gray-700 text-white',
     secondary: 'bg-gray-600 hover:bg-gray-700 text-white',
-    danger: 'bg-red-600 hover:bg-red-700 text-white'
+    danger: 'bg-gray-600 hover:bg-gray-700 text-white'
   };
 
   const sizeClasses = {

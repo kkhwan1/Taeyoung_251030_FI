@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
-import { APIError, validateRequiredFields } from '@/lib/api-error-handler';
+import { ERPError, ErrorType, handleError as handleErrorResponse } from '@/lib/errorHandler';
 import type { Database } from '@/types/supabase';
 
 type WarehouseStockRow = Database['public']['Tables']['warehouse_stock']['Row'];
@@ -26,34 +26,13 @@ const DEFAULT_USER_ID = 1;
 
 type ParsedStockStatus = '재고부족' | '재고과다' | '정상';
 
-function parseJsonBody<T>(request: NextRequest): Promise<T> {
-  return request
-    .json()
-    .catch(() => {
-      throw new APIError('요청 본문을 파싱할 수 없습니다. JSON 형식을 확인해주세요.', 400);
-    });
-}
-
-function handleRouteError(error: unknown, fallbackMessage: string): NextResponse {
-  if (error instanceof APIError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        details: error.details,
-      },
-      { status: error.statusCode }
-    );
+async function parseJsonBody<T>(request: NextRequest): Promise<T> {
+  try {
+    const text = await request.text();
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ERPError(ErrorType.VALIDATION, '요청 본문을 파싱할 수 없습니다. JSON 형식을 확인해주세요.');
   }
-
-  console.error('[warehouses/stock] Unexpected error:', error);
-  return NextResponse.json(
-    {
-      success: false,
-      error: fallbackMessage,
-    },
-    { status: 500 }
-  );
 }
 
 function parseOptionalNumber(value: string | null, field: string): number | null {
@@ -63,7 +42,7 @@ function parseOptionalNumber(value: string | null, field: string): number | null
 
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    throw new APIError(`${field} 파라미터가 올바르지 않습니다.`, 400, { value });
+    throw new ERPError(ErrorType.VALIDATION, `${field} 파라미터가 올바르지 않습니다.`);
   }
 
   return numeric;
@@ -73,7 +52,7 @@ function ensureNumber(value: unknown, field: string): number {
   const numeric = Number(value);
 
   if (!Number.isFinite(numeric)) {
-    throw new APIError(`${field} 값이 올바르지 않습니다.`, 400, { value });
+    throw new ERPError(ErrorType.VALIDATION, `${field} 값이 올바르지 않습니다.`);
   }
 
   return numeric;
@@ -173,7 +152,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      throw new APIError('창고 재고 정보를 조회하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     const stocks = (data ?? []).map((stock) => formatStockRow(stock as WarehouseStockWithRelations));
@@ -201,22 +180,23 @@ export async function GET(request: NextRequest) {
       summary,
     });
   } catch (error) {
-    return handleRouteError(error, '창고 재고 정보를 조회하지 못했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouse_stock', action: 'read' });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const payload = await parseJsonBody<Record<string, unknown>>(request);
-    const validationErrors = validateRequiredFields(payload, [
-      'warehouse_id',
-      'item_id',
-      'min_stock',
-      'max_stock',
-    ]);
 
-    if (validationErrors.length > 0) {
-      throw new APIError('필수 입력값을 확인해주세요.', 400, validationErrors);
+    // Validate required fields
+    const missingFields = [];
+    if (!payload.warehouse_id) missingFields.push('warehouse_id');
+    if (!payload.item_id) missingFields.push('item_id');
+    if (payload.min_stock === undefined || payload.min_stock === null) missingFields.push('min_stock');
+    if (payload.max_stock === undefined || payload.max_stock === null) missingFields.push('max_stock');
+
+    if (missingFields.length > 0) {
+      throw new ERPError(ErrorType.VALIDATION, `필수 입력값을 확인해주세요: ${missingFields.join(', ')}`);
     }
 
     const warehouseId = ensureNumber(payload.warehouse_id, 'warehouse_id');
@@ -225,11 +205,11 @@ export async function POST(request: NextRequest) {
     const maxStock = ensureNumber(payload.max_stock, 'max_stock');
 
     if (minStock < 0 || maxStock < 0) {
-      throw new APIError('재고 임계값은 0 이상의 값이어야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '재고 임계값은 0 이상의 값이어야 합니다.');
     }
 
     if (maxStock > 0 && minStock > maxStock) {
-      throw new APIError('최소 재고는 최대 재고보다 클 수 없습니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '최소 재고는 최대 재고보다 클 수 없습니다.');
     }
 
     const locationCode = payload.location_code ? String(payload.location_code).trim() : null;
@@ -244,7 +224,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingError) {
-      throw new APIError('창고 재고 정보를 확인하지 못했습니다.', 500, existingError.message);
+      throw existingError;
     }
 
     if (existing) {
@@ -261,7 +241,7 @@ export async function POST(request: NextRequest) {
         .eq('warehouse_stock_id', existing.warehouse_stock_id);
 
       if (updateError) {
-        throw new APIError('창고 재고 정보를 수정하지 못했습니다.', 500, updateError.message);
+        throw updateError;
       }
     } else {
       const insertPayload: WarehouseStockInsert = {
@@ -284,7 +264,7 @@ export async function POST(request: NextRequest) {
         .insert(insertPayload);
 
       if (insertError) {
-        throw new APIError('창고 재고 정보를 생성하지 못했습니다.', 500, insertError.message);
+        throw insertError;
       }
     }
 
@@ -293,22 +273,23 @@ export async function POST(request: NextRequest) {
       message: '창고 재고 설정이 저장되었습니다.',
     });
   } catch (error) {
-    return handleRouteError(error, '창고 재고 설정 저장 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouse_stock', action: 'create' });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
     const payload = await parseJsonBody<Record<string, unknown>>(request);
-    const validationErrors = validateRequiredFields(payload, [
-      'from_warehouse_id',
-      'to_warehouse_id',
-      'item_id',
-      'quantity',
-    ]);
 
-    if (validationErrors.length > 0) {
-      throw new APIError('필수 입력값을 확인해주세요.', 400, validationErrors);
+    // Validate required fields
+    const missingFields = [];
+    if (!payload.from_warehouse_id) missingFields.push('from_warehouse_id');
+    if (!payload.to_warehouse_id) missingFields.push('to_warehouse_id');
+    if (!payload.item_id) missingFields.push('item_id');
+    if (!payload.quantity) missingFields.push('quantity');
+
+    if (missingFields.length > 0) {
+      throw new ERPError(ErrorType.VALIDATION, `필수 입력값을 확인해주세요: ${missingFields.join(', ')}`);
     }
 
     const fromWarehouseId = ensureNumber(payload.from_warehouse_id, 'from_warehouse_id');
@@ -317,11 +298,11 @@ export async function PUT(request: NextRequest) {
     const quantity = ensureNumber(payload.quantity, 'quantity');
 
     if (quantity <= 0) {
-      throw new APIError('이동 수량은 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '이동 수량은 0보다 커야 합니다.');
     }
 
     if (fromWarehouseId === toWarehouseId) {
-      throw new APIError('동일한 창고 간에는 재고를 이동할 수 없습니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '동일한 창고 간에는 재고를 이동할 수 없습니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -335,17 +316,17 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
 
     if (sourceError) {
-      throw new APIError('출고 창고 재고를 확인하지 못했습니다.', 500, sourceError.message);
+      throw sourceError;
     }
 
     if (!source) {
-      throw new APIError('출고 창고에 재고 정보가 없습니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '출고 창고에 재고 정보가 없습니다.');
     }
 
     const sourceAvailable = calculateAvailableQuantity(source);
 
     if (sourceAvailable < quantity) {
-      throw new APIError('출고 창고의 가용 재고가 부족합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '출고 창고의 가용 재고가 부족합니다.');
     }
 
     const updatedSourceCurrent = Math.max(0, (source.current_quantity ?? 0) - quantity);
@@ -362,7 +343,7 @@ export async function PUT(request: NextRequest) {
       .eq('warehouse_stock_id', source.warehouse_stock_id);
 
     if (updateSourceError) {
-      throw new APIError('출고 창고 재고를 갱신하지 못했습니다.', 500, updateSourceError.message);
+      throw updateSourceError;
     }
 
     const { data: target, error: targetError } = await supabase
@@ -373,7 +354,7 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
 
     if (targetError) {
-      throw new APIError('입고 창고 재고를 확인하지 못했습니다.', 500, targetError.message);
+      throw targetError;
     }
 
     const targetAvailable = target ? calculateAvailableQuantity(target) : 0;
@@ -393,7 +374,7 @@ export async function PUT(request: NextRequest) {
         .eq('warehouse_stock_id', target.warehouse_stock_id);
 
       if (updateTargetError) {
-        throw new APIError('입고 창고 재고를 갱신하지 못했습니다.', 500, updateTargetError.message);
+        throw updateTargetError;
       }
     } else {
       const insertPayload: WarehouseStockInsert = {
@@ -415,7 +396,7 @@ export async function PUT(request: NextRequest) {
         .insert(insertPayload);
 
       if (insertTargetError) {
-        throw new APIError('입고 창고 재고를 생성하지 못했습니다.', 500, insertTargetError.message);
+        throw insertTargetError;
       }
     }
 
@@ -439,7 +420,7 @@ export async function PUT(request: NextRequest) {
       .insert(transactionPayload);
 
     if (transactionError) {
-      throw new APIError('재고 이동 이력을 기록하지 못했습니다.', 500, transactionError.message);
+      throw transactionError;
     }
 
     return NextResponse.json({
@@ -447,7 +428,7 @@ export async function PUT(request: NextRequest) {
       message: `${quantity}개의 재고가 이동되었습니다.`,
     });
   } catch (error) {
-    return handleRouteError(error, '재고 이동 처리 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'warehouse_stock', action: 'transfer' });
   }
 }
 

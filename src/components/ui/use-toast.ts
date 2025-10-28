@@ -1,16 +1,12 @@
 import * as React from "react"
 
-import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
+import type { ToastProps, ToastType } from "@/components/ui/Toast"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
 
-type ToasterToast = ToastProps & {
-  id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
-  action?: ToastActionElement
-}
+// ToastProps already includes id, so we use it directly
+type ToasterToast = ToastProps
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -95,17 +91,9 @@ export const reducer = (state: State, action: Action): State => {
         })
       }
 
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t
-        ),
-      }
+      // Custom toast handles dismissal via onClose callback
+      // No need to track 'open' state here
+      return state
     }
     case "REMOVE_TOAST":
       if (action.toastId === undefined) {
@@ -132,7 +120,7 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type Toast = Omit<ToasterToast, "id" | "onClose">
 
 function toast({ ...props }: Toast) {
   const id = genId()
@@ -149,9 +137,8 @@ function toast({ ...props }: Toast) {
     toast: {
       ...props,
       id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
+      onClose: (toastId: string) => {
+        dispatch({ type: "DISMISS_TOAST", toastId })
       },
     },
   })

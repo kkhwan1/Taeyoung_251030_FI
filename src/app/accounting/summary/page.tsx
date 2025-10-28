@@ -17,7 +17,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, ShoppingCart, TrendingUp, Users, Download, AlertCircle } from 'lucide-react';
+import {
+  Download,
+  AlertCircle,
+  DollarSign,
+  ShoppingCart,
+  TrendingUp,
+  Users
+} from 'lucide-react';
 import KPICard from '@/components/accounting/KPICard';
 import { VirtualTable } from '@/components/ui/VirtualTable';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -140,12 +147,18 @@ export default function AccountingSummaryPage() {
   };
 
   // Format currency
-  const formatCurrency = (amount: number): string => {
+  const formatCurrency = (amount: number | null | undefined): string => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '0원';
+    }
     return `${amount.toLocaleString('ko-KR')}원`;
   };
 
   // Format percentage
-  const formatPercentage = (value: number): string => {
+  const formatPercentage = (value: number | null | undefined): string => {
+    if (value === null || value === undefined || isNaN(value)) {
+      return '0.0%';
+    }
     return `${value.toFixed(1)}%`;
   };
 
@@ -189,7 +202,7 @@ export default function AccountingSummaryPage() {
       render: (value) => {
         const amount = Number(value);
         return (
-          <span className={amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+          <span className={amount >= 0 ? 'text-gray-600 dark:text-gray-400' : 'text-gray-600 dark:text-gray-400'}>
             {formatCurrency(amount)}
           </span>
         );
@@ -254,8 +267,13 @@ export default function AccountingSummaryPage() {
     {
       key: 'business_info',
       title: '업태',
-      sortable: true,
-      filterable: true,
+      render: (value) => {
+        if (!value || typeof value !== 'object') return '-';
+        const info = value as any;
+        return info.business_type || info.business_item || '-';
+      },
+      sortable: false,
+      filterable: false,
       width: '10%',
       align: 'left'
     },
@@ -289,7 +307,7 @@ export default function AccountingSummaryPage() {
       render: (value) => {
         const amount = Number(value);
         return (
-          <span className={amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+          <span className={amount >= 0 ? 'text-gray-600 dark:text-gray-400' : 'text-gray-600 dark:text-gray-400'}>
             {formatCurrency(amount)}
           </span>
         );
@@ -329,7 +347,7 @@ export default function AccountingSummaryPage() {
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
                          bg-white dark:bg-gray-900 text-gray-900 dark:text-white
-                         focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
+                         focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
                          focus:border-transparent transition-all"
             />
             <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">
@@ -341,8 +359,8 @@ export default function AccountingSummaryPage() {
           <button
             onClick={handleExport}
             disabled={exporting || loading || !data}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg
-                       hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed
+            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg
+                       hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed
                        transition-colors"
           >
             {exporting ? (
@@ -369,14 +387,14 @@ export default function AccountingSummaryPage() {
 
       {/* Error State */}
       {error && !loading && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-6 h-6 text-gray-600 dark:text-gray-400 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-lg font-semibold text-red-900 dark:text-red-300 mb-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 데이터 로딩 실패
               </h3>
-              <p className="text-red-700 dark:text-red-400">{error}</p>
+              <p className="text-gray-700 dark:text-gray-300">{error}</p>
             </div>
           </div>
         </div>
@@ -392,7 +410,7 @@ export default function AccountingSummaryPage() {
               title="총 매출"
               value={formatCurrency(data.summary.total_sales)}
               icon={DollarSign}
-              color="blue"
+              color="gray"
             />
 
             {/* Total Purchases Card */}
@@ -416,7 +434,7 @@ export default function AccountingSummaryPage() {
               title="거래처 수"
               value={`${data.summary.company_count}개`}
               icon={Users}
-              color="purple"
+              color="gray"
             />
           </div>
 
@@ -435,7 +453,7 @@ export default function AccountingSummaryPage() {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="flex-1 sm:flex-none px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
                            bg-white dark:bg-gray-900 text-gray-900 dark:text-white
-                           focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
+                           focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
                            focus:border-transparent transition-all"
               >
                 <option value="">전체 분류</option>
@@ -456,7 +474,7 @@ export default function AccountingSummaryPage() {
               {selectedCategory && (
                 <button
                   onClick={() => setSelectedCategory('')}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-sm text-gray-700 dark:text-gray-300 hover:underline"
                 >
                   필터 초기화
                 </button>

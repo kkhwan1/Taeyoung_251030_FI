@@ -401,7 +401,10 @@ CONCURRENT-${i}-001,동시 테스트 부품 ${i},15000,2025-01-15,동시성 테�
 // 테스트 설정
 beforeAll(() => {
   // 테스트 환경 설정
-  process.env.NODE_ENV = 'test';
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value: 'test',
+    writable: true
+  });
 });
 
 afterAll(() => {

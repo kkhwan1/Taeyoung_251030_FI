@@ -11,7 +11,7 @@ export const GET = protectRoute(
       return NextResponse.json({
         success: true,
         user: {
-          id: user.id,
+          user_id: user.user_id,
           username: user.username,
           name: user.name,
           email: user.email,

@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
 
-    // ✅ CRITICAL: Korean encoding pattern
+    // CRITICAL: Korean encoding pattern
     const text = await request.text();
     const body = JSON.parse(text);
 
@@ -277,7 +277,7 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
 
-    // ✅ CRITICAL: Korean encoding pattern
+    // CRITICAL: Korean encoding pattern
     const text = await request.text();
     const body = JSON.parse(text);
 

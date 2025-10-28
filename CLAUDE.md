@@ -89,44 +89,13 @@ npm run dev:safe         # Windows 최적화 시작 (포트 충돌 자동 해결
 npm run restart          # 완전 재시작 (포트 정리 포함)
 ```
 
-### 빌드 & 배포
+### 빌드 & 체크
 ```bash
 npm run build            # Production 빌드
 npm run start            # Production 서버 시작
 npm run lint             # ESLint 실행
 npm run type-check       # TypeScript 타입 체크
 ```
-
-### Vercel 배포
-```bash
-# 초기 프로젝트 배포
-vercel --prod --yes
-
-# 배포 상태 확인
-vercel ls
-
-# 현재 배포된 프로젝트 정보
-vercel inspect
-
-# ⚠️ 환경 변수 업데이트 후 재배포 필수
-# Vercel은 환경 변수 추가/변경 시 자동으로 재배포하지 않습니다
-vercel --prod --yes
-
-# GitHub 통합 사용 시 (자동 배포)
-git push origin main     # main 브랜치 푸시 시 자동 배포
-```
-
-**Production 배포 정보:**
-- **Production URL**: https://taeyaoung-erp-251017.vercel.app
-- **GitHub Repository**: https://github.com/kkhwan1/TaeYaoung_ERP_251017.git
-- **Branch**: main
-- **Environment Variables**: 5개 필수 (Vercel Dashboard → Settings → Environment Variables)
-
-**환경 변수 설정 후 재배포:**
-1. Vercel Dashboard → Settings → Environment Variables에서 변수 추가
-2. `vercel --prod --yes` 명령어로 재배포 (자동 재배포되지 않음!)
-3. `vercel ls`로 새 배포 확인
-4. Production URL 접속하여 연결 테스트
 
 ### 데이터베이스 (Supabase Cloud)
 ```bash
@@ -496,72 +465,6 @@ await supabase
   .select('*')
   .contains('business_info', { business_type: '제조업' });
 ```
-
-## 🚀 Production 배포 체크리스트
-
-### Vercel 초기 배포
-- [ ] **1단계: 환경 변수 설정**
-  - Vercel Dashboard → Settings → Environment Variables
-  - 5개 필수 변수 추가:
-    - `NEXT_PUBLIC_SUPABASE_URL`
-    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-    - `SUPABASE_SERVICE_ROLE_KEY`
-    - `SUPABASE_PROJECT_ID`
-    - `NODE_ENV=production`
-  - ⚠️ Production, Preview, Development 모두 체크
-
-- [ ] **2단계: Git 커밋 및 Push**
-  ```bash
-  git add .
-  git commit -m "Initial commit: 태창 ERP 시스템"
-  git push origin main
-  ```
-
-- [ ] **3단계: Vercel 배포**
-  ```bash
-  vercel --prod --yes
-  ```
-
-- [ ] **4단계: 배포 확인**
-  ```bash
-  vercel ls                    # 배포 상태 확인
-  vercel inspect              # 상세 정보
-  ```
-
-- [ ] **5단계: Production 테스트**
-  - Production URL 접속 (https://taeyaoung-erp-251017.vercel.app)
-  - 브라우저 콘솔 열기 (F12)
-  - Supabase 연결 에러 확인 (Google OAuth 경고는 정상)
-  - 대시보드 링크 클릭하여 로드 테스트
-
-### 환경 변수 변경 시
-- [ ] **1단계**: Vercel Dashboard에서 환경 변수 추가/수정
-- [ ] **2단계**: ⚠️ **수동 재배포 필수** (자동 재배포 안됨!)
-  ```bash
-  vercel --prod --yes
-  ```
-- [ ] **3단계**: `vercel ls`로 새 배포 확인 (1-2분 전 배포인지 확인)
-- [ ] **4단계**: Production URL 접속하여 변경사항 적용 확인
-
-### 배포 후 검증 체크리스트
-- [ ] Supabase 연결 정상 (콘솔 에러 없음)
-- [ ] 대시보드 페이지 로드 정상
-- [ ] API 엔드포인트 응답 확인 (`/api/dashboard/overview`)
-- [ ] 한글 데이터 정상 표시
-- [ ] 환경 변수 모두 적용됨 (Vercel Dashboard 확인)
-
-### 문제 해결
-**배포 실패 시:**
-1. `vercel logs` - 로그 확인
-2. Vercel Dashboard → Deployments → 실패한 배포 클릭 → Build Logs
-3. Environment Variables 재확인
-4. `vercel --prod --yes --force` - 강제 재배포
-
-**환경 변수 미적용 시:**
-1. Vercel Dashboard에서 변수 확인
-2. **수동 재배포 실행** (자동으로 안됨!)
-3. `vercel ls`로 최신 배포 확인 (1-2분 전인지)
-4. Production URL 접속하여 테스트
 
 ## 자주 발생하는 문제와 해결책
 

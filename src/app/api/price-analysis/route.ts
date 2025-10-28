@@ -301,7 +301,7 @@ async function getPriceComparisons() {
   // Calculate averages, mins, maxs for categories
   for (const [category, stats] of categoryStats) {
     const prices = stats.prices;
-    stats.category_avg_price = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+    stats.category_avg_price = prices.reduce((sum: number, p: number) => sum + p, 0) / prices.length;
     stats.category_min_price = Math.min(...prices);
     stats.category_max_price = Math.max(...prices);
   }
@@ -309,7 +309,7 @@ async function getPriceComparisons() {
   // Calculate averages, mins, maxs for suppliers
   for (const [supplierId, stats] of supplierStats) {
     const prices = stats.prices;
-    stats.supplier_avg_price = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+    stats.supplier_avg_price = prices.reduce((sum: number, p: number) => sum + p, 0) / prices.length;
     stats.supplier_min_price = Math.min(...prices);
     stats.supplier_max_price = Math.max(...prices);
   }

@@ -82,7 +82,7 @@ export const QuickFilters: React.FC<QuickFiltersProps> = ({
 
     if (activeFilter === filter.id) {
       return `${baseClasses}
-        bg-blue-500 text-white border-blue-500
+        bg-gray-500 text-white border-gray-500
         shadow-md transform scale-105`;
     }
 

@@ -22,15 +22,15 @@ import {
   ParseResult
 } from './types/excel-data';
 
-// Excel 파일 경로
-const EXCEL_DIR = path.resolve(process.cwd(), '.plan2/참고');
+// Excel 파일 경로 (.example 폴더 사용)
+const EXCEL_DIR = path.resolve(process.cwd(), '.example');
 const OUTPUT_DIR = path.resolve(process.cwd(), 'scripts/migration/data');
 
 const EXCEL_FILES = {
-  bom: '태창금속 BOM (1).xlsx',
-  inventory: '2025년 09월 매입 수불관리 (3).xlsx',
-  comprehensive: '2025년 9월 19일 종합관리 SHEET (1).xlsx',
-  purchaseSales: '2025년 9월 매입매출 보고현황 (1).xlsx'
+  bom: '태창금속 BOM.xlsx',
+  inventory: '09월 원자재 수불관리.xlsx',
+  comprehensive: '2025년 9월 종합관리 SHEET.xlsx',
+  purchaseSales: '2025년 9월 매입매출 보고현황.xlsx'
 };
 
 /**
@@ -158,7 +158,7 @@ function parseInventoryExcel(logger: ReturnType<typeof createLogger>): ParseResu
         // T1 ~ T268 컬럼 추가
         for (let i = 1; i <= 268; i++) {
           const colName = `T${i}`;
-          inventoryRow[colName] = Number(row[colName] || 0);
+          (inventoryRow as any)[colName] = Number(row[colName] || 0);
         }
 
         result.data.push(inventoryRow);

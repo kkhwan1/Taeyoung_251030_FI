@@ -121,21 +121,22 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
       {/* 품목 선택 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          품목 <span className="text-red-500">*</span>
+          품목 <span className="text-gray-500">*</span>
         </label>
         <ItemSelect
           onChange={handleItemSelect}
           placeholder="품목을 선택하세요"
+          showPrice={true}
         />
         {errors.item_id && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.item_id}</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{errors.item_id}</p>
         )}
       </div>
 
       {/* 조정 유형 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          조정 유형 <span className="text-red-500">*</span>
+          조정 유형 <span className="text-gray-500">*</span>
         </label>
         <select
           value={formData.adjustment_type}
@@ -153,7 +154,7 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
       {/* 수량 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          수량 <span className="text-red-500">*</span>
+          수량 <span className="text-gray-500">*</span>
         </label>
         <div className="flex items-center space-x-2">
           <input
@@ -172,14 +173,14 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
           )}
         </div>
         {errors.quantity && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.quantity}</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{errors.quantity}</p>
         )}
       </div>
 
       {/* 조정 사유 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          조정 사유 <span className="text-red-500">*</span>
+          조정 사유 <span className="text-gray-500">*</span>
         </label>
         <select
           value={formData.reason}
@@ -194,7 +195,7 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
           ))}
         </select>
         {errors.reason && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.reason}</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{errors.reason}</p>
         )}
       </div>
 
@@ -238,7 +239,7 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
         </button>
         <button
           type="submit"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
         >
           <Plus className="w-4 h-4" />
           조정 등록

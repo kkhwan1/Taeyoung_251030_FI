@@ -219,7 +219,7 @@ export default function ExcelUploadModal({
           <button
             onClick={handleTemplateDownload}
             disabled={isUploading}
-            className="flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
             템플릿 다운로드
@@ -230,7 +230,7 @@ export default function ExcelUploadModal({
         <div
           className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             isDragOver
-              ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+              ? 'border-gray-400 bg-gray-50 dark:bg-gray-900/20'
               : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
           }`}
           onDragOver={handleDragOver}
@@ -258,7 +258,7 @@ export default function ExcelUploadModal({
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   파일 선택
                 </button>
@@ -270,7 +270,7 @@ export default function ExcelUploadModal({
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-3">
-                <FileSpreadsheet className="w-8 h-8 text-green-500" />
+                <FileSpreadsheet className="w-8 h-8 text-gray-500" />
                 <div className="text-left">
                   <p className="font-medium text-gray-900 dark:text-white">
                     {selectedFile.name}
@@ -297,7 +297,7 @@ export default function ExcelUploadModal({
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      className="bg-gray-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -309,9 +309,9 @@ export default function ExcelUploadModal({
 
         {/* Error Message */}
         {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-red-500" />
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+          <div className="flex items-center gap-2 p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-gray-500" />
+            <p className="text-sm text-gray-700 dark:text-gray-400">{error}</p>
           </div>
         )}
 
@@ -327,7 +327,7 @@ export default function ExcelUploadModal({
           <button
             onClick={handleUpload}
             disabled={!selectedFile || isUploading}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isUploading ? (
               <>

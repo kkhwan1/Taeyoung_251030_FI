@@ -4,12 +4,14 @@
 export interface InventoryTransaction {
   id?: number;
   transaction_id?: number;
+  transaction_no?: string;
   transaction_date: string;
   transaction_type: 'incoming' | 'production_in' | 'production_out' | 'outgoing' | '입고' | '생산입고' | '생산출고' | '출고' | 'BOM_DEDUCTION';
   item_id: number;
   item_code?: string;
   item_name?: string;
   quantity: number;
+  unit?: string;
   unit_price: number;
   total_amount: number;
   company_id?: number;
@@ -262,12 +264,12 @@ export const BUSINESS_TYPES = {
 export type BusinessType = typeof BUSINESS_TYPES[keyof typeof BUSINESS_TYPES];
 
 // Form submission handlers
-export type FormSubmitHandler<T> = (data: T) => Promise<void> | void;
+export type FormSubmitHandler<T, R = void> = (data: T) => Promise<R> | R;
 export type FormCancelHandler = () => void;
 
 // Common props for form components
-export interface BaseFormProps<T> {
-  onSubmit: FormSubmitHandler<T>;
+export interface BaseFormProps<T, R = void> {
+  onSubmit: FormSubmitHandler<T, R>;
   onCancel: FormCancelHandler;
   initialData?: Partial<T>;
   isEdit?: boolean;
@@ -276,7 +278,7 @@ export interface BaseFormProps<T> {
 
 // Props for specific form components (type aliases for clarity)
 export type ReceivingFormProps = BaseFormProps<ReceivingFormData>;
-export type ProductionFormProps = BaseFormProps<ProductionFormData>;
+export type ProductionFormProps = BaseFormProps<ProductionFormData, ProductionResponse>;
 export type ShippingFormProps = BaseFormProps<ShippingFormData>;
 
 // Tab configuration interface
@@ -342,6 +344,16 @@ export interface BOMCheckResponse {
     total_available_value: number;
     total_shortage: number;
     fulfillment_rate: number;
+    max_producible_quantity: number;
+    shortage_quantity: number;
+    bottleneck_item: {
+      bom_id: number;
+      item_code: string;
+      item_name: string;
+      max_producible: number;
+      required_for_requested: number;
+      available_stock: number;
+    } | null;
   };
 }
 
@@ -365,6 +377,8 @@ export interface BOMCheckItem {
   safety_stock: number;
   required_value: number;
   available_value: number;
+  max_producible_by_this_item: number;
+  bom_quantity_per_unit: number;
 }
 
 /**

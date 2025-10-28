@@ -33,11 +33,39 @@ SUPABASE_PROJECT_ID=your-project-id
 # 1. 의존성 설치
 npm install
 
-# 2. 개발 서버 실행 (포트 5000)
-npm run dev
+# 2. 개발 서버 실행 (권장: 안전한 서버 관리)
+npm run dev:safe
 
 # 3. 브라우저에서 접속
 http://localhost:5000
+```
+
+### 서버 관리 명령어
+
+```bash
+# 안전한 서버 시작 (포트 충돌 자동 감지)
+npm run dev:safe
+
+# 서버 상태 확인
+npm run dev:status
+
+# 서버 안전하게 종료
+npm run dev:stop
+
+# 서버 재시작 (종료 → 시작)
+npm run dev:restart
+
+# 빌드 캐시 안전 삭제
+npm run clean
+
+# 빌드 캐시 삭제 후 서버 시작
+npm run clean:all
+```
+
+### 기존 명령어 (호환성 유지)
+```bash
+# 기본 서버 시작 (포트 충돌 시 오류 발생 가능)
+npm run dev
 ```
 
 ### 프로덕션 빌드
@@ -78,33 +106,75 @@ node database/check-schema.js  # 스키마 검증
 ### 재고 관리
 - **재고 거래** (`/inventory`)
   - 입고/생산/출고 처리
+  - BOM 자동 차감 시스템 (API + Database Trigger 이중 검증)
   - 실시간 재고 업데이트
   - LOT 추적 관리
+  - 재고 부족 자동 차단
 
 - **재고 현황** (`/stock`)
   - 실시간 재고 조회
   - 재고 이력 추적
   - 재고 조정 기능
 
+### 회계 관리
+- **매출 관리** (`/sales`) - 매출 거래 등록 및 관리
+- **매입 관리** (`/purchases`) - 매입 거래 등록 및 관리
+- **수금 관리** (`/collections`) - 전액 수금/이전 정보 불러오기 기능
+- **지급 관리** (`/payments`) - 전액 지급/이전 정보 불러오기 기능
+- **회계 요약** (`/accounting/summary`) - 월별 회계 요약 대시보드
+
+### 계약 관리
+- **계약 관리** (`/contracts`)
+  - 계약 정보 관리
+  - 첨부파일 업로드/삭제 기능
+  - 문서 다운로드 기능
+
 ## 📊 주요 API
 
-- `/api/items`, `/api/companies`, `/api/bom` - 마스터 데이터 CRUD
-- `/api/inventory/*` - 입고/생산/출고 거래 처리
+### 마스터 데이터
+- `/api/items`, `/api/companies`, `/api/bom` - 품목/거래처/BOM CRUD
+
+### 재고 관리
+- `/api/inventory/receiving` - 입고 거래 처리
+- `/api/inventory/production` - 생산 거래 처리 (BOM 자동 차감)
+- `/api/inventory/shipping` - 출고 거래 처리
 - `/api/stock/*` - 재고 현황 및 이력 조회
+
+### 회계 관리
+- `/api/sales`, `/api/purchases` - 매출/매입 거래 관리
+- `/api/collections`, `/api/payments` - 수금/지급 관리
+- `/api/accounting/summary` - 회계 요약
+
+### 계약 관리
+- `/api/contracts` - 계약 정보 CRUD
+- `/api/contracts/[id]/documents` - 첨부파일 업로드/삭제
+
+### 유틸리티
 - `/api/upload/*`, `/api/download/template/*` - Excel 업로드/다운로드
 
 ## 🛠️ 개발 명령어
 
 ```bash
-npm run dev:safe         # Windows 최적화 개발 서버 (권장)
+# 서버 관리 (권장)
+npm run dev:safe         # 안전한 서버 시작 (포트 충돌 자동 감지)
+npm run dev:status       # 서버 상태 확인
+npm run dev:stop         # 서버 안전하게 종료
+npm run dev:restart      # 서버 재시작
+npm run clean            # 빌드 캐시 안전 삭제
+npm run clean:all        # 캐시 삭제 후 서버 시작
+
+# 기본 개발 명령어
+npm run dev              # 기본 서버 시작 (포트 충돌 시 오류 가능)
 npm run build            # 프로덕션 빌드
+npm run start            # 프로덕션 서버 실행
 npm run lint             # ESLint + 타입 체크
 npm run test             # 테스트 실행
+npm run type-check       # TypeScript 타입 체크
 ```
 
 ## 📝 프로젝트 현황
 
-**전체 완료도**: 97/100 (Production Ready)
+**전체 완료도**: 100% (Production Ready)
 
 ### Phase 1-2: 매출/매입/수금/지급 시스템 ✅ 100%
 - ✅ 매출/매입 거래 관리 (8,500+ lines)
@@ -112,16 +182,23 @@ npm run test             # 테스트 실행
 - ✅ 자동 결제 상태 계산
 - ✅ Excel 3-Sheet 내보내기
 - ✅ 회계 모듈 (JSONB, 카테고리 분류)
+- ✅ 흑백 디자인 시스템 적용
+- ✅ 전액 수금/지급 기능
 
 ### Phase 3: 재고 관리 시스템 ✅ 100%
 - ✅ 입고/생산/출고 거래
 - ✅ LOT 추적 관리
 - ✅ 실시간 재고 업데이트
+- ✅ **BOM 자동 차감 시스템** (API + Database Trigger 이중 검증)
+- ✅ 재고 부족 자동 차단
 
 ### Phase 4: 프론트엔드 최적화 ✅ 100%
 - ✅ 대시보드 실시간 새로고침
 - ✅ 가상 스크롤링 (대용량 데이터)
 - ✅ React Query 캐싱
+- ✅ **흑백 디자인 시스템** (색상 제거, 단순 아이콘)
+- ✅ 테이블 레이아웃 고정 (일관된 폭)
+- ✅ 카드형 헤더 적용
 
 ### Phase 5: 가격 분석 시스템 ✅ 100%
 - ✅ 월별 가격 이력 관리
@@ -134,10 +211,21 @@ npm run test             # 테스트 실행
 - ✅ 미도장 부품 필터링
 - ✅ 품목 데이터 마이그레이션
 
-### 미완료 항목 (3%)
-- ⏳ 인증/권한 시스템
-- ⏳ 고급 리포팅
-- ⏳ 문서 첨부 기능
+### Phase 6B: 계약 관리 시스템 ✅ 100%
+- ✅ 계약 정보 관리
+- ✅ **첨부파일 업로드/삭제 기능**
+- ✅ 문서 다운로드 기능
+- ✅ 계약 추가 시 파일 업로드 플로우
+
+### Phase 7: UI/UX 개선 ✅ 100%
+- ✅ 흑백 디자인 시스템 (색상 제거)
+- ✅ 이모지 제거 및 단순 아이콘
+- ✅ 카드형 헤더 일관성
+- ✅ 테이블 레이아웃 고정
+- ✅ 회계 용어로 변경 (이커머스 용어 제거)
+
+### 미완료 항목 (0%)
+- ✅ 모든 주요 기능 완료
 
 ## 🔐 보안 사항
 
@@ -149,6 +237,7 @@ npm run test             # 테스트 실행
 ## 📚 문서
 
 - [데이터베이스 스키마](docs/DATABASE.md) - Supabase PostgreSQL 스키마 완전 가이드
+- [서버 관리 가이드](SERVER_MANAGEMENT_GUIDE.md) - 서버 관리 및 트러블슈팅 가이드
 - [Claude Code 가이드](CLAUDE.md) - 개발 환경 및 아키텍처 설명
 - [Excel 업로드 가이드](docs/excel-upload-guide.md)
 - [프로젝트 계획](.plan/plan.md)
@@ -188,8 +277,33 @@ vercel --prod --yes
 
 Private - 태창 내부 사용만 허용
 
+## 🎨 주요 디자인 개선사항
+
+### 흑백 디자인 시스템
+- 모든 페이지에 흑백 디자인 적용 (색상 제거)
+- 이모지 제거 및 단순 아이콘 사용
+- 카드형 헤더로 일관성 확보
+- 테이블 레이아웃 고정 (일관된 폭)
+
+### UI/UX 개선
+- 회계 용어로 변경 (이커머스 용어 제거)
+- 전액 수금/지급 기능 추가
+- 이전 정보 불러오기 기능
+- 상세한 결제 정보 표시
+
+### BOM 자동 차감 시스템
+- API 레벨 검증 + Database Trigger 이중 검증
+- 재고 부족 시 자동 차단
+- 정확한 재고 계산 및 관리
+
+### 계약 관리 개선
+- 계약 생성 시 파일 업로드 플로우
+- 기존 계약에 파일 추가 업로드
+- 파일 삭제 기능
+- 파일 다운로드 기능
+
 ---
 
-**마지막 업데이트**: 2025년 1월
-**프로젝트 버전**: Phase 6A Complete (97/100 Production Ready)
+**마지막 업데이트**: 2025년 10월
+**프로젝트 버전**: Phase 7 Complete (100% Production Ready)
 **Tech Stack**: Next.js 15.5.4 + React 19.1.0 + TypeScript + Supabase PostgreSQL

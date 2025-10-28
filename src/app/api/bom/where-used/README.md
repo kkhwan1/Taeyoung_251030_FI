@@ -52,15 +52,15 @@ This directory contains two where-used APIs with different capabilities:
 }
 ```
 
-### 2. Recursive Where-Used (Dynamic Route) ⭐ NEW!
+### 2. Recursive Where-Used (Dynamic Route) - NEW!
 **Endpoint**: `GET /api/bom/where-used/123`
 
 **Features**:
-- ✅ **Recursive upward traversal** - Finds ALL ancestors (parents, grandparents, etc.)
-- ✅ **Multi-level hierarchy** - Shows full usage path from top-level to child
-- ✅ **Circular reference detection** - Prevents infinite loops
-- ✅ **Cumulative quantity tracking** - Calculates total quantity needed at each level
-- ✅ **Usage path display** - Shows complete ancestry chain
+- **Recursive upward traversal** - Finds ALL ancestors (parents, grandparents, etc.)
+- **Multi-level hierarchy** - Shows full usage path from top-level to child
+- **Circular reference detection** - Prevents infinite loops
+- **Cumulative quantity tracking** - Calculates total quantity needed at each level
+- **Usage path display** - Shows complete ancestry chain
 
 **Response**:
 ```json

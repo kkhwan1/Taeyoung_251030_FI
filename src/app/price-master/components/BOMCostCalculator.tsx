@@ -10,15 +10,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { 
-  Calculator, 
-  Loader2, 
-  AlertTriangle, 
-  ChevronDown, 
+import {
+  Calculator,
+  Loader2,
+  ChevronDown,
   ChevronRight,
   Download,
-  TreePine,
-  DollarSign
+  TreePine
 } from 'lucide-react';
 import type { 
   BOMCalculationRequest, 
@@ -176,15 +174,15 @@ export default function BOMCostCalculator({ onApplyPrice }: BOMCostCalculatorPro
               {node.unit_price ? (
                 <span className="font-medium">{formatCurrency(node.unit_price)}원</span>
               ) : (
-                <span className="text-red-600 text-xs flex items-center">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
+                <span className="text-gray-600 text-xs flex items-center">
+                  
                   가격 없음
                 </span>
               )}
             </div>
             <div className="text-right">
               {node.subtotal_cost ? (
-                <span className="font-semibold text-blue-600">
+                <span className="font-semibold text-gray-600">
                   {formatCurrency(node.subtotal_cost)}원
                 </span>
               ) : (
@@ -358,7 +356,7 @@ export default function BOMCostCalculator({ onApplyPrice }: BOMCostCalculatorPro
                     size="sm"
                     onClick={() => onApplyPrice(calculationResult.calculated_price)}
                   >
-                    <DollarSign className="h-4 w-4 mr-2" />
+                    
                     단가 마스터에 반영
                   </Button>
                 )}
@@ -368,36 +366,36 @@ export default function BOMCostCalculator({ onApplyPrice }: BOMCostCalculatorPro
           <CardContent className="space-y-6">
             {/* Cost Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-lg font-bold text-blue-600">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-lg font-bold text-gray-600">
                   {formatCurrency(calculationResult.total_material_cost)}원
                 </div>
-                <div className="text-sm text-blue-600">총 재료비</div>
+                <div className="text-sm text-gray-600">총 재료비</div>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-lg font-bold text-green-600">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-lg font-bold text-gray-600">
                   {formatCurrency(calculationResult.total_labor_cost)}원
                 </div>
-                <div className="text-sm text-green-600">총 노무비</div>
+                <div className="text-sm text-gray-600">총 노무비</div>
               </div>
-              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                <div className="text-lg font-bold text-yellow-600">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-lg font-bold text-gray-600">
                   {formatCurrency(calculationResult.total_overhead_cost)}원
                 </div>
-                <div className="text-sm text-yellow-600">총 간접비</div>
+                <div className="text-sm text-gray-600">총 간접비</div>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-xl font-bold text-purple-600">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-xl font-bold text-gray-600">
                   {formatCurrency(calculationResult.calculated_price)}원
                 </div>
-                <div className="text-sm text-purple-600">계산된 원가</div>
+                <div className="text-sm text-gray-600">계산된 원가</div>
               </div>
             </div>
 
             {/* Missing Prices Alert */}
             {calculationResult.missing_prices.length > 0 && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                
                 <AlertDescription>
                   <div className="space-y-1">
                     <p>다음 부품들의 가격 정보가 없습니다:</p>

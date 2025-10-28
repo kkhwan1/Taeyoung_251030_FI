@@ -49,7 +49,7 @@ function PrintOptionsModal({ isOpen, onClose, onPrint, currentOptions }: PrintOp
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             인쇄 옵션
@@ -58,7 +58,7 @@ function PrintOptionsModal({ isOpen, onClose, onPrint, currentOptions }: PrintOp
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            ✕
+            
           </button>
         </div>
 
@@ -178,7 +178,7 @@ function PrintOptionsModal({ isOpen, onClose, onPrint, currentOptions }: PrintOp
         <div className="flex gap-3 mt-6">
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <Printer className="w-4 h-4" />
             인쇄
@@ -315,11 +315,11 @@ export default function PrintButton({
         <button
           onClick={handleDirectPrint}
           disabled={disabled || isLoading || data.length === 0}
-          className={`${baseClasses} text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
+          className={`${baseClasses} text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300`}
         >
           {isLoading ? (
             <>
-              <div className={`${iconClass} border-2 border-blue-600 border-t-transparent rounded-full animate-spin`} />
+              <div className={`${iconClass} border-2 border-gray-600 border-t-transparent rounded-full animate-spin`} />
               인쇄 중...
             </>
           ) : (
@@ -413,7 +413,7 @@ export function QuickPrintButtons({ data, columns, title, className = '' }: Quic
         size="md"
         showPreview={true}
         showOptions={false}
-        className="bg-blue-500 hover:bg-blue-600"
+        className="bg-gray-500 hover:bg-gray-600"
       >
         <Eye className="w-5 h-5" />
       </PrintButton>
@@ -427,7 +427,7 @@ export function QuickPrintButtons({ data, columns, title, className = '' }: Quic
         size="md"
         showPreview={false}
         showOptions={true}
-        className="bg-green-500 hover:bg-green-600"
+        className="bg-gray-500 hover:bg-gray-600"
       >
         <Settings className="w-5 h-5" />
       </PrintButton>
@@ -466,7 +466,7 @@ export function PrintDropdown({ data, columns, title, onExportExcel, onExportPDF
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
+          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 z-20">
             <div className="py-1">
               <PrintButton
                 data={data as Record<string, any>[]}
