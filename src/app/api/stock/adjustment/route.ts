@@ -71,22 +71,18 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Calculate current stock manually (RPC not used for stock calculation)
-    const { data: transactions, error: txError } = await supabaseAdmin
-      .from('inventory_transactions')
-      .select('transaction_type, quantity')
-      .eq('item_id', item_id);
+    // Get current stock from items table (much faster than calculating from all transactions)
+    const { data: currentItem, error: stockError } = await supabaseAdmin
+      .from('items')
+      .select('current_stock')
+      .eq('item_id', item_id)
+      .single();
 
-    if (txError) {
-      throw new Error(`재고 조회 실패: ${txError.message}`);
+    if (stockError) {
+      throw new Error(`재고 조회 실패: ${stockError.message}`);
     }
 
-    const finalCurrentStock = (transactions || []).reduce((sum, tx) => {
-      if (tx.transaction_type === '입고') return sum + tx.quantity;
-      if (tx.transaction_type === '출고') return sum - tx.quantity;
-      if (tx.transaction_type === '조정') return sum + tx.quantity;
-      return sum;
-    }, 0);
+    const finalCurrentStock = currentItem?.current_stock || 0;
 
     // Calculate adjustment quantity based on type
     let adjustmentQuantity: number;
@@ -126,6 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert adjustment transaction
+    // Note: The trigger 'update_stock_on_transaction' will automatically update current_stock
     const { data: insertedTransaction, error: insertError } = await supabaseAdmin
       .from('inventory_transactions')
       .insert({
@@ -145,6 +142,17 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('[STOCK_ADJUSTMENT] Insert error:', insertError);
       throw new Error(`거래 생성 실패: ${insertError.message}`);
+    }
+
+    // Manually update stock to ensure consistency (in case trigger didn't run properly)
+    const { error: updateStockError } = await supabaseAdmin
+      .from('items')
+      .update({ current_stock: newStock })
+      .eq('item_id', item_id);
+
+    if (updateStockError) {
+      console.error('[STOCK_ADJUSTMENT] Stock update error:', updateStockError);
+      // Don't throw - transaction was already created
     }
 
     // Get full transaction details with joins

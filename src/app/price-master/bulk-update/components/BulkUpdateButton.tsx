@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import {
+  Loader2,
+  CheckCircle
+} from 'lucide-react';
 import type { BulkUploadRequest, BulkUploadResponse } from '@/types/api/price-master';
 
 interface BulkUpdateButtonProps {
@@ -118,7 +121,7 @@ export function BulkUpdateButton({
                 <span className="font-semibold">{formatCurrency(calculateTotalAmount())}원</span>
               </div>
               {hasErrors && (
-                <div className="flex justify-between text-red-600">
+                <div className="flex justify-between text-gray-600">
                   <span className="text-sm">제외된 항목:</span>
                   <span className="font-semibold">{validationResult?.error_count}개</span>
                 </div>
@@ -128,7 +131,7 @@ export function BulkUpdateButton({
             {/* Warning for errors */}
             {hasErrors && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                
                 <AlertDescription>
                   {validationResult?.error_count}개의 항목에 오류가 있어 제외됩니다.
                   오류를 수정한 후 다시 시도하시거나, 유효한 항목만 업데이트하실 수 있습니다.
@@ -155,7 +158,7 @@ export function BulkUpdateButton({
                     .filter(item => item.status === 'valid')
                     .slice(0, 5)
                     .map((item, index) => (
-                      <div key={index} className="text-xs p-2 bg-green-50 rounded border-l-2 border-green-300">
+                      <div key={index} className="text-xs p-2 bg-gray-50 rounded border-l-2 border-gray-300">
                         <div className="flex justify-between">
                           <span className="font-medium">{item.item_code}</span>
                           <span>{formatCurrency(item.unit_price)}원</span>
@@ -184,7 +187,7 @@ export function BulkUpdateButton({
             <Button
               onClick={handleUpdate}
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-gray-600 hover:bg-gray-700"
               data-testid="confirm-update-button"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -19,7 +19,12 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { TrendingUp, PieChart as PieChartIcon, Download, Printer, Calendar } from 'lucide-react';
+import {
+  PieChart as PieChartIcon,
+  Download,
+  Printer,
+  Calendar
+} from 'lucide-react';
 import {
   formatKoreanNumber,
   getRechartsTheme,
@@ -67,9 +72,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
 
     const sums = currentData.reduce(
       (acc, item) => ({
-        입고: acc.입고 + (item.입고 || 0),
-        출고: acc.출고 + (item.출고 || 0),
-        생산: acc.생산 + (item.생산 || 0)
+        입고: acc.입고 + (typeof (item as any).입고 === 'number' ? (item as any).입고 : 0),
+        출고: acc.출고 + (typeof (item as any).출고 === 'number' ? (item as any).출고 : 0),
+        생산: acc.생산 + (typeof (item as any).생산 === 'number' ? (item as any).생산 : 0)
       }),
       { 입고: 0, 출고: 0, 생산: 0 }
     );
@@ -86,7 +91,7 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
     if (active && payload && payload.length) {
       return (
         <div
-          className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg"
+          className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg"
           style={theme.tooltip.contentStyle}
         >
           <p className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
@@ -131,7 +136,7 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
 
       return (
         <div
-          className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg"
+          className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg"
           style={theme.tooltip.contentStyle}
         >
           <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
@@ -163,15 +168,15 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             거래 동향 차트
           </h3>
         </div>
-        <div className="flex items-center justify-center h-64 text-red-500">
+        <div className="flex items-center justify-center h-64 text-gray-600 dark:text-gray-400">
           <div className="text-center">
-            <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            
             <p>차트 데이터 로드 실패</p>
             <p className="text-sm text-gray-500 mt-1">{error}</p>
           </div>
@@ -181,12 +186,12 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-2">
-          <TrendingUp className="w-5 h-5 text-purple-500" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             거래 동향 차트
           </h3>
         </div>
@@ -197,9 +202,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
           <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
             <button
               onClick={() => setTimeRange('daily')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 timeRange === 'daily'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -207,9 +212,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
             </button>
             <button
               onClick={() => setTimeRange('monthly')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 timeRange === 'monthly'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -221,9 +226,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
           <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
             <button
               onClick={() => setChartType('area')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 chartType === 'area'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -231,9 +236,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
             </button>
             <button
               onClick={() => setChartType('line')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 chartType === 'line'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -241,9 +246,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
             </button>
             <button
               onClick={() => setChartType('pie')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 chartType === 'pie'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -278,9 +283,9 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
             <button
               key={type}
               onClick={() => toggleTransactionType(type as keyof typeof selectedTypes)}
-              className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium ${
                 selected
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                  ? 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
                   : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
               }`}
             >
@@ -298,12 +303,12 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
       <div className="h-80" ref={chartRef}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 dark:border-gray-400"></div>
           </div>
         ) : !currentData?.length ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              
               <p>표시할 거래 데이터가 없습니다</p>
             </div>
           </div>
@@ -430,30 +435,25 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">총 입고</p>
-            <p className="text-lg font-semibold text-green-600">
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {formatKoreanNumber(totals.find(t => t.name === '입고')?.value || 0)}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">총 출고</p>
-            <p className="text-lg font-semibold text-blue-600">
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {formatKoreanNumber(totals.find(t => t.name === '출고')?.value || 0)}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">총 생산</p>
-            <p className="text-lg font-semibold text-yellow-600">
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {formatKoreanNumber(totals.find(t => t.name === '생산')?.value || 0)}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">순 증감</p>
-            <p className={`text-lg font-semibold ${
-              (totals.find(t => t.name === '입고')?.value || 0) +
-              (totals.find(t => t.name === '생산')?.value || 0) -
-              (totals.find(t => t.name === '출고')?.value || 0) >= 0
-                ? 'text-green-600' : 'text-red-600'
-            }`}>
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {formatKoreanNumber(
                 (totals.find(t => t.name === '입고')?.value || 0) +
                 (totals.find(t => t.name === '생산')?.value || 0) -

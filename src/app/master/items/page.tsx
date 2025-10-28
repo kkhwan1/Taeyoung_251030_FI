@@ -1,12 +1,27 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Package, Plus, Search, Edit2, Trash2, RotateCcw, Upload, Download } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  RotateCcw,
+  Upload,
+  Download,
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronUp,
+  Grid,
+  List
+} from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { Pagination } from '@/components/ui/Pagination';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
+import { useUserRole } from '@/hooks/useUserRole';
 import { ItemsExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
 import type { ItemCategory, ItemTypeCode, MaterialTypeCode } from '@/types/supabase';
@@ -20,14 +35,15 @@ import {
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 const ItemForm = dynamic(() => import('@/components/ItemForm'), { ssr: false });
 const ExcelUploadModal = dynamic(() => import('@/components/upload/ExcelUploadModal'), { ssr: false });
+const ItemDetailModal = dynamic(() => import('@/components/ItemDetailModal').then(mod => ({ default: mod.ItemDetailModal })), { ssr: false });
 
 type Item = {
   item_id: number;
   item_code: string;
   item_name: string;
-  category: ItemCategory | string;
-  item_type?: ItemTypeCode | string | null;
-  material_type?: MaterialTypeCode | string | null;
+  category: ItemCategory;
+  item_type?: ItemTypeCode | null;
+  material_type?: MaterialTypeCode | null;
   vehicle_model?: string | null;
   material?: string | null;
   spec?: string | null;
@@ -50,7 +66,7 @@ type Item = {
   updated_at?: string;
 };
 
-const CATEGORY_OPTIONS: ItemCategory[] = ['원자재', '부자재', '반제품', '완제품', '폐제품'];
+const CATEGORY_OPTIONS: ItemCategory[] = ['원자재', '부자재', '반제품', '제품', '상품'];
 const ITEM_TYPE_OPTIONS: { value: ItemTypeCode; label: string }[] = [
   { value: 'RAW', label: '원자재 (RAW)' },
   { value: 'SUB', label: '부자재 (SUB)' },
@@ -94,6 +110,7 @@ const formatItemTypeLabel = (itemType?: string | null) => {
 };
 
 export default function ItemsPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,8 +121,14 @@ export default function ItemsPage() {
   const [selectedCoatingStatus, setSelectedCoatingStatus] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [selectedItemForImage, setSelectedItemForImage] = useState<Item | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
+  
+  // Mobile optimization states
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   
   // Pagination state
   const [pagination, setPagination] = useState<any>(null);
@@ -115,6 +138,7 @@ export default function ItemsPage() {
   
   const { success, error } = useToast();
   const { deleteWithToast, ConfirmDialog } = useConfirm();
+  const { canEdit, isAccountant } = useUserRole();
 
   // Pagination handlers
   const handlePageChange = (page: number) => {
@@ -233,6 +257,12 @@ export default function ItemsPage() {
       success(editingItem ? '수정 완료' : '등록 완료', message);
       setShowAddModal(false);
       setEditingItem(null);
+      
+      // 새로 등록한 품목이 즉시 표시되도록 첫 번째 페이지로 이동
+      if (!editingItem) {
+        setCurrentCursor(null);
+        setCurrentDirection('next');
+      }
       fetchItems();
     } catch (err) {
       console.error('Failed to save item:', err);
@@ -323,51 +353,69 @@ export default function ItemsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Package className="w-8 h-8 text-blue-500" />
+            
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark$text-white">품목 관리</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">자동차 부품 및 원자재 품목을 관리합니다.</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">품목 관리</h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">자동차 부품 및 원자재 품목을 관리합니다.</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 justify-end">
+          <div className="flex flex-wrap gap-2">
             <PrintButton
               data={filteredItems}
               columns={printColumns}
               title="품목 목록"
               subtitle={filtersApplied ? '필터 적용됨' : undefined}
               orientation="landscape"
-              className="bg-purple-500 hover:bg-purple-600"
+              className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
             />
             <button
               onClick={handleTemplateDownload}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
             >
-              <Download className="w-5 h-5" />
-              템플릿 다운로드
+              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">템플릿 다운로드</span>
+              <span className="sm:hidden">템플릿</span>
             </button>
-            <ItemsExportButton items={filteredItems} filtered={filtersApplied} />
+            <ItemsExportButton items={filteredItems} filtered={filtersApplied} className="text-sm sm:text-base" />
             <button
               onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
             >
-              <Upload className="w-5 h-5" />
-              일괄 업로드
+              <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">일괄 업로드</span>
+              <span className="sm:hidden">업로드</span>
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              disabled={!canEdit}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
+                canEdit 
+                  ? 'bg-gray-800 text-white hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600' 
+                  : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-50'
+              }`}
+              title={!canEdit ? '회계 담당자는 수정할 수 없습니다' : ''}
             >
-              <Plus className="w-5 h-5" />
-              품목 등록
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">품목 등록</span>
+              <span className="sm:hidden">등록</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
+        {/* Mobile Filter Toggle */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="sm:hidden flex items-center justify-between w-full mb-3 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        >
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">필터</span>
+          {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -378,15 +426,15 @@ export default function ItemsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 md:w-auto">
+          <div className={`flex flex-wrap gap-2 md:w-auto ${showFilters || 'hidden'} sm:flex`}>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             >
               <option value="">전체 분류</option>
               {CATEGORY_OPTIONS.map((category) => (
@@ -398,7 +446,7 @@ export default function ItemsPage() {
             <select
               value={selectedItemType}
               onChange={(e) => setSelectedItemType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             >
               <option value="">전체 타입</option>
               {ITEM_TYPE_OPTIONS.map((option) => (
@@ -410,7 +458,7 @@ export default function ItemsPage() {
             <select
               value={selectedMaterialType}
               onChange={(e) => setSelectedMaterialType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             >
               <option value="">전체 소재</option>
               {MATERIAL_TYPE_OPTIONS.map((option) => (
@@ -424,12 +472,12 @@ export default function ItemsPage() {
               value={vehicleFilter}
               onChange={(e) => setVehicleFilter(e.target.value)}
               placeholder="차종 필터"
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             />
             <select
               value={selectedCoatingStatus}
               onChange={(e) => setSelectedCoatingStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             >
               {COATING_STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -449,151 +497,197 @@ export default function ItemsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* View Toggle (Mobile Only) */}
+        <div className="sm:hidden flex items-center justify-end gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'table'
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <List className="w-3 h-3" />
+            테이블
+          </button>
+          <button
+            onClick={() => setViewMode('card')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'card'
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <Grid className="w-3 h-3" />
+            카드
+          </button>
+        </div>
+
+        <div className="overflow-x-auto -mx-2 sm:mx-0">
+          <table className={`w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700 ${viewMode === 'card' ? 'hidden' : 'table'}`}>
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[120px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   품목코드
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   품목명
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   분류
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[100px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   타입
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   소재형태
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[100px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   차종
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   규격 / 소재
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   단위중량(kg)
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   현재고
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   안전재고
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   기준단가
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[100px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   도장상태
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="w-[120px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   작업
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
               {loading ? (
                 <tr>
-                  <td colSpan={13} className="p-6">
+                  <td colSpan={13} className="p-3 sm:p-6">
                     <TableSkeleton rows={8} columns={13} showHeader={false} />
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={13} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     조건에 맞는 품목이 없습니다.
                   </td>
                 </tr>
               ) : (
                 filteredItems.map((item) => (
                   <tr key={item.item_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {item.item_code}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-900 dark:text-white">
-                        {item.item_name}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {item.category ?? '-'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.item_type === 'FINISHED'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                            : item.item_type === 'SUB'
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
-                            : item.item_type === 'RAW'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }`}
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <button
+                        onClick={() => router.push(`/master/items/${item.item_id}`)}
+                        className="text-sm font-medium text-gray-800 hover:text-gray-900 dark:text-gray-100 dark:hover:text-white hover:underline truncate block w-full text-left"
+                        title={item.item_code}
                       >
+                        {item.item_code}
+                      </button>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <button
+                        onClick={() => router.push(`/master/items/${item.item_id}`)}
+                        className="text-sm text-gray-900 dark:text-white hover:underline text-left truncate block w-full"
+                        title={item.item_name}
+                      >
+                        {item.item_name}
+                      </button>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                        {item.category ?? '-'}
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300 truncate">
                         {formatItemTypeLabel(item.item_type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
                         {item.material_type ?? '-'}
-                      </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate" title={item.vehicle_model || '-'}>
                         {item.vehicle_model || '-'}
-                      </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate" title={item.spec || item.material || '-'}>
                         {item.spec || item.material || '-'}
-                      </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      {formatNumberValue(item.mm_weight, 4)}
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                        {formatNumberValue(item.mm_weight, 4)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      {formatNumberValue(item.current_stock)}
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                        {formatNumberValue(item.current_stock)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      {formatNumberValue(item.safety_stock)}
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                        {formatNumberValue(item.safety_stock)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      {formatCurrency(item.price)}
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                        {formatCurrency(item.price)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCoatingStatusColor(item.coating_status)}`}>
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full truncate ${getCoatingStatusColor(item.coating_status)}`}>
                         {getCoatingStatusLabel(item.coating_status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => {
-                          setEditingItem(item);
-                          setShowAddModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item)}
-                        disabled={deletingItemId === item.item_id}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {deletingItemId === item.item_id ? (
-                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
+                    <td className="px-3 sm:px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedItemForImage(item);
+                            setShowImageModal(true);
+                          }}
+                          className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                          title="이미지 관리"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingItem(item);
+                            setShowAddModal(true);
+                          }}
+                          className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                          title="품목 수정"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          disabled={deletingItemId === item.item_id}
+                          className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="품목 삭제"
+                        >
+                          {deletingItemId === item.item_id ? (
+                            <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -601,6 +695,95 @@ export default function ItemsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Card View (Mobile Only) */}
+        {viewMode === 'card' && (
+          <div className="sm:hidden p-3 space-y-3">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                조건에 맞는 품목이 없습니다.
+              </div>
+            ) : (
+              filteredItems.map((item) => (
+                <div key={item.item_id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <button
+                        onClick={() => router.push(`/master/items/${item.item_id}`)}
+                        className="text-sm font-semibold text-gray-900 dark:text-white hover:underline"
+                      >
+                        {item.item_code}
+                      </button>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.item_name}</p>
+                    </div>
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent">
+                      {formatItemTypeLabel(item.item_type)}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3">
+                    <div>
+                      <span className="font-medium">분류:</span> {item.category || '-'}
+                    </div>
+                    <div>
+                      <span className="font-medium">소재:</span> {item.material_type || '-'}
+                    </div>
+                    <div>
+                      <span className="font-medium">현재고:</span> {formatNumberValue(item.current_stock)}
+                    </div>
+                    <div>
+                      <span className="font-medium">단가:</span> {formatCurrency(item.price)}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-gray-500">
+                      {getCoatingStatusLabel(item.coating_status)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedItemForImage(item);
+                          setShowImageModal(true);
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                        title="이미지 관리"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingItem(item);
+                          setShowAddModal(true);
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                        title="품목 수정"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item)}
+                        disabled={deletingItemId === item.item_id}
+                        className="p-1.5 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="품목 삭제"
+                      >
+                        {deletingItemId === item.item_id ? (
+                          <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                ))
+              )}
+        </div>
+        )}
         
         {/* Pagination */}
         {pagination && (
@@ -621,7 +804,31 @@ export default function ItemsPage() {
         title={editingItem ? '품목 수정' : '품목 등록'}
         size="lg"
       >
-        <ItemForm item={editingItem} onSubmit={handleSaveItem} onCancel={handleCloseModal} />
+        <ItemForm
+          item={editingItem ? {
+            ...editingItem,
+            item_type: editingItem.item_type ?? undefined,
+            material_type: editingItem.material_type ?? undefined,
+            vehicle_model: editingItem.vehicle_model ?? undefined,
+            material: editingItem.material ?? undefined,
+            spec: editingItem.spec ?? undefined,
+            thickness: editingItem.thickness != null ? String(editingItem.thickness) : undefined,
+            width: editingItem.width != null ? String(editingItem.width) : undefined,
+            height: editingItem.height != null ? String(editingItem.height) : undefined,
+            specific_gravity: editingItem.specific_gravity != null ? String(editingItem.specific_gravity) : undefined,
+            mm_weight: editingItem.mm_weight != null ? String(editingItem.mm_weight) : undefined,
+            daily_requirement: editingItem.daily_requirement != null ? String(editingItem.daily_requirement) : undefined,
+            blank_size: editingItem.blank_size != null ? String(editingItem.blank_size) : undefined,
+            current_stock: editingItem.current_stock != null ? String(editingItem.current_stock) : undefined,
+            safety_stock: editingItem.safety_stock != null ? String(editingItem.safety_stock) : undefined,
+            price: editingItem.price != null ? String(editingItem.price) : undefined,
+            location: editingItem.location ?? undefined,
+            description: editingItem.description ?? undefined,
+            coating_status: editingItem.coating_status ?? undefined
+          } : null}
+          onSubmit={handleSaveItem}
+          onCancel={handleCloseModal}
+        />
       </Modal>
 
       <ExcelUploadModal
@@ -631,6 +838,18 @@ export default function ItemsPage() {
         title="품목 데이터 업로드"
         onUploadSuccess={handleUploadSuccess}
       />
+
+      {showImageModal && selectedItemForImage && (
+        <ItemDetailModal
+          itemId={String(selectedItemForImage.item_id)}
+          itemName={selectedItemForImage.item_name}
+          itemCode={selectedItemForImage.item_code}
+          onClose={() => {
+            setShowImageModal(false);
+            setSelectedItemForImage(null);
+          }}
+        />
+      )}
 
       <ConfirmDialog />
     </div>

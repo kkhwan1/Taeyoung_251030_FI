@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Calendar, CreditCard, Building2, DollarSign, FileText, Hash } from 'lucide-react';
+import {
+  Save,
+  Loader2,
+  Calendar,
+  Building2,
+  Hash,
+  ClipboardCopy
+} from 'lucide-react';
+import { formStorage } from '@/utils/formStorage';
 
 type PaymentMethod = 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD';
 
@@ -63,6 +71,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
   const [loading, setLoading] = useState(false);
   const [loadingSales, setLoadingSales] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lastInputAvailable, setLastInputAvailable] = useState(false);
 
   // Load collection data for edit mode
   useEffect(() => {
@@ -72,6 +81,10 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         collection_date: collection.collection_date || new Date().toISOString().split('T')[0]
       });
     }
+    
+    // 마지막 입력값 확인
+    const lastData = formStorage.loadLastInput('collection');
+    setLastInputAvailable(!!lastData);
   }, [collection]);
 
   // Fetch pending sales transactions
@@ -112,6 +125,29 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         }));
 
         setSalesTransactions(transactions);
+
+        // If in edit mode and transaction is not in list, fetch it individually
+        if (formData.sales_transaction_id) {
+          const found = transactions.find(t => t.transaction_id === formData.sales_transaction_id);
+          if (!found) {
+            // Fetch the specific transaction
+            const response = await fetch(`/api/sales/${formData.sales_transaction_id}`);
+            const result = await response.json();
+            if (result.success && result.data) {
+              const tx = result.data;
+              const singleTransaction = {
+                transaction_id: tx.transaction_id,
+                transaction_no: tx.transaction_no,
+                customer_name: tx.customer?.company_name || 'Unknown',
+                total_amount: tx.total_amount,
+                paid_amount: tx.paid_amount || 0,
+                remaining_balance: tx.total_amount - (tx.paid_amount || 0),
+                payment_status: tx.payment_status
+              };
+              setSalesTransactions([singleTransaction, ...transactions]);
+            }
+          }
+        }
       } catch (error) {
         console.error('Error fetching sales transactions:', error);
       } finally {
@@ -120,7 +156,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
     };
 
     fetchSalesTransactions();
-  }, []);
+  }, [formData.sales_transaction_id]);
 
   // Auto-calculate remaining balance when sales transaction is selected
   useEffect(() => {
@@ -135,6 +171,69 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
       }));
     }
   }, [selectedSalesTransaction]);
+
+  // Update selected transaction when sales_transaction_id changes
+  useEffect(() => {
+    if (formData.sales_transaction_id && salesTransactions.length > 0) {
+      const transaction = salesTransactions.find(
+        t => t.transaction_id === formData.sales_transaction_id
+      );
+      if (transaction) {
+        setSelectedSalesTransaction(transaction);
+      }
+    }
+  }, [formData.sales_transaction_id, salesTransactions]);
+
+  // 금액 검증 함수
+  const validateCollectionAmount = (amount: number, remainingBalance: number) => {
+    if (amount <= 0) return "수금액은 0보다 커야 합니다";
+    if (amount > remainingBalance) return `잔액(₩${remainingBalance.toLocaleString()})을 초과할 수 없습니다`;
+    return null;
+  };
+
+  // 전액 수금 버튼 핸들러
+  const handleFullPayment = () => {
+    if (selectedSalesTransaction) {
+      const remainingAmount = selectedSalesTransaction.remaining_balance;
+      setFormData(prev => ({
+        ...prev,
+        collected_amount: remainingAmount
+      }));
+    }
+  };
+
+  // 이전 정보 불러오기
+  const handleLoadLastInput = () => {
+    const lastData = formStorage.loadLastInput('collection');
+    if (lastData) {
+      setFormData(prev => ({
+        ...prev,
+        payment_method: lastData.payment_method as PaymentMethod,
+        bank_name: lastData.bank_name,
+        account_number: lastData.account_number,
+        card_number: lastData.card_number
+      }));
+    }
+  };
+
+  // 키보드 단축키 처리
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        handleSubmit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === 'f' && e.ctrlKey) {
+        e.preventDefault();
+        handleFullPayment();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -210,14 +309,22 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!validate()) return;
 
     setLoading(true);
     try {
-      // Remove read-only fields
-      const { remaining_balance, ...dataToSave } = formData;
+      // Remove read-only and relational fields
+      const { 
+        remaining_balance, 
+        sales_transaction, 
+        customer, 
+        created_at, 
+        updated_at,
+        is_active,
+        ...dataToSave 
+      } = formData as any;
 
       // Clean up conditional fields based on payment method
       const cleanedData = { ...dataToSave };
@@ -235,9 +342,9 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         delete cleanedData.card_number;
       }
 
-      // Remove empty strings
+      // Remove empty strings but preserve notes
       Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key as keyof typeof cleanedData] === '') {
+        if (cleanedData[key as keyof typeof cleanedData] === '' && key !== 'notes') {
           delete cleanedData[key as keyof typeof cleanedData];
         }
       });
@@ -255,7 +362,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            수금일자 <span className="text-red-500">*</span>
+            수금일자 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
@@ -263,20 +370,20 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             value={formData.collection_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.collection_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.collection_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           />
           {errors.collection_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.collection_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.collection_date}</p>
           )}
         </div>
 
         {/* 매출 거래 선택 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <FileText className="w-4 h-4 inline mr-2" />
-            매출 거래 <span className="text-red-500">*</span>
+            
+            매출 거래 <span className="text-gray-500">*</span>
           </label>
           <select
             name="sales_transaction_id"
@@ -284,7 +391,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             onChange={handleSalesTransactionChange}
             disabled={loadingSales}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.sales_transaction_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.sales_transaction_id ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           >
@@ -296,7 +403,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             ))}
           </select>
           {errors.sales_transaction_id && (
-            <p className="mt-1 text-sm text-red-500">{errors.sales_transaction_id}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.sales_transaction_id}</p>
           )}
         </div>
 
@@ -317,10 +424,23 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
 
         {/* 수금금액 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <DollarSign className="w-4 h-4 inline mr-2" />
-            수금금액 <span className="text-red-500">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              
+              수금금액 <span className="text-gray-500">*</span>
+            </label>
+            {selectedSalesTransaction && (
+              <button
+                type="button"
+                onClick={handleFullPayment}
+                className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1 font-medium"
+                title="Ctrl+F로 전액 수금"
+              >
+                
+                전액 수금
+              </button>
+            )}
+          </div>
           <input
             type="number"
             name="collected_amount"
@@ -330,27 +450,44 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             step="0.01"
             max={formData.remaining_balance}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.collected_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.collected_amount ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           />
           {errors.collected_amount && (
-            <p className="mt-1 text-sm text-red-500">{errors.collected_amount}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.collected_amount}</p>
+          )}
+          {selectedSalesTransaction && (
+            <p className="mt-1 text-xs text-gray-500">
+              남은 잔액: ₩{(formData.remaining_balance || 0).toLocaleString()}
+            </p>
           )}
         </div>
 
         {/* 결제방법 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <CreditCard className="w-4 h-4 inline mr-2" />
-            결제방법 <span className="text-red-500">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              
+              결제방법 <span className="text-gray-500">*</span>
+            </label>
+            {lastInputAvailable && (
+              <button
+                type="button"
+                onClick={handleLoadLastInput}
+                className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+              >
+                <ClipboardCopy className="w-4 h-4" />
+                이전 정보 불러오기
+              </button>
+            )}
+          </div>
           <select
             name="payment_method"
             value={formData.payment_method}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.payment_method ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.payment_method ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           >
@@ -361,7 +498,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             ))}
           </select>
           {errors.payment_method && (
-            <p className="mt-1 text-sm text-red-500">{errors.payment_method}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.payment_method}</p>
           )}
         </div>
 
@@ -371,42 +508,42 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Building2 className="w-4 h-4 inline mr-2" />
-                은행명 <span className="text-red-500">*</span>
+                은행명 <span className="text-gray-500">*</span>
               </label>
               <input
                 type="text"
                 name="bank_name"
-                value={formData.bank_name}
+                value={formData.bank_name ?? ''}
                 onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.bank_name ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                  errors.bank_name ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
                 }`}
                 placeholder="예: 국민은행"
                 required
               />
               {errors.bank_name && (
-                <p className="mt-1 text-sm text-red-500">{errors.bank_name}</p>
+                <p className="mt-1 text-sm text-gray-500">{errors.bank_name}</p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Hash className="w-4 h-4 inline mr-2" />
-                계좌번호 <span className="text-red-500">*</span>
+                계좌번호 <span className="text-gray-500">*</span>
               </label>
               <input
                 type="text"
                 name="account_number"
-                value={formData.account_number}
+                value={formData.account_number ?? ''}
                 onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.account_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                  errors.account_number ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
                 }`}
                 placeholder="예: 123-456-789012"
                 required
               />
               {errors.account_number && (
-                <p className="mt-1 text-sm text-red-500">{errors.account_number}</p>
+                <p className="mt-1 text-sm text-gray-500">{errors.account_number}</p>
               )}
             </div>
           </>
@@ -417,7 +554,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               <Hash className="w-4 h-4 inline mr-2" />
-              수표번호 <span className="text-red-500">*</span>
+              수표번호 <span className="text-gray-500">*</span>
             </label>
             <input
               type="text"
@@ -425,13 +562,13 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
               value={formData.check_number}
               onChange={handleChange}
               className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                errors.check_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                errors.check_number ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
               }`}
               placeholder="예: CHK-2024-001"
               required
             />
             {errors.check_number && (
-              <p className="mt-1 text-sm text-red-500">{errors.check_number}</p>
+              <p className="mt-1 text-sm text-gray-500">{errors.check_number}</p>
             )}
           </div>
         )}
@@ -440,8 +577,8 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         {formData.payment_method === 'CARD' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <CreditCard className="w-4 h-4 inline mr-2" />
-              카드번호 (마지막 4자리) <span className="text-red-500">*</span>
+              
+              카드번호 (마지막 4자리) <span className="text-gray-500">*</span>
             </label>
             <input
               type="text"
@@ -449,14 +586,14 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
               value={formData.card_number}
               onChange={handleChange}
               className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                errors.card_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                errors.card_number ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
               }`}
               placeholder="예: ****-****-****-1234"
               maxLength={4}
               required
             />
             {errors.card_number && (
-              <p className="mt-1 text-sm text-red-500">{errors.card_number}</p>
+              <p className="mt-1 text-sm text-gray-500">{errors.card_number}</p>
             )}
           </div>
         )}
@@ -464,12 +601,12 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         {/* 비고 */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <FileText className="w-4 h-4 inline mr-2" />
+            
             비고
           </label>
           <textarea
             name="notes"
-            value={formData.notes}
+            value={formData.notes ?? ''}
             onChange={handleChange}
             rows={3}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -490,7 +627,7 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

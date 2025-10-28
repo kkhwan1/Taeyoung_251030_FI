@@ -405,9 +405,9 @@ export function getCategoryLabel(category: CompanyCategory | string | null | und
  */
 export function getCategoryColor(category: CompanyCategory | string | null | undefined): string {
   const colors: Record<string, string> = {
-    [CompanyCategory.RAW_MATERIALS]: 'bg-blue-500',
-    [CompanyCategory.OUTSOURCING]: 'bg-green-500',
-    [CompanyCategory.CONSUMABLES]: 'bg-yellow-500',
+    [CompanyCategory.RAW_MATERIALS]: 'bg-gray-500',
+    [CompanyCategory.OUTSOURCING]: 'bg-gray-500',
+    [CompanyCategory.CONSUMABLES]: 'bg-gray-500',
     [CompanyCategory.OTHER]: 'bg-gray-500'
   };
 

@@ -12,11 +12,7 @@ import PriceCalculationModal, { PriceCalcResult } from '@/components/forms/Price
 import { useToastNotification } from '@/hooks/useToast';
 import {
   Search,
-  TrendingUp,
-  TrendingDown,
   Minus,
-  DollarSign,
-  Package,
   ArrowUpDown,
   Calculator
 } from 'lucide-react';
@@ -113,8 +109,8 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
   // Get trend icon
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'UP': return <TrendingUp className="h-3 w-3 mr-1" />;
-      case 'DOWN': return <TrendingDown className="h-3 w-3 mr-1" />;
+      case 'UP': return ;
+      case 'DOWN': return ;
       case 'STABLE': return <Minus className="h-3 w-3 mr-1" />;
       default: return null;
     }
@@ -132,9 +128,9 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
 
   // Get volatility color
   const getVolatilityColor = (volatility: number) => {
-    if (volatility < 5) return 'text-green-600';
-    if (volatility < 15) return 'text-yellow-600';
-    return 'text-red-600';
+    if (volatility < 5) return 'text-gray-600';
+    if (volatility < 15) return 'text-gray-600';
+    return 'text-gray-600';
   };
 
   // Handle individual item price calculation
@@ -208,13 +204,13 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
   // Sort indicator
   const SortIndicator = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
-    return sortDirection === 'asc' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />;
+    return sortDirection === 'asc' ?  : ;
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700 dark:border-gray-300"></div>
       </div>
     );
   }
@@ -225,7 +221,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           {selectedItems.size > 0 ? (
-            <span className="font-medium text-blue-600 dark:text-blue-400">
+            <span className="font-medium text-gray-900 dark:text-gray-100">
               {selectedItems.size}개 선택됨
             </span>
           ) : (
@@ -243,7 +239,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
               setShowModal(true);
             }}
             disabled={selectedItems.size === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             <Calculator className="w-4 h-4" />
             선택 품목 일괄 계산 ({selectedItems.size})
@@ -287,7 +283,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
       {/* Table */}
       {processedData.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          
           <p>비교할 데이터가 없습니다</p>
         </div>
       ) : (
@@ -306,7 +302,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
                         setSelectedItems(new Set());
                       }
                     }}
-                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-800 focus:ring-2 focus:ring-gray-400 dark:text-gray-200 dark:focus:ring-gray-600"
                   />
                 </TableHead>
                 <TableHead>
@@ -368,7 +364,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
                         }
                         setSelectedItems(newSelected);
                       }}
-                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-800 focus:ring-2 focus:ring-gray-400 dark:text-gray-200 dark:focus:ring-gray-600"
                     />
                   </TableCell>
                   <TableCell>
@@ -382,7 +378,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
 
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <DollarSign className="h-3 w-3 text-muted-foreground" />
+                      
                       <span className="font-semibold">
                         {item.current_price.toLocaleString('ko-KR')}
                       </span>
@@ -400,10 +396,10 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
 
                   <TableCell className="text-right">
                     <div className="text-xs space-y-1">
-                      <div className="text-green-600">
+                      <div className="text-gray-600">
                         최저: ₩{item.min_price_6m.toLocaleString('ko-KR')}
                       </div>
-                      <div className="text-red-600">
+                      <div className="text-gray-600">
                         최고: ₩{item.max_price_6m.toLocaleString('ko-KR')}
                       </div>
                     </div>
@@ -411,7 +407,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
 
                   <TableCell className="text-right">
                     <span className={`font-semibold ${
-                      item.price_variance >= 0 ? 'text-red-600' : 'text-blue-600'
+                      item.price_variance >= 0 ? 'text-gray-600' : 'text-gray-600'
                     }`}>
                       {item.price_variance >= 0 ? '+' : ''}
                       {item.price_variance.toFixed(2)}%
@@ -434,7 +430,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
                   <TableCell>
                     <button
                       onClick={() => handleCalculatePrice(item)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors font-medium"
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-800 text-white rounded hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
                     >
                       <Calculator className="w-3 h-3" />
                       가격 계산
@@ -467,11 +463,11 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
           </div>
           <div className="flex gap-4">
             <div className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-red-600" />
+              
               <span>상승: {processedData.filter(i => i.trend_direction === 'UP').length}</span>
             </div>
             <div className="flex items-center gap-1">
-              <TrendingDown className="h-3 w-3 text-blue-600" />
+              
               <span>하락: {processedData.filter(i => i.trend_direction === 'DOWN').length}</span>
             </div>
             <div className="flex items-center gap-1">

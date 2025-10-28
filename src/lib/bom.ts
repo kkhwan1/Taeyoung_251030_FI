@@ -165,18 +165,26 @@ export async function explodeBom(
 
     // 현재 레벨의 BOM 항목 조회
     const projectId = process.env.SUPABASE_PROJECT_ID || '';
+    const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
     const sql = `
       SELECT
         b.bom_id,
         b.parent_item_id,
         b.child_item_id,
-        b.quantity,
-        b.unit,
+        b.quantity_required,
         b.notes,
         i.item_code,
         i.item_name,
         i.spec,
-        i.unit_price
+        i.unit,
+        COALESCE(
+          (SELECT unit_price FROM item_price_history 
+           WHERE item_id = b.child_item_id 
+           AND price_month = '${currentMonth}'
+           ORDER BY created_at DESC LIMIT 1),
+          i.price,
+          0
+        ) as unit_price
       FROM bom b
       INNER JOIN items i ON b.child_item_id = i.item_id
       WHERE b.parent_item_id = ${parentId}
@@ -321,82 +329,289 @@ export async function getBomTree(
 }
 
 /**
- * 최하위 품목들의 총 원가 계산
+ * 최하위 품목들의 총 원가 계산 (개선된 버전)
  * @param conn - DB 연결 (supabaseAdmin 사용)
  * @param parentId - 상위 품목 ID
- * @returns 총 원가
+ * @param priceMonth - 기준 월 (YYYY-MM-DD 형식)
+ * @returns 상세 원가 정보
  */
 export async function calculateTotalCost(
   conn: any,
-  parentId: number
-): Promise<number> {
+  parentId: number,
+  priceMonth?: string
+): Promise<{
+  material_cost: number;
+  labor_cost: number;
+  overhead_cost: number;
+  scrap_revenue: number;
+  net_cost: number;
+}> {
   try {
-    // WITH RECURSIVE를 사용하여 모든 최하위 품목과 수량 계산
-    const sql = `
-      WITH RECURSIVE bom_costs AS (
-        -- 초기값: 직접 하위 품목
-        SELECT
-          b.child_item_id,
-          b.quantity,
-          b.quantity as accumulated_qty,
-          i.unit_price,
-          CASE
-            WHEN NOT EXISTS (
-              SELECT 1 FROM bom b2
-              WHERE b2.parent_item_id = b.child_item_id
-                AND b2.is_active = 1
-            ) THEN 1
-            ELSE 0
-          END as is_leaf
-        FROM bom b
-        INNER JOIN items i ON b.child_item_id = i.item_id
-        WHERE b.parent_item_id = $1
-          AND b.is_active = 1
-          AND i.is_active = 1
+    const currentMonth = priceMonth || new Date().toISOString().slice(0, 7) + '-01';
+    
+    // 먼저 BOM 구조를 단계별로 조회하여 원가 계산
+    const { data: bomData, error: bomError } = await conn
+      .from('bom')
+      .select(`
+        bom_id,
+        parent_item_id,
+        child_item_id,
+        quantity_required,
+        labor_cost,
+        child:items!child_item_id (
+          item_id,
+          item_code,
+          item_name,
+          price,
+          scrap_rate,
+          scrap_unit_price,
+          mm_weight
+        )
+      `)
+      .eq('parent_item_id', parentId)
+      .eq('is_active', true);
 
-        UNION ALL
+    if (bomError || !bomData || bomData.length === 0) {
+      return {
+        material_cost: 0,
+        labor_cost: 0,
+        overhead_cost: 0,
+        scrap_revenue: 0,
+        net_cost: 0
+      };
+    }
 
-        -- 재귀: 하위 품목들
-        SELECT
-          b.child_item_id,
-          b.quantity,
-          bc.accumulated_qty * b.quantity as accumulated_qty,
-          i.unit_price,
-          CASE
-            WHEN NOT EXISTS (
-              SELECT 1 FROM bom b2
-              WHERE b2.parent_item_id = b.child_item_id
-                AND b2.is_active = 1
-            ) THEN 1
-            ELSE 0
-          END as is_leaf
-        FROM bom b
-        INNER JOIN bom_costs bc ON b.parent_item_id = bc.child_item_id
-        INNER JOIN items i ON b.child_item_id = i.item_id
-        WHERE b.is_active = 1
-          AND i.is_active = 1
-          AND bc.is_leaf = 0
-      )
-      SELECT
-        SUM(accumulated_qty * COALESCE(unit_price, 0)) as total_cost
-      FROM bom_costs
-      WHERE is_leaf = 1
-    `;
+    let materialCost = 0;
+    let laborCost = 0;
+    let scrapRevenue = 0;
 
-    const projectId = process.env.SUPABASE_PROJECT_ID || '';
-    const sqlWithParams = sql.replace(/\$1/g, parentId.toString());
+    // 각 BOM 항목에 대해 원가 계산
+    for (const bomItem of bomData) {
+      const child = bomItem.child;
+      if (!child) continue;
 
-    const result = await mcp__supabase__execute_sql({
-      project_id: projectId,
-      query: sqlWithParams
-    });
+      // 월별 단가 조회
+      const { data: priceData } = await conn
+        .from('item_price_history')
+        .select('unit_price')
+        .eq('item_id', child.item_id)
+        .eq('price_month', currentMonth)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-    const rows = result.rows as Array<{total_cost: number | null}> | undefined;
-    return rows?.[0]?.total_cost || 0;
+      const unitPrice = priceData?.unit_price || child.price || 0;
+      const quantity = bomItem.quantity_required || 0;
+      const laborCostPerItem = bomItem.labor_cost || 0;
+
+      // 재료비 계산
+      materialCost += quantity * unitPrice;
+
+      // 가공비 계산
+      laborCost += quantity * laborCostPerItem;
+
+      // 스크랩 수익 계산 (중량 × 스크랩율 × 스크랩 단가)
+      const scrapRate = child.scrap_rate || 0;
+      const scrapUnitPrice = child.scrap_unit_price || 0;
+      const mmWeight = child.mm_weight || 0;
+      scrapRevenue += quantity * (scrapRate / 100) * scrapUnitPrice * mmWeight;
+
+      // 하위 품목이 BOM을 가지고 있다면 재귀적으로 계산
+      const { data: subBomData } = await conn
+        .from('bom')
+        .select('bom_id')
+        .eq('parent_item_id', child.item_id)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (subBomData && subBomData.length > 0) {
+        const subCost = await calculateTotalCost(conn, child.item_id, priceMonth);
+        materialCost += quantity * subCost.material_cost;
+        laborCost += quantity * subCost.labor_cost;
+        scrapRevenue += quantity * subCost.scrap_revenue;
+      }
+    }
+
+    // 간접비 계산 (재료비 + 가공비) × 10%
+    const overheadCost = (materialCost + laborCost) * 0.1;
+    
+    // 순원가 = 재료비 + 가공비 + 간접비 - 스크랩 수익
+    const netCost = materialCost + laborCost + overheadCost - scrapRevenue;
+
+    return {
+      material_cost: materialCost,
+      labor_cost: laborCost,
+      overhead_cost: overheadCost,
+      scrap_revenue: scrapRevenue,
+      net_cost: netCost
+    };
 
   } catch (error) {
     console.error('Error calculating total cost:', error);
+    return {
+      material_cost: 0,
+      labor_cost: 0,
+      overhead_cost: 0,
+      scrap_revenue: 0,
+      net_cost: 0
+    };
+  }
+}
+
+/**
+ * 스크랩 수익 계산
+ * @param conn - DB 연결
+ * @param parentId - 상위 품목 ID
+ * @param quantity - 생산 수량
+ * @returns 총 스크랩 수익
+ */
+export async function calculateScrapRevenue(
+  conn: any,
+  itemId: number,
+  quantity: number = 1
+): Promise<number> {
+  try {
+    // 먼저 해당 품목 자체의 스크랩 정보 확인
+    const { data: itemData } = await conn
+      .from('items')
+      .select('scrap_rate, scrap_unit_price, mm_weight')
+      .eq('item_id', itemId)
+      .single();
+
+    let directScrapRevenue = 0;
+    if (itemData && itemData.scrap_rate && itemData.scrap_unit_price && itemData.mm_weight) {
+      // 직선 스크랩 수익 (품목 자체의 스크랩)
+      directScrapRevenue = (itemData.scrap_rate / 100) * 
+                           itemData.scrap_unit_price * 
+                           itemData.mm_weight * quantity;
+    }
+
+    // BOM 구조를 단계별로 조회하여 하위 품목의 스크랩 수익 계산
+    const bomEntries = await conn
+      .from('bom')
+      .select(`
+        bom_id,
+        parent_item_id,
+        child_item_id,
+        quantity_required,
+        child:items!child_item_id (
+          item_id,
+          scrap_rate,
+          scrap_unit_price,
+          mm_weight
+        )
+      `)
+      .eq('parent_item_id', itemId)
+      .eq('is_active', true);
+
+    if (!bomEntries.data || bomEntries.data.length === 0) {
+      return directScrapRevenue;
+    }
+
+    let childScrapRevenue = 0;
+
+    // 각 BOM 항목에 대해 스크랩 수익 계산
+    for (const entry of bomEntries.data) {
+      const item = entry.child;
+      if (item && item.scrap_rate && item.scrap_unit_price && item.mm_weight) {
+        const scrapRevenue = entry.quantity_required * 
+                           (item.scrap_rate / 100) * 
+                           item.scrap_unit_price * 
+                           item.mm_weight;
+        childScrapRevenue += scrapRevenue;
+      }
+    }
+
+    return (directScrapRevenue + childScrapRevenue * quantity);
+
+  } catch (error) {
+    console.error('Error calculating scrap revenue:', error);
     return 0;
+  }
+}
+
+/**
+ * 배치 스크랩 수익 계산 (N+1 문제 해결)
+ * 여러 품목의 스크랩 수익을 한 번에 계산
+ * @param conn - DB 연결
+ * @param itemQuantities - [item_id, quantity] 배열
+ * @returns Map<item_id, scrap_revenue>
+ */
+export async function calculateBatchScrapRevenue(
+  conn: any,
+  itemQuantities: Array<{ item_id: number; quantity: number }>
+): Promise<Map<number, number>> {
+  try {
+    if (!itemQuantities || itemQuantities.length === 0) {
+      return new Map();
+    }
+
+    const itemIds = itemQuantities.map(iq => iq.item_id);
+    const result = new Map<number, number>();
+
+    // 1. 모든 품목의 스크랩 정보 한 번에 조회
+    const { data: itemsData } = await conn
+      .from('items')
+      .select('item_id, scrap_rate, scrap_unit_price, mm_weight')
+      .in('item_id', itemIds);
+
+    if (!itemsData) {
+      return result;
+    }
+
+    // 2. 모든 BOM 구조 한 번에 조회
+    const { data: bomEntries } = await conn
+      .from('bom')
+      .select(`
+        bom_id,
+        parent_item_id,
+        child_item_id,
+        quantity_required,
+        child:items!child_item_id (
+          item_id,
+          scrap_rate,
+          scrap_unit_price,
+          mm_weight
+        )
+      `)
+      .in('parent_item_id', itemIds)
+      .eq('is_active', true);
+
+    // 3. 각 품목별로 스크랩 수익 계산
+    for (const { item_id, quantity } of itemQuantities) {
+      const itemData = itemsData.find(i => i.item_id === item_id);
+      
+      // 3-1. 직선 스크랩 수익
+      let directScrapRevenue = 0;
+      if (itemData && itemData.scrap_rate && itemData.scrap_unit_price && itemData.mm_weight) {
+        directScrapRevenue = (itemData.scrap_rate / 100) * 
+                           itemData.scrap_unit_price * 
+                           itemData.mm_weight * quantity;
+      }
+
+      // 3-2. 하위 품목 스크랩 수익
+      const relevantBomEntries = bomEntries?.filter(b => b.parent_item_id === item_id) || [];
+      let childScrapRevenue = 0;
+
+      for (const entry of relevantBomEntries) {
+        const childItem = entry.child;
+        if (childItem && childItem.scrap_rate && childItem.scrap_unit_price && childItem.mm_weight) {
+          const scrapRevenue = entry.quantity_required * 
+                             (childItem.scrap_rate / 100) * 
+                             childItem.scrap_unit_price * 
+                             childItem.mm_weight;
+          childScrapRevenue += scrapRevenue;
+        }
+      }
+
+      result.set(item_id, directScrapRevenue + childScrapRevenue * quantity);
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('Error calculating batch scrap revenue:', error);
+    return new Map();
   }
 }
 
@@ -704,4 +919,22 @@ export async function validateBom(
       warnings
     };
   }
+}
+
+/**
+ * 수율을 고려한 실제 소요량 계산
+ * @param requiredQuantity 필요 수량
+ * @param yieldRate 수율 (0-100)
+ * @returns 실제 필요 수량
+ */
+export function calculateActualQuantityWithYield(
+  requiredQuantity: number,
+  yieldRate: number = 100
+): number {
+  if (yieldRate <= 0) return requiredQuantity;
+  if (yieldRate >= 100) return requiredQuantity;
+  
+  // 수율이 낮을수록 더 많은 원자재 필요
+  // 예: 수율 90%이면 100개 만들려면 111.11개 필요
+  return requiredQuantity / (yieldRate / 100);
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
+import { calculateBatchScrapRevenue } from '@/lib/bom';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -18,31 +19,41 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const parentItemId = searchParams.get('parent_item_id');
     const childItemId = searchParams.get('child_item_id');
     const levelNo = searchParams.get('level_no');
+    const priceMonth = searchParams.get('price_month') || 
+      new Date().toISOString().slice(0, 7) + '-01';
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const supabase = getSupabaseClient();
 
-    // Build query using v_bom_details view for cost calculations
+    // 기존 BOM 데이터 조회
     let query = supabase
-      .from('v_bom_details')
-      .select('*')
-      .order('bom_id', { ascending: true }) as any;
+      .from('bom')
+      .select(`
+        *,
+        parent:items!parent_item_id (
+          item_code,
+          item_name,
+          spec,
+          price
+        ),
+        child:items!child_item_id (
+          item_code,
+          item_name,
+          spec,
+          unit,
+          price,
+          category
+        )
+      `)
+      .eq('is_active', true)
+      .order('parent_item_id', { ascending: true });
 
-    // Apply filters
-    if (parentItemId) {
-      query = query.eq('parent_item_id', parentItemId);
-    }
-
-    if (childItemId) {
-      query = query.eq('child_item_id', childItemId);
-    }
-
-    if (levelNo) {
-      query = query.eq('level_no', parseInt(levelNo));
-    }
-
-    // Apply pagination
+    // 필터 적용
+    if (parentItemId) query = query.eq('parent_item_id', parseInt(parentItemId));
+    if (childItemId) query = query.eq('child_item_id', parseInt(childItemId));
+    if (levelNo) query = query.eq('level_no', parseInt(levelNo));
+    
     query = query.range(offset, offset + limit - 1);
 
     const { data: bomEntries, error } = await query;
@@ -55,39 +66,94 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }, { status: 500 });
     }
 
-    // ✅ CRITICAL FIX: Add is_active field (v_bom_details view doesn't include it)
-    // Transform data to include is_active field, defaulting to true if undefined
-    const transformedEntries = bomEntries?.map((item: any) => ({
-      ...item,
-      is_active: item.is_active !== undefined ? item.is_active : true
-    })) || [];
+    // Step 1: 월별 단가 및 재료비 계산
+    const entriesWithPrice = await Promise.all(
+      (bomEntries || []).map(async (item: any) => {
+        // 월별 단가 조회 (없으면 items.price 사용)
+        const { data: priceData } = await supabase
+          .from('item_price_history')
+          .select('unit_price')
+          .eq('item_id', item.child_item_id)
+          .eq('price_month', priceMonth)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-    // Calculate cost summary totals
+        const unitPrice = priceData?.unit_price || item.child?.price || 0;
+        const materialCost = item.quantity_required * unitPrice;
+
+        return {
+          ...item,
+          bom_id: item.bom_id,
+          parent_item_id: item.parent_item_id,
+          child_item_id: item.child_item_id,
+          parent_code: item.parent?.item_code,
+          parent_name: item.parent?.item_name,
+          child_code: item.child?.item_code,
+          child_name: item.child?.item_name,
+          quantity_required: item.quantity_required,
+          level_no: item.level_no || 1,
+          unit: item.child?.unit || 'EA',
+          unit_price: unitPrice,
+          material_cost: materialCost,
+          item_type: item.child?.category === '원자재' || item.child?.category === '부자재' 
+            ? 'external_purchase' 
+            : 'internal_production',
+          is_active: true
+        };
+      })
+    );
+
+    // Step 2: 배치 스크랩 수익 계산 (N+1 문제 해결)
+    const itemQuantities = entriesWithPrice.map(item => ({
+      item_id: item.child_item_id,
+      quantity: item.quantity_required
+    }));
+    
+    const scrapRevenueMap = await calculateBatchScrapRevenue(supabase, itemQuantities);
+
+    // Step 3: 스크랩 수익 및 순 원가 추가
+    const enrichedEntries = entriesWithPrice.map((item: any) => {
+      const itemScrapRevenue = scrapRevenueMap.get(item.child_item_id) || 0;
+      
+      return {
+        ...item,
+        item_scrap_revenue: itemScrapRevenue,
+        net_cost: item.material_cost - itemScrapRevenue
+      };
+    });
+
+    // 원가 요약 계산
+    // 개별 항목의 스크랩 수익 합계로 계산
+    const totalScrapRevenue = enrichedEntries.reduce(
+      (sum, item) => sum + (item.item_scrap_revenue || 0), 
+      0
+    );
+
+    const totalMaterialCost = enrichedEntries.reduce((sum, item) => sum + (item.material_cost || 0), 0);
+    const totalLaborCost = enrichedEntries.reduce((sum, item) => sum + (item.labor_cost || 0), 0);
+    const totalOverheadCost = (totalMaterialCost + totalLaborCost) * 0.1; // 10% 간접비
+
     const costSummary = {
-      total_component_cost: transformedEntries.reduce((sum: number, item: any) => sum + (item.component_cost || 0), 0),
-      total_scrap_revenue: transformedEntries.reduce((sum: number, item: any) => sum + (item.scrap_revenue_per_piece || 0), 0),
-      total_net_cost: transformedEntries.reduce((sum: number, item: any) => sum + (item.net_cost || 0), 0),
-      coil_count: transformedEntries.filter((item: any) => item.weight_per_piece).length,
-      purchased_count: transformedEntries.filter((item: any) => item.purchase_unit_price).length
+      total_material_cost: totalMaterialCost,
+      total_labor_cost: totalLaborCost,
+      total_overhead_cost: totalOverheadCost,
+      total_scrap_revenue: totalScrapRevenue,
+      total_net_cost: totalMaterialCost + totalLaborCost + totalOverheadCost - totalScrapRevenue,
+      coil_count: 0,
+      purchased_count: enrichedEntries.filter(item => item.item_type === 'external_purchase').length
     };
 
     // Get total count for pagination
     let countQuery = supabase
-      .from('v_bom_details')
-      .select('*', { count: 'exact', head: true }) as any;
+      .from('bom')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
 
     // Apply same filters for count
-    if (parentItemId) {
-      countQuery = countQuery.eq('parent_item_id', parentItemId);
-    }
-
-    if (childItemId) {
-      countQuery = countQuery.eq('child_item_id', childItemId);
-    }
-
-    if (levelNo) {
-      countQuery = countQuery.eq('level_no', parseInt(levelNo));
-    }
+    if (parentItemId) countQuery = countQuery.eq('parent_item_id', parseInt(parentItemId));
+    if (childItemId) countQuery = countQuery.eq('child_item_id', parseInt(childItemId));
+    if (levelNo) countQuery = countQuery.eq('level_no', parseInt(levelNo));
 
     const { count: totalCount, error: countError } = await countQuery;
 
@@ -98,8 +164,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       data: {
-        bom_entries: transformedEntries,
+        bom_entries: enrichedEntries,
         cost_summary: costSummary,
+        price_month: priceMonth,
         pagination: {
           total: totalCount || 0,
           limit,
@@ -132,7 +199,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // ✅ CRITICAL: Use request.text() + JSON.parse() for proper Korean encoding
+    // CRITICAL: Use request.text() + JSON.parse() for proper Korean encoding
     const text = await request.text();
     const body = JSON.parse(text);
 
@@ -140,7 +207,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parent_item_id,
       child_item_id,
       quantity_required,
-      level_no = 1
+      level_no = 1,
+      notes
     } = body;
 
     const supabase = getSupabaseClient();
@@ -153,11 +221,81 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 400 });
     }
 
+    // 1. 자기 자신 참조 방지
+    if (parent_item_id === child_item_id) {
+      return NextResponse.json({
+        success: false,
+        error: "모품목과 자품목이 동일할 수 없습니다"
+      }, { status: 400 });
+    }
+
+    // 2. 중복 BOM 체크 (활성 + 비활성 모두 확인)
+    const { data: existing } = await supabase
+      .from('bom')
+      .select('bom_id')
+      .eq('parent_item_id', parent_item_id)
+      .eq('child_item_id', child_item_id)
+      .single();
+
+    if (existing) {
+      // 비활성화된 BOM이 있으면 삭제
+      if (!existing.is_active) {
+        await supabase
+          .from('bom')
+          .delete()
+          .eq('bom_id', existing.bom_id);
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: "이미 등록된 BOM 구조입니다. 기존 항목을 수정해주세요."
+        }, { status: 400 });
+      }
+    }
+
+    // 3. 순환 참조 체크 함수
+    async function checkCircularReference(
+      supabase: any, 
+      parentId: number, 
+      childId: number
+    ): Promise<boolean> {
+      // childId를 모품목으로 가지는 BOM들을 재귀적으로 조회
+      const { data } = await supabase
+        .from('bom')
+        .select('child_item_id')
+        .eq('parent_item_id', childId)
+        .eq('is_active', true);
+      
+      if (!data || data.length === 0) return false;
+      
+      for (const row of data) {
+        if (row.child_item_id === parentId) return true;
+        if (await checkCircularReference(supabase, parentId, row.child_item_id)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // 순환 참조 체크 실행
+    const hasCircularReference = await checkCircularReference(supabase, parent_item_id, child_item_id);
+    if (hasCircularReference) {
+      return NextResponse.json({
+        success: false,
+        error: "순환 참조가 감지되었습니다. BOM 구조를 확인해주세요."
+      }, { status: 400 });
+    }
+
+    // 4. 소요량 검증
     if (quantity_required <= 0) {
       return NextResponse.json({
         success: false,
-        error: '소요수량은 0보다 커야 합니다.'
+        error: "소요량은 0보다 커야 합니다"
       }, { status: 400 });
+    }
+
+    if (quantity_required > 1000) {
+      // 경고만 (저장은 가능하지만 확인 필요)
+      console.warn(`High quantity detected: ${quantity_required} for BOM ${parent_item_id}->${child_item_id}`);
     }
 
     if (parent_item_id === child_item_id) {
@@ -208,20 +346,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 400 });
     }
 
-    // Check for duplicate BOM entry
+    // Check for duplicate BOM entry (활성 + 비활성 모두 확인)
     const { data: existingBom } = await supabase
       .from('bom')
       .select('bom_id')
       .eq('parent_item_id', parent_item_id)
       .eq('child_item_id', child_item_id)
-      .eq('is_active', true)
       .maybeSingle();
 
     if (existingBom) {
-      return NextResponse.json({
-        success: false,
-        error: '이미 존재하는 BOM 항목입니다.'
-      }, { status: 400 });
+      // 비활성화된 BOM이 있으면 삭제
+      if (!existingBom.is_active) {
+        await supabase
+          .from('bom')
+          .delete()
+          .eq('bom_id', existingBom.bom_id);
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: '이미 존재하는 BOM 항목입니다.'
+        }, { status: 400 });
+      }
     }
 
     // Create BOM entry
@@ -232,20 +377,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         child_item_id,
         quantity_required,
         level_no,
-        is_active: true
+        is_active: true,
+        notes: notes || null
       } as any)
-      .select(`
-        *,
-        parent_item:items!bom_parent_item_id_fkey(item_code, item_name, spec, unit),
-        child_item:items!bom_child_item_id_fkey(item_code, item_name, spec, unit)
-      `)
+      .select()
       .single()) as any;
 
     if (error) {
       console.error('BOM insert failed:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json({
         success: false,
-        error: 'BOM 등록에 실패했습니다.'
+        error: `BOM 등록에 실패했습니다: ${error.message || 'Unknown error'}`
       }, { status: 500 });
     }
 
@@ -254,12 +397,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'BOM 항목이 성공적으로 등록되었습니다.',
       data: bomEntry
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating BOM entry:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json(
       {
         success: false,
-        error: 'BOM 등록 중 오류가 발생했습니다.'
+        error: `BOM 등록 중 오류가 발생했습니다: ${error.message || 'Unknown error'}`
       },
       { status: 500 }
     );
@@ -278,7 +422,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
-    // ✅ CRITICAL: Use request.text() + JSON.parse() for proper Korean encoding
+    // CRITICAL: Use request.text() + JSON.parse() for proper Korean encoding
     const text = await request.text();
     const body = JSON.parse(text);
 

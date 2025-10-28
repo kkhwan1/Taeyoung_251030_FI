@@ -16,7 +16,10 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { BarChart3, Download, Printer } from 'lucide-react';
+import {
+  Download,
+  Printer
+} from 'lucide-react';
 import {
   formatKoreanNumber,
   getRechartsTheme,
@@ -79,7 +82,7 @@ export const StockChart: React.FC<StockChartProps> = ({
 
       return (
         <div
-          className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg"
+          className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg"
           style={theme.tooltip.contentStyle}
         >
           <p className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
@@ -114,10 +117,10 @@ export const StockChart: React.FC<StockChartProps> = ({
               <span
                 className={`font-medium ${
                   ratio < 0.5
-                    ? 'text-red-600'
+                    ? 'text-gray-900 dark:text-gray-100'
                     : ratio < 1
-                    ? 'text-orange-600'
-                    : 'text-green-600'
+                    ? 'text-gray-700 dark:text-gray-300'
+                    : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
                 {(ratio * 100).toFixed(1)}%
@@ -137,15 +140,15 @@ export const StockChart: React.FC<StockChartProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             재고 현황 차트
           </h3>
         </div>
-        <div className="flex items-center justify-center h-64 text-red-500">
+        <div className="flex items-center justify-center h-64 text-gray-600 dark:text-gray-400">
           <div className="text-center">
-            <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            
             <p>차트 데이터 로드 실패</p>
             <p className="text-sm text-gray-500 mt-1">{error}</p>
           </div>
@@ -155,11 +158,11 @@ export const StockChart: React.FC<StockChartProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-1.5">
-          <BarChart3 className="w-4 h-4 text-blue-500" />
+          
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             재고 현황 차트
           </h3>
@@ -171,9 +174,9 @@ export const StockChart: React.FC<StockChartProps> = ({
           <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
             <button
               onClick={() => setChartType('bar')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 chartType === 'bar'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -181,9 +184,9 @@ export const StockChart: React.FC<StockChartProps> = ({
             </button>
             <button
               onClick={() => setChartType('line')}
-              className={`px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded text-sm font-medium ${
                 chartType === 'line'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -195,7 +198,7 @@ export const StockChart: React.FC<StockChartProps> = ({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+            className="min-w-[120px] px-2 py-2 sm:py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
           >
             <option value="ratio">재고비율순</option>
             <option value="current">현재고순</option>
@@ -205,9 +208,9 @@ export const StockChart: React.FC<StockChartProps> = ({
           {/* Options */}
           <button
             onClick={() => setShowSafetyStock(!showSafetyStock)}
-              className={`px-2 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-2 py-2 sm:py-1.5 rounded-lg text-sm font-medium ${
               showSafetyStock
-                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                ? 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
                 : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
             }`}
           >
@@ -237,12 +240,12 @@ export const StockChart: React.FC<StockChartProps> = ({
       <div className="h-80" ref={chartRef}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 dark:border-gray-400"></div>
           </div>
         ) : !sortedData.length ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              
               <p>표시할 재고 데이터가 없습니다</p>
             </div>
           </div>
@@ -348,25 +351,25 @@ export const StockChart: React.FC<StockChartProps> = ({
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">총 품목</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">
+            <p className="text-base font-semibold text-gray-900 dark:text-white">
               {sortedData.length}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">부족 품목</p>
-            <p className="text-lg font-semibold text-red-600">
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {sortedData.filter(item => item.currentStock < (item.minimumStock || 0)).length}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">과재고 품목</p>
-            <p className="text-lg font-semibold text-blue-600">
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {sortedData.filter(item => item.currentStock > (item.safetyStock || 0)).length}개
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">평균 재고율</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">
+            <p className="text-base font-semibold text-gray-900 dark:text-white">
               {(
                 sortedData.reduce((sum, item) => {
                   const ratio = (item.minimumStock || 0) > 0 ? item.currentStock / (item.minimumStock || 1) : 0;

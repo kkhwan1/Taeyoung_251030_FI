@@ -14,7 +14,7 @@ const SalesTransactionCreateSchema = z.object({
   supply_amount: z.number().min(0, '공급가는 0 이상이어야 합니다'),
   tax_amount: z.number().min(0, '세액은 0 이상이어야 합니다').optional(),
   total_amount: z.number().min(0, '총액은 0 이상이어야 합니다'),
-  payment_status: z.enum(['PENDING', 'PARTIAL', 'COMPLETED']).optional(),
+  payment_status: z.enum(['PENDING', 'PARTIAL', 'COMPLETE']).optional(),
   payment_due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   delivery_address: z.string().optional(),
   delivery_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

@@ -20,9 +20,13 @@ export type Database = {
           child_item_id: number
           created_at: string
           is_active: boolean
+          labor_cost: number | null
           level_no: number
+          machine_time: number | null
+          notes: string | null
           parent_item_id: number
           quantity_required: number
+          setup_time: number | null
           updated_at: string
         }
         Insert: {
@@ -30,9 +34,13 @@ export type Database = {
           child_item_id: number
           created_at?: string
           is_active?: boolean
+          labor_cost?: number | null
           level_no?: number
+          machine_time?: number | null
+          notes?: string | null
           parent_item_id: number
           quantity_required?: number
+          setup_time?: number | null
           updated_at?: string
         }
         Update: {
@@ -40,9 +48,13 @@ export type Database = {
           child_item_id?: number
           created_at?: string
           is_active?: boolean
+          labor_cost?: number | null
           level_no?: number
+          machine_time?: number | null
+          notes?: string | null
           parent_item_id?: number
           quantity_required?: number
+          setup_time?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -485,6 +497,107 @@ export type Database = {
           },
         ]
       }
+      contract_documents: {
+        Row: {
+          contract_id: number
+          document_id: number
+          document_type: string
+          document_url: string
+          file_size: number
+          original_filename: string
+          page_count: number | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          contract_id: number
+          document_id?: number
+          document_type: string
+          document_url: string
+          file_size: number
+          original_filename: string
+          page_count?: number | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          contract_id?: number
+          document_id?: number
+          document_type?: string
+          document_url?: string
+          file_size?: number
+          original_filename?: string
+          page_count?: number | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["contract_id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          company_id: number
+          contract_date: string
+          contract_id: number
+          contract_no: string
+          created_at: string | null
+          end_date: string
+          notes: string | null
+          searchable_text: string | null
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: number
+          contract_date: string
+          contract_id?: number
+          contract_no: string
+          created_at?: string | null
+          end_date: string
+          notes?: string | null
+          searchable_text?: string | null
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: number
+          contract_date?: string
+          contract_id?: number
+          contract_no?: string
+          created_at?: string | null
+          end_date?: string
+          notes?: string | null
+          searchable_text?: string | null
+          start_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_monthly_accounting"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       inventory_transactions: {
         Row: {
           company_id: number | null
@@ -616,31 +729,98 @@ export type Database = {
           },
         ]
       }
+      item_images: {
+        Row: {
+          display_order: number | null
+          file_name: string | null
+          file_size: number | null
+          image_id: number
+          image_url: string
+          is_primary: boolean | null
+          item_id: number | null
+          mime_type: string | null
+          updated_at: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          display_order?: number | null
+          file_name?: string | null
+          file_size?: number | null
+          image_id?: number
+          image_url: string
+          is_primary?: boolean | null
+          item_id?: number | null
+          mime_type?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          display_order?: number | null
+          file_name?: string | null
+          file_size?: number | null
+          image_id?: number
+          image_url?: string
+          is_primary?: boolean | null
+          item_id?: number | null
+          mime_type?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_images_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "current_stock_view"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "item_images_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "item_images_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "mv_daily_stock_calendar"
+            referencedColumns: ["item_id"]
+          },
+        ]
+      }
       item_price_history: {
         Row: {
           created_at: string | null
+          created_by: string | null
           item_id: number
           note: string | null
           price_history_id: number
           price_month: string
+          price_per_kg: number | null
           unit_price: number
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           item_id: number
           note?: string | null
           price_history_id?: number
           price_month: string
+          price_per_kg?: number | null
           unit_price: number
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           item_id?: number
           note?: string | null
           price_history_id?: number
           price_month?: string
+          price_per_kg?: number | null
           unit_price?: number
           updated_at?: string | null
         }
@@ -688,8 +868,11 @@ export type Database = {
           material: string | null
           material_type: string | null
           mm_weight: number | null
+          overhead_rate: number | null
           price: number | null
           safety_stock: number | null
+          scrap_rate: number | null
+          scrap_unit_price: number | null
           spec: string | null
           specific_gravity: number | null
           supplier_id: number | null
@@ -699,6 +882,7 @@ export type Database = {
           updated_by: number | null
           vehicle_model: string | null
           width: number | null
+          yield_rate: number | null
         }
         Insert: {
           blank_size?: number | null
@@ -719,8 +903,11 @@ export type Database = {
           material?: string | null
           material_type?: string | null
           mm_weight?: number | null
+          overhead_rate?: number | null
           price?: number | null
           safety_stock?: number | null
+          scrap_rate?: number | null
+          scrap_unit_price?: number | null
           spec?: string | null
           specific_gravity?: number | null
           supplier_id?: number | null
@@ -730,6 +917,7 @@ export type Database = {
           updated_by?: number | null
           vehicle_model?: string | null
           width?: number | null
+          yield_rate?: number | null
         }
         Update: {
           blank_size?: number | null
@@ -750,8 +938,11 @@ export type Database = {
           material?: string | null
           material_type?: string | null
           mm_weight?: number | null
+          overhead_rate?: number | null
           price?: number | null
           safety_stock?: number | null
+          scrap_rate?: number | null
+          scrap_unit_price?: number | null
           spec?: string | null
           specific_gravity?: number | null
           supplier_id?: number | null
@@ -761,6 +952,7 @@ export type Database = {
           updated_by?: number | null
           vehicle_model?: string | null
           width?: number | null
+          yield_rate?: number | null
         }
         Relationships: [
           {
@@ -787,6 +979,112 @@ export type Database = {
           {
             foreignKeyName: "items_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          categories: Json | null
+          created_at: string | null
+          email_enabled: boolean | null
+          preference_id: number
+          price_threshold: number | null
+          push_enabled: boolean | null
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          categories?: Json | null
+          created_at?: string | null
+          email_enabled?: boolean | null
+          preference_id?: number
+          price_threshold?: number | null
+          push_enabled?: boolean | null
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          categories?: Json | null
+          created_at?: string | null
+          email_enabled?: boolean | null
+          preference_id?: number
+          price_threshold?: number | null
+          push_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          is_read: boolean | null
+          item_id: number | null
+          message: string
+          notification_id: number
+          title: string
+          type: string
+          updated_at: string
+          user_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          is_read?: boolean | null
+          item_id?: number | null
+          message: string
+          notification_id?: number
+          title: string
+          type: string
+          updated_at?: string
+          user_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          is_read?: boolean | null
+          item_id?: number | null
+          message?: string
+          notification_id?: number
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "current_stock_view"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "notifications_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "notifications_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "mv_daily_stock_calendar"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["user_id"]
@@ -935,6 +1233,142 @@ export type Database = {
           {
             foreignKeyName: "payments_supplier_id_fkey"
             columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_monthly_accounting"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      portal_access_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          error_message: string | null
+          ip_address: string | null
+          log_id: number
+          portal_user_id: number | null
+          resource: string | null
+          success: boolean | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          error_message?: string | null
+          ip_address?: string | null
+          log_id?: number
+          portal_user_id?: number | null
+          resource?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          error_message?: string | null
+          ip_address?: string | null
+          log_id?: number
+          portal_user_id?: number | null
+          resource?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_access_logs_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["portal_user_id"]
+          },
+        ]
+      }
+      portal_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          ip_address: string | null
+          portal_user_id: number
+          session_id: number
+          session_token: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          ip_address?: string | null
+          portal_user_id: number
+          session_id?: number
+          session_token: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          ip_address?: string | null
+          portal_user_id?: number
+          session_id?: number
+          session_token?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_sessions_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["portal_user_id"]
+          },
+        ]
+      }
+      portal_users: {
+        Row: {
+          company_id: number
+          created_at: string | null
+          email: string | null
+          is_active: boolean | null
+          last_login_at: string | null
+          password_hash: string
+          portal_user_id: number
+          role: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          company_id: number
+          created_at?: string | null
+          email?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          password_hash: string
+          portal_user_id?: number
+          role: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          company_id?: number
+          created_at?: string | null
+          email?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          password_hash?: string
+          portal_user_id?: number
+          role?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "portal_users_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "v_monthly_accounting"
             referencedColumns: ["company_id"]
@@ -1695,6 +2129,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_balance_sheet: {
+        Row: {
+          accounts_payable: number | null
+          accounts_receivable: number | null
+          cash_from_sales: number | null
+          cash_to_suppliers: number | null
+          net_payable: number | null
+          net_receivable: number | null
+          net_working_capital: number | null
+          period: string | null
+        }
+        Relationships: []
+      }
       v_bom_cost_summary: {
         Row: {
           max_level: number | null
@@ -1798,6 +2245,17 @@ export type Database = {
           },
         ]
       }
+      v_cash_flow: {
+        Row: {
+          cash_inflow_operations: number | null
+          cash_outflow_operations: number | null
+          cumulative_cash_flow: number | null
+          net_cash_flow: number | null
+          net_operating_cash: number | null
+          period: string | null
+        }
+        Relationships: []
+      }
       v_category_monthly_summary: {
         Row: {
           avg_purchase_per_company: number | null
@@ -1819,9 +2277,9 @@ export type Database = {
         Row: {
           index_scans: number | null
           index_size: string | null
-          indexname: unknown | null
-          schemaname: unknown | null
-          tablename: unknown | null
+          indexname: unknown
+          schemaname: unknown
+          tablename: unknown
           tuples_fetched: number | null
           tuples_read: number | null
           usage_category: string | null
@@ -1849,7 +2307,7 @@ export type Database = {
     }
     Functions: {
       analyze_index_performance: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           index_name: string
           index_scans: number
@@ -1858,82 +2316,48 @@ export type Database = {
           table_name: string
         }[]
       }
-      exec_sql: {
-        Args: { sql_query: string }
-        Returns: Json
+      create_receiving_transaction: {
+        Args: {
+          p_company_id?: number
+          p_item_id: number
+          p_notes?: string
+          p_quantity: number
+          p_reference_number?: string
+          p_total_amount: number
+          p_transaction_date?: string
+          p_unit_price: number
+        }
+        Returns: {
+          current_stock: number
+          item_id: number
+          quantity: number
+          total_amount: number
+          transaction_id: number
+          unit_price: number
+        }[]
       }
+      exec_sql: { Args: { sql_query: string }; Returns: Json }
       execute_sql: {
         Args: { params?: Json; query_text: string }
         Returns: Json
       }
-      execute_transaction: {
-        Args: { queries: Json }
-        Returns: Json
-      }
-      generate_collection_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_payment_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_purchase_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_purchase_transaction_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_sales_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_sales_transaction_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      execute_transaction: { Args: { queries: Json }; Returns: Json }
+      generate_collection_no: { Args: never; Returns: string }
+      generate_payment_no: { Args: never; Returns: string }
+      generate_purchase_no: { Args: never; Returns: string }
+      generate_purchase_transaction_no: { Args: never; Returns: string }
+      generate_sales_no: { Args: never; Returns: string }
+      generate_sales_transaction_no: { Args: never; Returns: string }
       get_business_info_field: {
         Args: { p_business_info: Json; p_field: string }
         Returns: string
       }
-      get_next_serial: {
-        Args: { prefix_param: string }
-        Returns: string
-      }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
-      }
+      get_next_serial: { Args: { prefix_param: string }; Returns: string }
+      get_portal_user_context: { Args: never; Returns: number }
+      get_portal_user_role: { Args: { user_id: number }; Returns: string }
+      set_portal_user_context: { Args: { user_id: number }; Returns: undefined }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       adjustment_type: "증가" | "감소" | "정정" | "손실" | "발견" | "기타"
@@ -2095,3 +2519,13 @@ export const Constants = {
     },
   },
 } as const
+
+// Type aliases for items table
+export type ItemInsert = Database['public']['Tables']['items']['Insert'];
+export type ItemRow = Database['public']['Tables']['items']['Row'];
+export type ItemUpdate = Database['public']['Tables']['items']['Update'];
+
+// Type aliases for item enums and codes
+export type ItemCategory = Database['public']['Enums']['item_category'];
+export type ItemTypeCode = 'RAW' | 'SUB' | 'FINISHED' | 'PRODUCT';
+export type MaterialTypeCode = 'COIL' | 'SHEET' | 'OTHER';

@@ -6,6 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/useToast';
+import {
+  AlertCircle,
+  Zap,
+  Info
+} from 'lucide-react';
 
 interface ErrorStats {
   total_errors: number;
@@ -47,17 +52,24 @@ interface ErrorLog {
 }
 
 const severityColors = {
-  CRITICAL: 'bg-red-100 text-red-800 border-red-200',
-  HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
-  MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  LOW: 'bg-blue-100 text-blue-800 border-blue-200'
+  CRITICAL: 'bg-gray-100 text-gray-800 border-gray-200',
+  HIGH: 'bg-gray-100 text-gray-800 border-gray-200',
+  MEDIUM: 'bg-gray-100 text-gray-800 border-gray-200',
+  LOW: 'bg-gray-100 text-gray-800 border-gray-200'
 };
 
-const severityEmojis = {
-  CRITICAL: '🚨',
-  HIGH: '⚠️',
-  MEDIUM: '⚡',
-  LOW: 'ℹ️'
+const getSeverityIcon = (severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW') => {
+  const iconProps = { className: "w-5 h-5" };
+  switch (severity) {
+    case 'CRITICAL':
+      return <AlertCircle {...iconProps} className="w-5 h-5 text-gray-600" />;
+    case 'HIGH':
+      return <AlertTriangle {...iconProps} className="w-5 h-5 text-gray-600" />;
+    case 'MEDIUM':
+      return <Zap {...iconProps} className="w-5 h-5 text-gray-600" />;
+    case 'LOW':
+      return <Info {...iconProps} className="w-5 h-5 text-gray-600" />;
+  }
 };
 
 export default function ErrorDashboard() {
@@ -211,7 +223,7 @@ export default function ErrorDashboard() {
               <CardTitle className="text-sm font-medium text-gray-600">크리티컬 에러</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.critical_errors.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-600">{stats.critical_errors.toLocaleString()}</div>
               <p className="text-xs text-gray-500 mt-1">즉시 조치 필요</p>
             </CardContent>
           </Card>
@@ -221,7 +233,7 @@ export default function ErrorDashboard() {
               <CardTitle className="text-sm font-medium text-gray-600">미해결 에러</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{stats.unresolved_errors.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-600">{stats.unresolved_errors.toLocaleString()}</div>
               <p className="text-xs text-gray-500 mt-1">해결 대기 중</p>
             </CardContent>
           </Card>
@@ -231,7 +243,7 @@ export default function ErrorDashboard() {
               <CardTitle className="text-sm font-medium text-gray-600">오늘 에러</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{stats.today_errors.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-600">{stats.today_errors.toLocaleString()}</div>
               <p className="text-xs text-gray-500 mt-1">24시간: {stats.last_24h_errors.toLocaleString()}</p>
             </CardContent>
           </Card>
@@ -293,12 +305,12 @@ export default function ErrorDashboard() {
                 <div key={error.log_id} className="border border-gray-200 rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-2">
-                      <span className="text-lg">{severityEmojis[error.severity]}</span>
+                      {getSeverityIcon(error.severity)}
                       <Badge className={severityColors[error.severity]}>
                         {error.severity}
                       </Badge>
                       <span className="text-sm font-medium">{error.error_type}</span>
-                      {error.resolved && <Badge variant="outline" className="bg-green-50 text-green-700">해결됨</Badge>}
+                      {error.resolved && <Badge variant="outline" className="bg-gray-50 text-gray-700">해결됨</Badge>}
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-xs text-gray-500">
@@ -344,9 +356,10 @@ export default function ErrorDashboard() {
 
       {/* 시스템 상태 알림 */}
       {stats && stats.critical_errors > 0 && (
-        <Alert className="border-red-200 bg-red-50">
-          <AlertDescription className="text-red-800">
-            🚨 <strong>{stats.critical_errors}개의 크리티컬 에러</strong>가 발생했습니다. 즉시 조치가 필요합니다.
+        <Alert className="border-gray-200 bg-gray-50">
+          <AlertDescription className="text-gray-800 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span><strong>{stats.critical_errors}개의 크리티컬 에러</strong>가 발생했습니다. 즉시 조치가 필요합니다.</span>
           </AlertDescription>
         </Alert>
       )}

@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Calendar, Package, AlertTriangle, CheckCircle, Factory, Wrench } from 'lucide-react';
+import {
+  Save,
+  Loader2,
+  Calendar,
+  CheckCircle,
+  Factory,
+  Wrench
+} from 'lucide-react';
 import {
   Product,
   BOMItem,
@@ -34,6 +41,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [productionResult, setProductionResult] = useState<ProductionResponse | null>(null);
+  const [savedBomCheckData, setSavedBomCheckData] = useState<any>(null);
 
   // New hooks for BOM checking with debounce
   const { data: bomCheckData, loading: bomLoading, error: bomError, checkBom } = useBomCheck();
@@ -42,9 +50,13 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
   // Real-time BOM check when product or quantity changes
   useEffect(() => {
     if (selectedProduct && formData.quantity > 0 && formData.use_bom) {
-      debouncedCheckBom(selectedProduct.id, formData.quantity);
+      const productId = selectedProduct.item_id || selectedProduct.id;
+      if (productId > 0) {
+        debouncedCheckBom(productId, formData.quantity);
+      }
     }
-  }, [selectedProduct, formData.quantity, formData.use_bom, debouncedCheckBom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct, formData.quantity, formData.use_bom]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -64,10 +76,12 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
   const handleProductSelect = (item: Item | null) => {
     if (item) {
       const product = item as Product;
-      setSelectedProduct(product);
+      const productId = product.item_id || product.id;
+      
+      setSelectedProduct({ ...product, item_id: productId, id: productId } as Product);
       setFormData(prev => ({
         ...prev,
-        product_item_id: product.id
+        product_item_id: productId
       }));
 
       // Clear product selection error
@@ -95,10 +109,6 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
       newErrors.quantity = '생산수량은 0보다 커야 합니다';
     }
 
-    if (formData.use_bom && bomCheckData && !bomCheckData.can_produce) {
-      newErrors.stock = '재고가 부족한 자재가 있습니다. 재고를 확인해주세요.';
-    }
-
     if (formData.scrap_quantity && formData.scrap_quantity < 0) {
       newErrors.scrap_quantity = '스크랩 수량은 0 이상이어야 합니다';
     }
@@ -120,9 +130,24 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
     setLoading(true);
 
     try {
+      // API가 기대하는 형식으로 데이터 변환
+      const itemId = selectedProduct?.item_id || selectedProduct?.id || formData.product_item_id;
+      
+      // 데이터 타입 강제 변환
+      const parsedQuantity = Math.floor(Number(formData.quantity)); // 정수로 강제 변환
+      const parsedUnitPrice = parseFloat(
+        String(selectedProduct?.price || selectedProduct?.unit_price || 0)
+      ); // 명시적 변환 및 기본값 보장
+      
       const submissionData = {
-        ...formData,
-        created_by: 1 // Default user ID, should be from auth context
+        transaction_date: formData.transaction_date,
+        item_id: itemId, // product_item_id -> item_id
+        quantity: parsedQuantity, // 변환된 정수값
+        unit_price: parsedUnitPrice, // 변환된 숫자값
+        reference_number: formData.reference_no,
+        notes: formData.notes,
+        created_by: 1, // Default user ID
+        transaction_type: '생산입고' // BOM 사용 시 생산입고
       };
 
       // Remove empty optional fields
@@ -137,6 +162,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
 
       // Show result modal with auto-deduction details
       setProductionResult(result);
+      setSavedBomCheckData(bomCheckData); // Save BOM check data for result modal
       setShowResultModal(true);
     } finally {
       setLoading(false);
@@ -169,7 +195,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            생산일자 <span className="text-red-500">*</span>
+            생산일자 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
@@ -177,11 +203,11 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             value={formData.transaction_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -214,7 +240,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         {/* 제품 검색 */}
         <div className="md:col-span-2">
           <ItemSelect
-            value={formData.product_item_id || undefined}
+            value={formData.product_item_id > 0 ? formData.product_item_id : undefined}
             onChange={handleProductSelect}
             label="생산 제품"
             placeholder="제품 품번 또는 품명으로 검색..."
@@ -228,7 +254,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         {/* 생산수량 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            생산수량 <span className="text-red-500">*</span>
+            생산수량 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -238,7 +264,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="0"
           />
@@ -246,7 +272,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             <p className="mt-1 text-sm text-gray-500">단위: {selectedProduct.unit}</p>
           )}
           {errors.quantity && (
-            <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
           )}
         </div>
 
@@ -263,7 +289,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.scrap_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.scrap_quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="0"
           />
@@ -271,7 +297,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             <p className="mt-1 text-sm text-gray-500">불량품 또는 스크랩 발생량</p>
           )}
           {errors.scrap_quantity && (
-            <p className="mt-1 text-sm text-red-500">{errors.scrap_quantity}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.scrap_quantity}</p>
           )}
         </div>
 
@@ -283,7 +309,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
               name="use_bom"
               checked={formData.use_bom}
               onChange={handleChange}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              className="w-4 h-4 text-gray-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
             />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               BOM(Bill of Materials)을 사용하여 자재 자동 차감
@@ -322,14 +348,14 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
 
       {/* Stock Error Display */}
       {errors.stock && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{errors.stock}</p>
+        <div className="p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
+          <p className="text-sm text-gray-600 dark:text-gray-400">{errors.stock}</p>
         </div>
       )}
 
       {/* Production Summary */}
       {selectedProduct && formData.quantity > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+        <div className="bg-gray-50 dark:bg-gray-900/20 rounded-lg p-4">
           <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">생산 요약</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
@@ -351,12 +377,22 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
               </span>
             </div>
             {formData.use_bom && bomCheckData && (
-              <div>
-                <span className="text-gray-500 dark:text-gray-400">재고 상태:</span>
-                <span className={`ml-2 font-medium ${bomCheckData.can_produce ? 'text-green-600' : 'text-red-600'}`}>
-                  {bomCheckData.can_produce ? '충분' : '부족'}
-                </span>
-              </div>
+              <>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">재고 상태:</span>
+                  <span className={`ml-2 font-medium ${bomCheckData.can_produce ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                    {bomCheckData.can_produce ? '충분' : '부족'}
+                  </span>
+                </div>
+                {!bomCheckData.can_produce && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">최대 생산가능:</span>
+                    <span className="ml-2 font-bold text-orange-600 dark:text-orange-400">
+                      {bomCheckData.summary.max_producible_quantity}개
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -373,8 +409,8 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         </button>
         <button
           type="submit"
-          disabled={loading || bomLoading || (formData.use_bom && bomCheckData && !bomCheckData.can_produce)}
-          className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading || bomLoading}
+          className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -384,7 +420,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
           ) : (
             <>
               <Save className="w-5 h-5" />
-              생산 등록
+              {formData.use_bom && bomCheckData && !bomCheckData.can_produce ? '재고 부족 - 그래도 생산 등록' : '생산 등록'}
             </>
           )}
         </button>
@@ -393,7 +429,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
       {/* Confirmation Modal */}
       {showConfirmModal && bomCheckData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                 생산 확인
@@ -450,14 +486,14 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
 
               {/* Warning if cannot produce */}
               {formData.use_bom && !bomCheckData.can_produce && (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    
                     <div>
-                      <h5 className="font-medium text-red-800 dark:text-red-300 mb-1">
+                      <h5 className="font-medium text-gray-800 dark:text-gray-300 mb-1">
                         생산 불가능
                       </h5>
-                      <p className="text-sm text-red-700 dark:text-red-400">
+                      <p className="text-sm text-gray-700 dark:text-gray-400">
                         재고가 부족한 자재가 있어 현재 생산이 불가능합니다. 자재를 입고한 후 다시 시도해주세요.
                       </p>
                     </div>
@@ -477,8 +513,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
               <button
                 type="button"
                 onClick={handleConfirmProduction}
-                disabled={formData.use_bom && !bomCheckData.can_produce}
-                className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
                 생산 실행
               </button>
@@ -490,10 +525,10 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
       {/* Result Modal */}
       {showResultModal && productionResult && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3">
-                <CheckCircle className="w-8 h-8 text-green-500" />
+                <CheckCircle className="w-8 h-8 text-gray-500" />
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                   생산 완료
                 </h3>
@@ -505,38 +540,73 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
 
             <div className="p-6 space-y-4">
               {/* Production Result Summary */}
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+              <div className="bg-gray-50 dark:bg-gray-900/20 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 dark:text-white mb-3">생산 결과</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">거래번호:</span>
                     <span className="ml-2 text-gray-900 dark:text-white font-medium">
-                      {productionResult.transaction.transaction_no}
+                      {productionResult.data.transaction?.transaction_no}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">생산수량:</span>
                     <span className="ml-2 text-gray-900 dark:text-white font-medium">
-                      {productionResult.transaction.quantity.toLocaleString()} {productionResult.transaction.unit}
+                      {productionResult.data.transaction?.quantity.toLocaleString()} {productionResult.data.transaction?.unit}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">제품재고 변화:</span>
-                    <span className="ml-2 text-green-600 dark:text-green-400 font-medium">
-                      +{productionResult.transaction.quantity.toLocaleString()} {productionResult.transaction.unit}
+                    <span className="ml-2 text-gray-600 dark:text-gray-400 font-medium">
+                      +{productionResult.data.transaction?.quantity.toLocaleString()} {productionResult.data.transaction?.unit}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">등록일시:</span>
                     <span className="ml-2 text-gray-900 dark:text-white font-medium">
-                      {new Date(productionResult.transaction.created_at).toLocaleString('ko-KR')}
+                      {productionResult.data.transaction?.created_at ? new Date(productionResult.data.transaction.created_at).toLocaleString('ko-KR') : 'N/A'}
                     </span>
                   </div>
                 </div>
               </div>
 
+              {/* Stock Shortage Warning */}
+              {productionResult.data.stock_warning && (
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-2">
+                        재고 부족 경고
+                      </h4>
+                      <div className="space-y-1 text-sm text-orange-700 dark:text-orange-400">
+                        <p>
+                          현재 재고로는 <span className="font-bold">{productionResult.data.stock_warning.max_producible.toLocaleString()}</span>까지만 생산 가능합니다.
+                        </p>
+                        <p>
+                          희망 수량: <span className="font-semibold">{formData.quantity.toLocaleString()}</span> → 
+                          부족 수량: <span className="font-bold text-red-600 dark:text-red-400">{productionResult.data.stock_warning.shortage_quantity.toLocaleString()}</span>
+                        </p>
+                        {productionResult.data.stock_warning.bottleneck_materials && productionResult.data.stock_warning.bottleneck_materials.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-orange-600 dark:text-orange-500 font-medium mb-1">부족한 원자재:</p>
+                            {productionResult.data.stock_warning.bottleneck_materials.map((item: any, idx: number) => (
+                              <p key={idx} className="text-xs text-orange-600 dark:text-orange-500">
+                                • {item.item_name} ({item.item_code}): 필요 {item.required.toLocaleString()} / 현재 {item.available.toLocaleString()}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Auto Deduction Details */}
-              {productionResult.auto_deductions && productionResult.auto_deductions.length > 0 && (
+              {productionResult.data.auto_deductions && productionResult.data.auto_deductions.length > 0 && (
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white mb-3">
                     자재 자동 차감 내역
@@ -553,7 +623,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
                         </tr>
                       </thead>
                       <tbody>
-                        {productionResult.auto_deductions.map((deduction, index) => (
+                        {productionResult.data.auto_deductions?.map((deduction, index) => (
                           <tr key={index} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
                             <td className="py-2 px-3 text-gray-900 dark:text-white font-mono text-xs">
                               {deduction.item_code}
@@ -561,7 +631,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
                             <td className="py-2 px-3 text-gray-900 dark:text-white">
                               {deduction.item_name}
                             </td>
-                            <td className="py-2 px-3 text-right text-red-600 dark:text-red-400 font-medium">
+                            <td className="py-2 px-3 text-right text-gray-600 dark:text-gray-400 font-medium">
                               -{deduction.deducted_quantity.toLocaleString()} {deduction.unit}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300">
@@ -587,7 +657,7 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
                   setProductionResult(null);
                   onCancel(); // Close the form and return to list
                 }}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
                 확인
               </button>

@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Calendar, Building2, Plus, X, AlertTriangle, CheckCircle, Truck } from 'lucide-react';
+import {
+  Save,
+  Loader2,
+  Calendar,
+  Building2,
+  Plus,
+  X,
+  CheckCircle
+} from 'lucide-react';
 import {
   CompanyForComponent,
   Product,
@@ -42,7 +50,6 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
     fetchInitialData();
   }, []);
 
-
   useEffect(() => {
     if (formData.items.length > 0) {
       checkStockAvailability();
@@ -70,12 +77,14 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
         if (stockData.success) {
           const stockMap = new Map(stockData.data.map((item: Record<string, any>) => [item.item_id, item.current_stock]));
 
-          const productsWithStock = productsData.data
-            .filter((item: Product) => item.category === '제품')
-            .map((item: Product) => ({
-              ...item,
-              current_stock: stockMap.get(item.id) || 0
-            }));
+          const productsWithStock = Array.isArray(productsData.data)
+            ? productsData.data
+                .filter((item: Product) => item.category === '제품')
+                .map((item: Product) => ({
+                  ...item,
+                  current_stock: stockMap.get(item.id) || 0
+                }))
+            : [];
 
           setProducts(productsWithStock);
         }
@@ -101,18 +110,22 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
       });
 
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.data && data.data.stock_check_results) {
+        const stockCheckResults = data.data.stock_check_results;
         const updatedItems = formData.items.map(item => {
-          const stockInfo = data.data.find((s: any) => s.item_id === item.item_id);
+          const stockInfo = stockCheckResults.find((s: any) => s.item_id === item.item_id);
           return {
             ...item,
             current_stock: stockInfo?.current_stock || 0,
-            sufficient_stock: stockInfo ? stockInfo.sufficient_stock : false
+            sufficient_stock: stockInfo ? stockInfo.sufficient : false
           };
         });
 
         setFormData(prev => ({ ...prev, items: updatedItems }));
         setStockCheckComplete(true);
+      } else {
+        console.error('Invalid stock check response:', data);
+        setStockCheckComplete(false);
       }
     } catch (error) {
       console.error('Failed to check stock availability:', error);
@@ -295,7 +308,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            출고일자 <span className="text-red-500">*</span>
+            출고일자 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
@@ -303,11 +316,11 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
             value={formData.transaction_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -330,7 +343,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
         {/* 출고번호 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Truck className="w-4 h-4 inline mr-2" />
+            
             출고번호
           </label>
           <div className="flex gap-2">
@@ -364,11 +377,11 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
             value={formData.delivery_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.delivery_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.delivery_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           />
           {errors.delivery_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.delivery_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.delivery_date}</p>
           )}
         </div>
 
@@ -413,7 +426,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
               <button
                 type="button"
                 onClick={checkStockAvailability}
-                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
               >
                 재고 확인
               </button>
@@ -421,10 +434,10 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
           </div>
 
           {hasInsufficientStock() && stockCheckComplete && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   일부 제품의 재고가 부족합니다
                 </span>
               </div>
@@ -432,14 +445,14 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
           )}
 
           {errors.stock && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.stock}</p>
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">{errors.stock}</p>
             </div>
           )}
 
           {errors.quantity && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.quantity}</p>
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">{errors.quantity}</p>
             </div>
           )}
 
@@ -449,7 +462,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
                 key={item.item_id}
                 className={`p-4 border rounded-lg ${
                   stockCheckComplete && !item.sufficient_stock
-                    ? 'border-red-300 bg-red-50 dark:bg-red-900/10'
+                    ? 'border-gray-300 bg-gray-50 dark:bg-gray-900/10'
                     : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700'
                 }`}
               >
@@ -459,12 +472,8 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {item.item_code} - {item.item_name}
                       </span>
-                      {stockCheckComplete && (
-                        item.sufficient_stock ? (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                        )
+                      {stockCheckComplete && item.sufficient_stock && (
+                        <CheckCircle className="w-4 h-4 text-gray-500" />
                       )}
                     </div>
 
@@ -517,7 +526,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
                     </div>
 
                     {stockCheckComplete && !item.sufficient_stock && (
-                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                         재고 부족: 필요 {item.quantity.toLocaleString()}{item.unit},
                         보유 {item.current_stock.toLocaleString()}{item.unit}
                       </p>
@@ -527,7 +536,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
                   <button
                     type="button"
                     onClick={() => removeItem(item.item_id)}
-                    className="ml-4 p-1 text-red-500 hover:text-red-700 transition-colors"
+                    className="ml-4 p-1 text-gray-500 hover:text-gray-700 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -542,7 +551,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 총 출고 금액:
               </span>
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
                 ₩{calculateTotalAmount().toLocaleString()}
               </span>
             </div>
@@ -577,7 +586,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
         <button
           type="submit"
           disabled={loading || hasInsufficientStock() || formData.items.length === 0}
-          className="flex items-center gap-2 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

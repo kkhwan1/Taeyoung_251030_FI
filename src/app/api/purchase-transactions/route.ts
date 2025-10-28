@@ -141,7 +141,7 @@ export const GET = createValidatedRoute(
  * Create a new purchase transaction
  */
 export const POST = createValidatedRoute(
-  async (request) => {
+  async (request: Request) => {
     // Use request.text() + JSON.parse() for proper Korean character handling
     const text = await request.text();
     const data = JSON.parse(text);

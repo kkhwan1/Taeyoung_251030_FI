@@ -13,7 +13,7 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import { createClient, SupabaseClient, PostgrestError } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+import { Database } from '@/types/database.types';
 
 // ============================================================================
 // CONFIGURATION & CLIENTS

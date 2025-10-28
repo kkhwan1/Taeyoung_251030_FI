@@ -6,8 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, Calendar, Package, FileText } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import {
+  Loader2,
+  Search,
+  Calendar
+} from 'lucide-react';
+import { useToastNotification } from '@/hooks/useToast';
 
 interface ProductionTransaction {
   transaction_id: number;
@@ -35,7 +39,7 @@ export default function ProductionHistoryTable() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const { toast } = useToast();
+  const toast = useToastNotification();
 
   useEffect(() => {
     fetchTransactions();
@@ -50,18 +54,10 @@ export default function ProductionHistoryTable() {
       if (data.success) {
         setTransactions(data.data.transactions || []);
       } else {
-        toast({
-          variant: 'destructive',
-          title: '조회 실패',
-          description: data.error || '생산 내역을 불러올 수 없습니다'
-        });
+        toast.error('조회 실패', data.error || '생산 내역을 불러올 수 없습니다');
       }
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: '생산 내역을 불러오는 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', '생산 내역을 불러오는 중 오류가 발생했습니다');
     } finally {
       setLoading(false);
     }
@@ -117,7 +113,7 @@ export default function ProductionHistoryTable() {
       {/* Table */}
       {filteredTransactions.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          
           <p>생산 내역이 없습니다</p>
         </div>
       ) : (
@@ -171,7 +167,7 @@ export default function ProductionHistoryTable() {
                   <TableCell>
                     {transaction.reference_number ? (
                       <div className="flex items-center gap-1 text-sm">
-                        <FileText className="h-3 w-3 text-muted-foreground" />
+                        
                         {transaction.reference_number}
                       </div>
                     ) : (

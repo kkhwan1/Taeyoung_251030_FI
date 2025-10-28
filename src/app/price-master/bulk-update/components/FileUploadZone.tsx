@@ -152,12 +152,12 @@ export function FileUploadZone({
 
       {/* File Preview */}
       {uploadedFile && (
-        <Card className="border-green-200 bg-green-50" data-testid="file-preview">
+        <Card className="border-gray-200 bg-gray-50" data-testid="file-preview">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="flex-shrink-0">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-gray-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">

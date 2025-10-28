@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Package, Loader2, AlertCircle } from 'lucide-react';
+import {
+  Search,
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
 import { ItemForComponent as Item } from '@/types/inventory';
 import type { ItemTypeCode } from '@/types/supabase';
 
@@ -70,17 +74,30 @@ export default function ItemSelect({
   // Handle search filtering
   useEffect(() => {
     if (search.trim()) {
-      const filtered = items.filter(item =>
+      let filtered = items.filter(item =>
         item.item_code.toLowerCase().includes(search.toLowerCase()) ||
         item.item_name.toLowerCase().includes(search.toLowerCase())
       );
+      
+      // 선택된 항목이 검색 결과에 없으면 맨 위에 추가
+      if (selectedItem && !filtered.find(i => i.item_id === selectedItem.item_id)) {
+        filtered = [selectedItem, ...filtered];
+      }
+      
+      console.log('[ItemSelect] Search filtering:', {
+        search,
+        totalItems: items.length,
+        filteredCount: filtered.length,
+        hasSelectedItem: !!selectedItem,
+        sampleItems: items.slice(0, 3).map(i => ({ code: i.item_code, name: i.item_name }))
+      });
       setFilteredItems(filtered.slice(0, 10)); // Limit to 10 results for performance
       setIsOpen(true);
     } else {
       setFilteredItems([]);
       setIsOpen(false);
     }
-  }, [search, items]);
+  }, [search, items, selectedItem]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -96,11 +113,29 @@ export default function ItemSelect({
 
   // Update search when value changes externally
   useEffect(() => {
-    if (value && items.length > 0) {
+    if (value) {
+      // 먼저 items 배열에서 찾기
       const item = items.find(item => item.item_id === value);
       if (item) {
         setSelectedItem(item);
         setSearch(`${item.item_code} - ${item.item_name}`);
+      } else if (items.length > 0) {
+        // items 배열에 없으면 개별 조회
+        fetch(`/api/items/${value}`)
+          .then(res => res.json())
+          .then(result => {
+            if (result.success && result.data) {
+              const itemData = {
+                ...result.data,
+                item_id: result.data.item_id || result.data.id,
+                item_name: result.data.item_name || result.data.name,
+                unit_price: result.data.unit_price || result.data.price || 0
+              };
+              setSelectedItem(itemData);
+              setSearch(`${itemData.item_code} - ${itemData.item_name}`);
+            }
+          })
+          .catch(err => console.error('Failed to fetch item:', err));
       }
     } else if (!value) {
       setSelectedItem(null);
@@ -113,9 +148,17 @@ export default function ItemSelect({
     setLoadError('');
 
     try {
-      let url = '/api/items';
+      let url = '/api/items?limit=1000'; // Get all items (no pagination for select dropdown)
       if (itemType !== 'ALL') {
-        url += `?type=${itemType}`;
+        // Map itemType to category parameter
+        const categoryMap: Record<string, string> = {
+          'PRODUCT': '제품',
+          'SEMI_PRODUCT': '반제품',
+          'RAW_MATERIAL': '원자재',
+          'SUBSIDIARY': '부자재'
+        };
+        const category = categoryMap[itemType] || itemType;
+        url += `&category=${encodeURIComponent(category)}`;
       }
 
       const response = await fetch(url);
@@ -127,12 +170,20 @@ export default function ItemSelect({
           ...item,
           item_id: item.item_id || item.id,
           item_name: item.item_name || item.name,
-          unit_price: item.unit_price || 0
+          unit_price: item.unit_price || item.price || 0
         }));
+
+        console.log('[ItemSelect] Fetched items:', {
+          count: transformedItems.length,
+          sample: transformedItems.slice(0, 3),
+          itemType,
+          url
+        });
 
         setItems(transformedItems);
       } else {
-        throw new Error(data.error || '품목 목록을 불러오는데 실패했습니다.');
+        const errorMsg = !data.success && 'error' in data ? data.error : '품목 목록을 불러오는데 실패했습니다.';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Failed to fetch items:', error);
@@ -147,11 +198,7 @@ export default function ItemSelect({
     const newSearch = e.target.value;
     setSearch(newSearch);
 
-    // Clear selection if search is cleared
-    if (!newSearch) {
-      setSelectedItem(null);
-      onChange(null);
-    }
+    // Don't clear selection if search is cleared - keep the selected item
   };
 
   const handleItemSelect = (item: Item) => {
@@ -188,8 +235,8 @@ export default function ItemSelect({
       {/* Label */}
       {label && (
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          <Package className="w-4 h-4 inline mr-2" />
-          {label} {required && <span className="text-red-500">*</span>}
+          
+          {label} {required && <span className="text-gray-500">*</span>}
         </label>
       )}
 
@@ -205,7 +252,7 @@ export default function ItemSelect({
           placeholder={placeholder}
           disabled={disabled || loading}
           className={`w-full px-4 py-2 pl-10 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-            error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+            error ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
           }`}
         />
 
@@ -220,17 +267,13 @@ export default function ItemSelect({
           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed"
           title="품목 목록 새로고침"
         >
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Package className="w-4 h-4" />
-          )}
+          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
         </button>
       </div>
 
       {/* Error Message */}
       {(error || loadError) && (
-        <div className="mt-1 flex items-center gap-1 text-sm text-red-500">
+        <div className="mt-1 flex items-center gap-1 text-sm text-gray-500">
           <AlertCircle className="w-3 h-3" />
           <span>{error || loadError}</span>
         </div>
@@ -246,7 +289,7 @@ export default function ItemSelect({
 
       {/* Dropdown */}
       {isOpen && filteredItems.length > 0 && !disabled && (
-        <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm max-h-60 overflow-y-auto">
           {filteredItems.map(item => (
             <button
               key={item.item_id}
@@ -285,7 +328,7 @@ export default function ItemSelect({
 
       {/* No Results */}
       {isOpen && search && filteredItems.length === 0 && !loading && (
-        <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg">
+        <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm">
           <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
             검색 결과가 없습니다.
           </div>

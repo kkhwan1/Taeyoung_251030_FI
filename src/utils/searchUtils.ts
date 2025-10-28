@@ -105,7 +105,7 @@ export const highlightSearchTerm = (text: string, searchTerm: string): string =>
   if (!normalizedText.includes(normalizedTerm)) return text;
 
   const regex = new RegExp(`(${searchTerm})`, 'gi');
-  return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800">$1</mark>');
+  return text.replace(regex, '<mark class="bg-gray-200 dark:bg-gray-800">$1</mark>');
 };
 
 // 자동완성 데이터 준비

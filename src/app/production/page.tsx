@@ -20,8 +20,8 @@ export default function ProductionPage() {
       <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">생산 관리</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">생산 관리</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
               생산입고 및 생산출고 처리, BOM 자동 차감
             </p>
           </div>

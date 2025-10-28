@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { X, AlertTriangle, Trash2, AlertCircle } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  AlertCircle
+} from 'lucide-react';
 
 export type ConfirmType = 'delete' | 'warning' | 'danger';
 
@@ -86,9 +90,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'delete':
         return {
           icon: <Trash2 className="w-6 h-6" />,
-          iconBgColor: 'bg-red-100 dark:bg-red-900/20',
-          iconTextColor: 'text-red-600 dark:text-red-400',
-          buttonBgColor: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+          iconBgColor: 'bg-gray-100 dark:bg-gray-900/20',
+          iconTextColor: 'text-gray-600 dark:text-gray-400',
+          buttonBgColor: 'bg-gray-600 hover:bg-gray-700 focus:ring-red-500',
           defaultTitle: '삭제 확인',
           defaultMessage: '정말 삭제하시겠습니까?',
           defaultConfirmText: '삭제'
@@ -96,9 +100,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'danger':
         return {
           icon: <AlertCircle className="w-6 h-6" />,
-          iconBgColor: 'bg-red-100 dark:bg-red-900/20',
-          iconTextColor: 'text-red-600 dark:text-red-400',
-          buttonBgColor: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+          iconBgColor: 'bg-gray-100 dark:bg-gray-900/20',
+          iconTextColor: 'text-gray-600 dark:text-gray-400',
+          buttonBgColor: 'bg-gray-600 hover:bg-gray-700 focus:ring-red-500',
           defaultTitle: '위험한 작업',
           defaultMessage: '이 작업을 계속하시겠습니까?',
           defaultConfirmText: '계속'
@@ -106,10 +110,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'warning':
       default:
         return {
-          icon: <AlertTriangle className="w-6 h-6" />,
-          iconBgColor: 'bg-yellow-100 dark:bg-yellow-900/20',
-          iconTextColor: 'text-yellow-600 dark:text-yellow-400',
-          buttonBgColor: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
+          icon: <AlertCircle className="w-5 h-5" />,
+          iconBgColor: 'bg-gray-100 dark:bg-gray-900/20',
+          iconTextColor: 'text-gray-600 dark:text-gray-400',
+          buttonBgColor: 'bg-gray-600 hover:bg-gray-700 focus:ring-yellow-500',
           defaultTitle: '확인 필요',
           defaultMessage: '이 작업을 진행하시겠습니까?',
           defaultConfirmText: '확인'
@@ -141,7 +145,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         />
 
         {/* Modal */}
-        <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md transform transition-all">
+        <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-sm w-full max-w-md transform transition-all">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">

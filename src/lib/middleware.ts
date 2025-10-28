@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, getUserFromToken, checkPermission } from '@/lib/auth';
-import type { User, UserRole, JWTPayload } from '@/types/auth';
-import { AUTH_ERRORS } from '@/types/auth';
+import { getCurrentUser, type User, type UserRole } from '@/lib/auth';
 
 // 요청에 사용자 정보를 추가하기 위한 인터페이스
 export interface AuthenticatedRequest extends NextRequest {
@@ -11,46 +9,25 @@ export interface AuthenticatedRequest extends NextRequest {
 // 인증 미들웨어
 export async function withAuth(request: NextRequest): Promise<NextResponse | { user: User }> {
   try {
-    // Authorization 헤더에서 토큰 추출
-    const authHeader = request.headers.get('authorization');
-    let token: string | null = null;
+    // 현재 사용자 정보 가져오기
+    const user = await getCurrentUser();
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    }
-
-    // 쿠키에서 토큰 추출 (fallback)
-    if (!token) {
-      token = request.cookies.get('auth_token')?.value || null;
-    }
-
-    if (!token) {
+    if (!user) {
       return NextResponse.json(
-        { success: false, error: '인증 토큰이 없습니다.' },
+        { success: false, error: '로그인이 필요합니다.' },
         { status: 401 }
       );
     }
 
-    // 토큰 검증
-    const userResult = await getUserFromToken(token);
-
-    if ('code' in userResult) {
-      // AuthError인 경우
-      let status = 401;
-      if (userResult.code === 'TOKEN_EXPIRED') {
-        status = 401;
-      } else if (userResult.code === 'ACCESS_DENIED') {
-        status = 403;
-      }
-
+    if (!user.is_active) {
       return NextResponse.json(
-        { success: false, error: userResult.message },
-        { status }
+        { success: false, error: '비활성화된 계정입니다.' },
+        { status: 403 }
       );
     }
 
     // 정상적인 사용자 객체 반환
-    return { user: userResult };
+    return { user };
 
   } catch (error) {
     console.error('Authentication middleware error:', error);
@@ -86,13 +63,40 @@ export function withRole(requiredRole: UserRole | UserRole[]) {
   };
 }
 
-// 리소스별 권한 확인 미들웨어
+// 리소스별 권한 확인 미들웨어 (역할 계층 기반)
 export function withPermission(resource: string, action: string) {
   return async (request: NextRequest, user: User): Promise<NextResponse | null> => {
     try {
-      const hasAccess = checkPermission(user.role, resource, action);
+      // 간단한 역할 기반 권한 체크
+      // admin은 모든 권한, manager는 대부분, user는 읽기/쓰기, viewer는 읽기만
+      const roleHierarchy: Record<UserRole, number> = {
+        viewer: 1,
+        operator: 2,
+        user: 3,
+        manager: 4,
+        admin: 5
+      };
 
-      if (!hasAccess) {
+      const userLevel = roleHierarchy[user.role];
+      
+      // 삭제 작업은 manager 이상만 가능
+      if (action === 'delete' && userLevel < 4) {
+        return NextResponse.json(
+          { success: false, error: `${resource} ${action} 권한이 없습니다.` },
+          { status: 403 }
+        );
+      }
+
+      // 생성/수정은 user 이상만 가능
+      if ((action === 'create' || action === 'update') && userLevel < 3) {
+        return NextResponse.json(
+          { success: false, error: `${resource} ${action} 권한이 없습니다.` },
+          { status: 403 }
+        );
+      }
+
+      // 읽기는 operator 이상만 가능
+      if (action === 'read' && userLevel < 2) {
         return NextResponse.json(
           { success: false, error: `${resource} ${action} 권한이 없습니다.` },
           { status: 403 }

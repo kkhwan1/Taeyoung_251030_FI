@@ -234,7 +234,7 @@ export default function DailyStockCalendarPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
             <Calendar className="w-7 h-7" />
             일일 재고 캘린더
           </h1>
@@ -244,7 +244,7 @@ export default function DailyStockCalendarPage() {
         <button
           onClick={handleExcelExport}
           disabled={exporting || filteredData.length === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
           {exporting ? (
             <>
@@ -262,33 +262,33 @@ export default function DailyStockCalendarPage() {
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">총 재고금액</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">
             ₩{totalStockValue.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">총 입고수량</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">
             {totalReceiving.toLocaleString()}
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">총 출고수량</p>
-          <p className="text-2xl font-bold text-red-600">
+          <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">
             {totalShipping.toLocaleString()}
           </p>
         </div>
       </div>
 
       {/* Filters Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-5 h-5 text-gray-500" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">필터 설정</h3>
+          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">필터 설정</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -307,8 +307,8 @@ export default function DailyStockCalendarPage() {
               }}
               className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${
                 dateError
-                  ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 dark:border-gray-700 focus:ring-blue-500'
+                  ? 'border-gray-500 dark:border-gray-500 focus:ring-gray-500'
+                  : 'border-gray-300 dark:border-gray-700 focus:ring-gray-500'
               }`}
             />
           </div>
@@ -328,8 +328,8 @@ export default function DailyStockCalendarPage() {
               }}
               className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${
                 dateError
-                  ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 dark:border-gray-700 focus:ring-blue-500'
+                  ? 'border-gray-500 dark:border-gray-500 focus:ring-gray-500'
+                  : 'border-gray-300 dark:border-gray-700 focus:ring-gray-500'
               }`}
             />
           </div>
@@ -346,7 +346,7 @@ export default function DailyStockCalendarPage() {
                 placeholder="품번 또는 품명"
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
               />
             </div>
           </div>
@@ -363,15 +363,15 @@ export default function DailyStockCalendarPage() {
               placeholder="0"
               value={minStockValue}
               onChange={(e) => setMinStockValue(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
             />
           </div>
         </div>
 
         {/* Date Error Message */}
         {dateError && (
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
@@ -385,7 +385,7 @@ export default function DailyStockCalendarPage() {
           <button
             onClick={handleApplyFilters}
             disabled={loading || !!dateError}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             <Search className="w-4 h-4" />
             조회
@@ -400,7 +400,7 @@ export default function DailyStockCalendarPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
@@ -462,10 +462,10 @@ export default function DailyStockCalendarPage() {
                     <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white">
                       {(row.opening_stock || 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-right text-blue-600">
+                    <td className="px-6 py-4 text-sm text-right text-gray-800 dark:text-gray-100">
                       {(row.receiving_qty || 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-right text-red-600">
+                    <td className="px-6 py-4 text-sm text-right text-gray-800 dark:text-gray-100">
                       {(row.shipping_qty || 0).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white">

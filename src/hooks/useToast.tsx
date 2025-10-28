@@ -36,6 +36,7 @@ export const useToastNotification = () => {
     입력오류: (message?: string) => context.error('입력 오류', message),
     경고: (message?: string) => context.warning('경고', message),
     알림: (message?: string) => context.info('알림', message),
+    정보: (message?: string) => context.info('정보', message),
 
     // Common business operations
     업로드완료: (message?: string) => context.success('업로드 완료', message),

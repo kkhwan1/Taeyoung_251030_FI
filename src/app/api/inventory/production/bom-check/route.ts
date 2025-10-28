@@ -57,8 +57,7 @@ export async function GET(request: NextRequest) {
         bom_id,
         parent_item_id,
         child_item_id,
-        quantity,
-        unit,
+        quantity_required,
         child_item:items!child_item_id(item_code, item_name, category, spec, price, current_stock, safety_stock)
       `)
       .eq('parent_item_id', parseInt(productItemId))
@@ -73,16 +72,35 @@ export async function GET(request: NextRequest) {
     let totalAvailableValue = 0;
     let canProduce = true;
     let totalShortage = 0;
+    let maxProducibleQuantity = Infinity;
+    let bottleneckItem = null;
 
     for (const bomItem of bomItems || []) {
-      const requiredQuantity = bomItem.quantity * quantity;
+      const bomQuantityPerUnit = bomItem.quantity_required;
+      const requiredQuantity = bomQuantityPerUnit * quantity;
       const availableStock = bomItem.child_item?.current_stock || 0;
       const shortage = Math.max(0, requiredQuantity - availableStock);
       const sufficient = availableStock >= requiredQuantity;
 
+      // Calculate how many products can be produced with this material's stock
+      const maxProducibleByThisItem = Math.floor(availableStock / bomQuantityPerUnit);
+
       if (!sufficient) {
         canProduce = false;
         totalShortage += shortage;
+      }
+
+      // Track the bottleneck item (the one with the smallest max producible quantity)
+      if (maxProducibleByThisItem < maxProducibleQuantity) {
+        maxProducibleQuantity = maxProducibleByThisItem;
+        bottleneckItem = {
+          bom_id: bomItem.bom_id,
+          item_code: bomItem.child_item?.item_code || '',
+          item_name: bomItem.child_item?.item_name || '',
+          max_producible: maxProducibleByThisItem,
+          required_for_requested: requiredQuantity,
+          available_stock: availableStock
+        };
       }
 
       const requiredValue = requiredQuantity * (bomItem.child_item?.price || 0);
@@ -98,7 +116,7 @@ export async function GET(request: NextRequest) {
         item_name: bomItem.child_item?.item_name,
         category: bomItem.child_item?.category,
         spec: bomItem.child_item?.spec,
-        unit: bomItem.unit,
+        unit: bomItem.child_item?.category === '제품' ? 'EA' : 'EA',
         unit_price: bomItem.child_item?.price || 0,
         required_quantity: requiredQuantity,
         available_stock: availableStock,
@@ -106,7 +124,9 @@ export async function GET(request: NextRequest) {
         sufficient: sufficient,
         safety_stock: bomItem.child_item?.safety_stock || 0,
         required_value: requiredValue,
-        available_value: availableValue
+        available_value: availableValue,
+        max_producible_by_this_item: maxProducibleByThisItem,
+        bom_quantity_per_unit: bomQuantityPerUnit
       });
     }
 
@@ -134,7 +154,10 @@ export async function GET(request: NextRequest) {
           total_required_value: Math.round(totalRequiredValue * 100) / 100,
           total_available_value: Math.round(totalAvailableValue * 100) / 100,
           total_shortage: totalShortage,
-          fulfillment_rate: fulfillmentRate
+          fulfillment_rate: fulfillmentRate,
+          max_producible_quantity: maxProducibleQuantity === Infinity ? quantity : maxProducibleQuantity,
+          shortage_quantity: Math.max(0, quantity - (maxProducibleQuantity === Infinity ? quantity : maxProducibleQuantity)),
+          bottleneck_item: bottleneckItem
         }
       }
     });
@@ -243,16 +266,35 @@ export async function POST(request: NextRequest) {
     let totalAvailableValue = 0;
     let canProduce = true;
     let totalShortage = 0;
+    let maxProducibleQuantity = Infinity;
+    let bottleneckItem = null;
 
     for (const bomItem of bomItems) {
-      const requiredQuantity = (bomItem.quantity as number) * quantity;
+      const bomQuantityPerUnit = bomItem.quantity as number;
+      const requiredQuantity = bomQuantityPerUnit * quantity;
       const availableStock = (bomItem.current_stock as number) || 0;
       const shortage = Math.max(0, requiredQuantity - availableStock);
       const sufficient = availableStock >= requiredQuantity;
       
+      // Calculate how many products can be produced with this material's stock
+      const maxProducibleByThisItem = Math.floor(availableStock / bomQuantityPerUnit);
+
       if (!sufficient) {
         canProduce = false;
         totalShortage += shortage;
+      }
+
+      // Track the bottleneck item (the one with the smallest max producible quantity)
+      if (maxProducibleByThisItem < maxProducibleQuantity) {
+        maxProducibleQuantity = maxProducibleByThisItem;
+        bottleneckItem = {
+          bom_id: bomItem.bom_id,
+          item_code: bomItem.item_code,
+          item_name: bomItem.item_name,
+          max_producible: maxProducibleByThisItem,
+          required_for_requested: requiredQuantity,
+          available_stock: availableStock
+        };
       }
 
       const requiredValue = requiredQuantity * (bomItem.price || 0);
@@ -276,7 +318,9 @@ export async function POST(request: NextRequest) {
         sufficient: sufficient,
         safety_stock: bomItem.safety_stock || 0,
         required_value: requiredValue,
-        available_value: availableValue
+        available_value: availableValue,
+        max_producible_by_this_item: maxProducibleByThisItem,
+        bom_quantity_per_unit: bomQuantityPerUnit
       });
     }
 
@@ -304,7 +348,10 @@ export async function POST(request: NextRequest) {
           total_required_value: Math.round(totalRequiredValue * 100) / 100,
           total_available_value: Math.round(totalAvailableValue * 100) / 100,
           total_shortage: totalShortage,
-          fulfillment_rate: fulfillmentRate
+          fulfillment_rate: fulfillmentRate,
+          max_producible_quantity: maxProducibleQuantity === Infinity ? quantity : maxProducibleQuantity,
+          shortage_quantity: Math.max(0, quantity - (maxProducibleQuantity === Infinity ? quantity : maxProducibleQuantity)),
+          bottleneck_item: bottleneckItem
         }
       }
     });

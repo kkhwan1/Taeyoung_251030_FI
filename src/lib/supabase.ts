@@ -45,3 +45,6 @@ export const supabaseAdmin: SupabaseClient<Database> = createClient<Database>(
     }
   }
 )
+
+// Server-side client getter function
+export const getSupabaseClient = () => supabaseAdmin

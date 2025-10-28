@@ -301,7 +301,7 @@ export default function DateRangePicker({
             ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700'
             : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
           }
-          ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : ''}
+          ${isOpen ? 'ring-2 ring-blue-500 border-gray-500' : ''}
         `}
       >
         <Calendar className="w-5 h-5 text-gray-400" />
@@ -323,7 +323,7 @@ export default function DateRangePicker({
 
       {/* Dropdown Calendar */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-4 min-w-80">
+        <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm z-50 p-4 min-w-80">
           {/* Quick Presets */}
           <div className="mb-4">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">빠른 선택</div>
@@ -393,15 +393,15 @@ export default function DateRangePicker({
                       : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700'
                     }
                     ${isTodayDay && !isSelectedDay
-                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'
+                      ? 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-300'
                       : ''
                     }
                     ${isSelectedDay
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-gray-500 text-white'
                       : ''
                     }
                     ${isInRangeDay && !isSelectedDay
-                      ? 'bg-blue-100 dark:bg-blue-900'
+                      ? 'bg-gray-100 dark:bg-gray-900'
                       : ''
                     }
                   `}

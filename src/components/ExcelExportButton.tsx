@@ -70,9 +70,9 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
   const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
 
   const variantStyles = {
-    primary: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 shadow-sm',
+    primary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-green-500 shadow-sm',
     secondary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 shadow-sm',
-    outline: 'border border-green-600 text-green-600 hover:bg-green-50 focus:ring-green-500 hover:border-green-700'
+    outline: 'border border-gray-600 text-gray-600 hover:bg-gray-50 focus:ring-green-500 hover:border-gray-700'
   };
 
   const sizeStyles = {
@@ -118,10 +118,10 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       {/* Toast Notification */}
       {showToast && (
         <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-sm transition-all duration-300 ${
             toastType === 'success'
-              ? 'bg-green-500 text-white'
-              : 'bg-red-500 text-white'
+              ? 'bg-gray-500 text-white'
+              : 'bg-gray-500 text-white'
           }`}
           role="alert"
         >

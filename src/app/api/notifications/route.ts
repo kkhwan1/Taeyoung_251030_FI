@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient() as any;
 
     // Build base query
     let query = supabase.from('notifications').select('*');
@@ -181,9 +181,34 @@ export async function GET(request: NextRequest) {
       // Use offset-based pagination (backward compatibility)
       const offset = (page - 1) * limit;
 
-      // Reuse existing query object with all filters intact
-      const { data, error, count } = await query
-        .select('*', { count: 'exact' })
+      // Get count separately
+      let countQuery = supabase.from('notifications').select('*', { count: 'exact', head: true });
+
+      // Apply same filters to count query
+      if (user_id) {
+        countQuery = countQuery.eq('user_id', user_id);
+      }
+      if (type) {
+        countQuery = countQuery.eq('type', type);
+      }
+      if (is_read !== undefined) {
+        countQuery = countQuery.eq('is_read', is_read);
+      }
+      if (start_date) {
+        countQuery = countQuery.gte('created_at', start_date);
+      }
+      if (end_date) {
+        countQuery = countQuery.lte('created_at', end_date);
+      }
+
+      const { count, error: countError } = await countQuery;
+
+      if (countError) {
+        throw new Error(`Database count failed: ${countError.message}`);
+      }
+
+      // Get data with existing query
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -260,13 +285,13 @@ export async function POST(request: NextRequest) {
     const validatedData = NotificationCreateSchema.parse(body);
     const { user_id, type, title, message, item_id, is_read } = validatedData;
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient() as any;
 
     // Create notification
     const { data, error } = await supabase
       .from('notifications')
       .insert({
-        user_id,
+        user_id: user_id || null,
         type,
         title,
         message,
@@ -329,12 +354,12 @@ export async function PUT(request: NextRequest) {
     const validatedData = NotificationUpdateSchema.parse(body);
     const { notification_id, is_read } = validatedData;
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient() as any;
 
     // Check if notification exists
     const { data: existing, error: checkError } = await supabase
       .from('notifications')
-      .select('notification_id')
+      .select('notification_id, user_id')
       .eq('notification_id', notification_id)
       .single();
 
@@ -361,8 +386,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Phase 2 Cache: Invalidate user's notification cache using pattern-based deletion
-    if (data?.user_id) {
-      await deleteCacheByPattern(CacheKeys.allNotifications(data.user_id));
+    if (existing?.user_id) {
+      await deleteCacheByPattern(CacheKeys.allNotifications(existing.user_id));
     }
 
     return NextResponse.json({
@@ -427,12 +452,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient() as any;
 
-    // Check if notification exists
+    // Check if notification exists and get user_id
     const { data: existing, error: checkError } = await supabase
       .from('notifications')
-      .select('notification_id')
+      .select('notification_id, user_id')
       .eq('notification_id', notification_id)
       .single();
 
@@ -446,13 +471,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get user_id before deletion for cache invalidation
-    const { data: toDelete } = await supabase
-      .from('notifications')
-      .select('user_id')
-      .eq('notification_id', notification_id)
-      .single();
-
     // Delete notification (hard delete)
     const { error } = await supabase
       .from('notifications')
@@ -464,8 +482,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Phase 2 Cache: Invalidate user's notification cache using pattern-based deletion
-    if (toDelete?.user_id) {
-      await deleteCacheByPattern(CacheKeys.allNotifications(toDelete.user_id));
+    if (existing?.user_id) {
+      await deleteCacheByPattern(CacheKeys.allNotifications(existing.user_id));
     }
 
     return NextResponse.json({

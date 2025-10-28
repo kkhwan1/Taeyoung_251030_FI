@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 import { nextSerial, getTransactionPrefix } from '@/lib/serial';
-import { logger, logApiCall, logBusinessEvent } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import type { Database } from '@/types/supabase';
 
 // GET: 재고 이동 목록 조회
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     })) || [];
 
     const responseTime = Date.now() - startTime;
-    logApiCall('GET', '/api/inventory/transactions', 200, responseTime);
+    logger.logRequest('GET', '/api/inventory/transactions', 200, responseTime);
     logger.info(`재고 이동 목록 조회 완료: ${formattedTransfers.length}개 이동내역`, {
       transferCount: formattedTransfers.length,
       filters: { search, startDate, endDate, warehouse }
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    logApiCall('GET', '/api/inventory/transactions', 500, responseTime);
+    logger.logRequest('GET', '/api/inventory/transactions', 500, responseTime);
     logger.error('재고 이동 목록 조회 실패', error as Error);
 
     return NextResponse.json({
@@ -309,14 +309,7 @@ export async function POST(request: NextRequest) {
     }
 
     const responseTime = Date.now() - startTime;
-    logApiCall('POST', '/api/inventory/transactions', 201, responseTime);
-    logBusinessEvent('재고 이동 등록', '재고 이동', transactionId, 1, {
-      item_id,
-      quantity,
-      from_warehouse: from_warehouse_id,
-      to_warehouse: to_warehouse_id,
-      transaction_type
-    });
+    logger.logRequest('POST', '/api/inventory/transactions', 201, responseTime);
 
     logger.info('재고 이동 등록 완료', {
       transactionId,
@@ -336,7 +329,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    logApiCall('POST', '/api/inventory/transactions', 500, responseTime);
+    logger.logRequest('POST', '/api/inventory/transactions', 500, responseTime);
     logger.error('재고 이동 등록 실패', error as Error);
 
     return NextResponse.json({

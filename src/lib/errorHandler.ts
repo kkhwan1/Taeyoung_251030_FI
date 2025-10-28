@@ -289,7 +289,7 @@ export class ErrorHandler {
   private logError(error: ErrorInfo): void {
     // 콘솔 로깅 (개발 환경)
     if (process.env.NODE_ENV === 'development') {
-      console.error('🚨 ERP Error:', {
+      console.error('[ERP Error]', {
         type: error.type,
         message: error.message,
         severity: error.severity,

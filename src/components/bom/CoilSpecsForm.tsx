@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useToastNotification } from '@/lib/toastNotifications';
+import { useToastNotification } from '@/hooks/useToast';
 
 // ============================================================================
 // Types & Interfaces
@@ -125,7 +125,7 @@ const FormNumber: React.FC<FormNumberProps> = ({
         min={0}
         className={`
           w-full px-3 py-2 pr-16 rounded-md border
-          ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}
+          ${error ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'}
           bg-white dark:bg-gray-800
           text-gray-900 dark:text-gray-100
           focus:ring-2 focus:ring-blue-500 focus:border-transparent
@@ -137,7 +137,7 @@ const FormNumber: React.FC<FormNumberProps> = ({
       </span>
     </div>
     {error && (
-      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{error}</p>
     )}
   </div>
 );
@@ -172,7 +172,7 @@ const FormSelect: React.FC<FormSelectProps> = ({
       disabled={disabled}
       className={`
         w-full px-3 py-2 rounded-md border
-        ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}
+        ${error ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'}
         bg-white dark:bg-gray-800
         text-gray-900 dark:text-gray-100
         focus:ring-2 focus:ring-blue-500 focus:border-transparent
@@ -184,7 +184,7 @@ const FormSelect: React.FC<FormSelectProps> = ({
       ))}
     </select>
     {error && (
-      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{error}</p>
     )}
   </div>
 );
@@ -412,7 +412,7 @@ export default function CoilSpecsForm({
 
   // Calculated Fields Display (lines 401-450)
   const renderCalculatedFields = () => (
-    <div className="calculated-section mt-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+    <div className="calculated-section mt-6 p-4 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
         계산 결과
       </h3>
@@ -423,7 +423,7 @@ export default function CoilSpecsForm({
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             EA중량:
           </label>
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+          <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
             {formData.weight_per_piece.toFixed(3)} kg/개
           </span>
         </div>
@@ -463,7 +463,7 @@ export default function CoilSpecsForm({
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               단품단가:
             </label>
-            <span className="text-lg font-bold text-green-600 dark:text-green-400">
+            <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
               ₩{Math.round(formData.piece_unit_price || 0).toLocaleString('ko-KR')}
             </span>
           </div>
@@ -494,7 +494,7 @@ export default function CoilSpecsForm({
                   px-4 py-2 rounded-md text-sm font-medium
                   ${saving || Object.keys(errors).length > 0
                     ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-gray-600 hover:bg-gray-700 text-white'
                   }
                   transition-colors duration-200
                 `}
@@ -605,7 +605,7 @@ export default function CoilSpecsForm({
 
         {/* Save Indicator */}
         {!readOnly && saving && (
-          <div className="mt-4 p-2 text-sm text-blue-600 dark:text-blue-400 text-center flex items-center justify-center gap-2">
+          <div className="mt-4 p-2 text-sm text-gray-600 dark:text-gray-400 text-center flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
             저장 중...
           </div>

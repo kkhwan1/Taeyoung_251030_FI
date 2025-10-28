@@ -1,5 +1,9 @@
 import React from 'react';
-import { RefreshCw, Package, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import {
+  RefreshCw,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react';
 import { BOMCheckResponse, BOMCheckItem } from '@/types/inventory';
 import BOMStatusBadge from './BOMStatusBadge';
 
@@ -48,7 +52,7 @@ export default function BOMPreviewPanel({
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             BOM 자재 확인
           </h3>
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
         </div>
         <div className="space-y-3">
           <div className="h-20 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
@@ -62,18 +66,18 @@ export default function BOMPreviewPanel({
   // Error state
   if (error) {
     return (
-      <div className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+      <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/20">
         <div className="flex items-start gap-3">
-          <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <XCircle className="w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-1">
               BOM 확인 오류
             </h3>
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            <p className="text-sm text-gray-700 dark:text-gray-400">{error}</p>
             {onRefresh && (
               <button
                 onClick={onRefresh}
-                className="mt-2 text-sm text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 underline"
+                className="mt-2 text-sm text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 underline"
               >
                 다시 시도
               </button>
@@ -88,7 +92,7 @@ export default function BOMPreviewPanel({
   if (!bomCheckData) {
     return (
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-8 bg-gray-50 dark:bg-gray-800/50 text-center">
-        <Package className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-3" />
+        
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           BOM 자재 확인 대기 중
         </h3>
@@ -133,27 +137,37 @@ export default function BOMPreviewPanel({
 
       {/* Warning Banner - Only show when cannot produce */}
       {!can_produce && (
-        <div className="mx-4 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-red-800 dark:text-red-300">
-                생산 불가능
+        <div className="mx-4 mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-1">
+                재고 부족으로 생산 불가능
               </h4>
-              <p className="text-sm text-red-700 dark:text-red-400 mt-0.5">
-                {summary.insufficient_items}개 자재의 재고가 부족하여 생산할 수 없습니다. 자재를 입고한 후 다시 시도해주세요.
+              <p className="text-sm text-orange-700 dark:text-orange-400">
+                현재 재고로는 <span className="font-bold">{summary.max_producible_quantity}개</span>까지만 생산 가능합니다.
               </p>
+              <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
+                희망 수량: <span className="font-semibold">{production_quantity}개</span> → 
+                부족 수량: <span className="font-bold text-red-600 dark:text-red-400">{summary.shortage_quantity}개</span>
+              </p>
+              {summary.bottleneck_item && (
+                <p className="text-xs text-orange-600 dark:text-orange-500 mt-2">
+                  병목 자재: <span className="font-medium">{summary.bottleneck_item.item_name}</span> 
+                  (현재재고: {summary.bottleneck_item.available_stock}, 
+                  필요량: {summary.bottleneck_item.required_for_requested})
+                </p>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4">
         {/* Total BOM Items */}
         <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
           <div className="flex items-center gap-2 mb-1">
-            <Package className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             <span className="text-xs text-gray-600 dark:text-gray-400">총 자재 수</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -162,55 +176,75 @@ export default function BOMPreviewPanel({
         </div>
 
         {/* Sufficient Items */}
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+        <div className="p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-            <span className="text-xs text-green-700 dark:text-green-400">충족 품목</span>
+            <CheckCircle2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-400">충족 품목</span>
           </div>
-          <p className="text-2xl font-bold text-green-900 dark:text-green-300">
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-300">
             {summary.sufficient_items}
           </p>
         </div>
 
         {/* Insufficient Items */}
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+        <div className="p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-2 mb-1">
-            <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-            <span className="text-xs text-red-700 dark:text-red-400">부족 품목</span>
+            <XCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-400">부족 품목</span>
           </div>
-          <p className="text-2xl font-bold text-red-900 dark:text-red-300">
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-300">
             {summary.insufficient_items}
           </p>
         </div>
+      </div>
 
-        {/* Can Produce */}
+      {/* Production Capacity Info */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-4 pb-4">
+        {/* Requested Quantity */}
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs text-blue-700 dark:text-blue-400">희망 생산수량</span>
+          </div>
+          <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
+            {production_quantity}
+          </p>
+        </div>
+
+        {/* Max Producible Quantity */}
         <div className={`p-3 rounded-lg border ${
-          can_produce
+          summary.max_producible_quantity >= production_quantity
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
         }`}>
           <div className="flex items-center gap-2 mb-1">
-            {can_produce ? (
-              <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-            ) : (
-              <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-            )}
             <span className={`text-xs ${
-              can_produce
+              summary.max_producible_quantity >= production_quantity
                 ? 'text-green-700 dark:text-green-400'
-                : 'text-red-700 dark:text-red-400'
+                : 'text-orange-700 dark:text-orange-400'
             }`}>
-              생산가능여부
+              최대 생산가능
             </span>
           </div>
           <p className={`text-2xl font-bold ${
-            can_produce
+            summary.max_producible_quantity >= production_quantity
               ? 'text-green-900 dark:text-green-300'
-              : 'text-red-900 dark:text-red-300'
+              : 'text-orange-900 dark:text-orange-300'
           }`}>
-            {can_produce ? '가능' : '불가'}
+            {summary.max_producible_quantity}
           </p>
         </div>
+
+        {/* Shortage Quantity */}
+        {summary.shortage_quantity > 0 && (
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-red-700 dark:text-red-400">부족 수량</span>
+            </div>
+            <p className="text-2xl font-bold text-red-900 dark:text-red-300">
+              {summary.shortage_quantity}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Materials Table */}
@@ -237,6 +271,9 @@ export default function BOMPreviewPanel({
                 <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
                   부족량
                 </th>
+                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                  이 자재로 생산가능
+                </th>
                 <th className="text-center py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
                   상태
                 </th>
@@ -246,9 +283,9 @@ export default function BOMPreviewPanel({
               {bom_items.map((item) => {
                 const status = getStockStatus(item);
                 const rowBgClass = status === 'insufficient'
-                  ? 'bg-red-50 dark:bg-red-900/10'
+                  ? 'bg-gray-50 dark:bg-gray-900/10'
                   : status === 'warning'
-                  ? 'bg-yellow-50 dark:bg-yellow-900/10'
+                  ? 'bg-gray-50 dark:bg-gray-900/10'
                   : '';
 
                 return (
@@ -278,12 +315,19 @@ export default function BOMPreviewPanel({
                     </td>
                     <td className="py-2 px-3 text-right">
                       {item.shortage > 0 ? (
-                        <span className="font-medium text-red-600 dark:text-red-400">
+                        <span className="font-medium text-gray-600 dark:text-gray-400">
                           {item.shortage.toLocaleString('ko-KR')} {item.unit}
                         </span>
                       ) : (
                         <span className="text-gray-400 dark:text-gray-600">-</span>
                       )}
+                    </td>
+                    <td className={`py-2 px-3 text-right ${
+                      item.max_producible_by_this_item === summary.max_producible_quantity
+                        ? 'font-bold text-orange-600 dark:text-orange-400'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {item.max_producible_by_this_item.toLocaleString('ko-KR')} {product_info.unit}
                     </td>
                     <td className="py-2 px-3 text-center">
                       <BOMStatusBadge status={status} />
@@ -314,10 +358,10 @@ export default function BOMPreviewPanel({
               <span className="text-gray-600 dark:text-gray-400">충족률:</span>
               <span className={`ml-2 font-semibold ${
                 summary.fulfillment_rate >= 100
-                  ? 'text-green-600 dark:text-green-400'
+                  ? 'text-gray-600 dark:text-gray-400'
                   : summary.fulfillment_rate >= 80
-                  ? 'text-yellow-600 dark:text-yellow-400'
-                  : 'text-red-600 dark:text-red-400'
+                  ? 'text-gray-600 dark:text-gray-400'
+                  : 'text-gray-600 dark:text-gray-400'
               }`}>
                 {summary.fulfillment_rate.toFixed(1)}%
               </span>

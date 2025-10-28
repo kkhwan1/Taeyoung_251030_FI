@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db-unified';
+import { supabaseAdmin } from '@/lib/supabase';
 import {
   handleError,
   createSuccessResponse,
@@ -40,22 +40,30 @@ export async function GET(
       return handleValidationError(['유효하지 않은 아이템 ID입니다'], context);
     }
 
-    const sql = `
-      SELECT
-        item_id, item_code, item_name, item_type, car_model, spec,
-        unit, current_stock, min_stock_level, unit_price, location,
-        description, is_active, created_at, updated_at, safety_stock
-      FROM items
-      WHERE item_id = ? AND is_active = 1
-    `;
+    const { data, error } = await supabaseAdmin
+      .from('items')
+      .select(`
+        item_id, item_code, item_name, item_type, vehicle_model, spec,
+        unit, current_stock, safety_stock, price, location,
+        description, is_active, created_at, updated_at,
+        category, material_type, material, thickness, width, height,
+        specific_gravity, mm_weight, coating_status, scrap_rate,
+        scrap_unit_price, yield_rate, overhead_rate
+      `)
+      .eq('item_id', itemId)
+      .eq('is_active', true)
+      .single();
 
-    const items = await query<any[]>(sql, [itemId]);
-
-    if (items.length === 0) {
+    if (error) {
+      console.error('Error fetching item:', error);
       return handleNotFoundError('아이템', itemId, context);
     }
 
-    return createSuccessResponse(items[0], '아이템을 성공적으로 조회했습니다');
+    if (!data) {
+      return handleNotFoundError('아이템', itemId, context);
+    }
+
+    return createSuccessResponse(data, '아이템을 성공적으로 조회했습니다');
   } catch (error) {
     return handleError(error, context);
   }
@@ -101,23 +109,29 @@ export async function PUT(
     }
 
     // 아이템 존재 여부 확인
-    const existsCheck = await query<any[]>(
-      'SELECT item_id FROM items WHERE item_id = ? AND is_active = 1',
-      [itemId]
-    );
+    const { data: existsCheck, error: existsError } = await supabaseAdmin
+      .from('items')
+      .select('item_id')
+      .eq('item_id', itemId)
+      .eq('is_active', true)
+      .single();
 
-    if (existsCheck.length === 0) {
+    if (existsError || !existsCheck) {
       return handleNotFoundError('아이템', itemId, context);
     }
 
     // 중복 코드 검사 (다른 아이템이 같은 코드 사용)
     if (body.item_code) {
-      const duplicateCheck = await query<{ item_id: number }>(
-        'SELECT item_id FROM items WHERE item_code = ? AND item_id != ? AND is_active = 1',
-        [body.item_code, itemId]
-      );
+      const { data: duplicateCheck, error: duplicateError } = await supabaseAdmin
+        .from('items')
+        .select('item_id')
+        .eq('item_code', body.item_code)
+        .neq('item_id', itemId)
+        .eq('is_active', true);
 
-      if (Array.isArray(duplicateCheck) && duplicateCheck.length > 0) {
+      if (duplicateError) {
+        console.error('Error checking duplicate code:', duplicateError);
+      } else if (duplicateCheck && duplicateCheck.length > 0) {
         throw new ERPError(
           ErrorType.DUPLICATE_ENTRY,
           '다른 아이템이 이미 해당 코드를 사용 중입니다',
@@ -128,22 +142,22 @@ export async function PUT(
     }
 
     // 업데이트 가능한 필드들
-    const updateFields: string[] = [];
-    const updateValues: any[] = [];
-
     const allowedFields = [
-      'item_code', 'item_name', 'item_type', 'car_model', 'spec',
-      'unit', 'min_stock_level', 'unit_price', 'location', 'description', 'safety_stock'
+      'item_code', 'item_name', 'item_type', 'vehicle_model', 'spec',
+      'unit', 'safety_stock', 'price', 'location', 'description',
+      'category', 'material_type', 'material', 'thickness', 'width', 'height',
+      'specific_gravity', 'mm_weight', 'coating_status', 'scrap_rate',
+      'scrap_unit_price', 'yield_rate', 'overhead_rate'
     ];
 
+    const updateData: any = {};
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {
-        updateFields.push(`${field} = ?`);
-        updateValues.push(body[field]);
+        updateData[field] = body[field];
       }
     });
 
-    if (updateFields.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       throw new ERPError(
         ErrorType.VALIDATION,
         '업데이트할 필드가 없습니다',
@@ -152,32 +166,34 @@ export async function PUT(
       );
     }
 
-    updateFields.push('updated_at = NOW()');
-    updateValues.push(itemId);
+    updateData.updated_at = new Date().toISOString();
 
-    const updateSql = `
-      UPDATE items
-      SET ${updateFields.join(', ')}
-      WHERE item_id = ? AND is_active = 1
-    `;
+    // 업데이트 실행
+    const { data: updatedItem, error: updateError } = await supabaseAdmin
+      .from('items')
+      .update(updateData)
+      .eq('item_id', itemId)
+      .eq('is_active', true)
+      .select(`
+        item_id, item_code, item_name, item_type, vehicle_model, spec,
+        unit, current_stock, safety_stock, price, location,
+        description, updated_at, category, material_type, material,
+        thickness, width, height, specific_gravity, mm_weight,
+        coating_status, scrap_rate, scrap_unit_price, yield_rate, overhead_rate
+      `)
+      .single();
 
-    const result = await query(updateSql, updateValues);
-
-    if ((result as any).affectedRows === 0) {
+    if (updateError) {
+      console.error('Error updating item:', updateError);
       return handleNotFoundError('아이템', itemId, context);
     }
 
-    // 업데이트된 아이템 정보 조회
-    const updatedItem = await query<any[]>(
-      `SELECT item_id, item_code, item_name, item_type, car_model, spec,
-       unit, current_stock, min_stock_level, unit_price, location,
-       description, safety_stock, updated_at
-       FROM items WHERE item_id = ?`,
-      [itemId]
-    );
+    if (!updatedItem) {
+      return handleNotFoundError('아이템', itemId, context);
+    }
 
     return createSuccessResponse(
-      updatedItem[0],
+      updatedItem,
       '아이템이 성공적으로 수정되었습니다'
     );
   } catch (error) {
@@ -210,70 +226,83 @@ export async function DELETE(
     }
 
     // 아이템 존재 여부 확인
-    const existsCheck = await query<{ item_id: number; item_code: string; item_name: string }>(
-      'SELECT item_id, item_code, item_name FROM items WHERE item_id = ? AND is_active = 1',
-      [itemId]
-    );
+    const { data: existsCheck, error: existsError } = await supabaseAdmin
+      .from('items')
+      .select('item_id, item_code, item_name')
+      .eq('item_id', itemId)
+      .eq('is_active', true)
+      .single();
 
-    if (!Array.isArray(existsCheck) || existsCheck.length === 0) {
+    if (existsError || !existsCheck) {
       return handleNotFoundError('아이템', itemId, context);
     }
 
-    const item = existsCheck[0];
-
     // BOM에서 사용 중인지 확인
-    const bomCheck = await query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM bom WHERE parent_item_id = ? OR child_item_id = ?',
-      [itemId, itemId]
-    );
+    const { count: bomCount, error: bomError } = await supabaseAdmin
+      .from('bom')
+      .select('*', { count: 'exact', head: true })
+      .or(`parent_item_id.eq.${itemId},child_item_id.eq.${itemId}`)
+      .eq('is_active', true);
 
-    if (Array.isArray(bomCheck) && bomCheck.length > 0 && bomCheck[0].count > 0) {
+    if (bomError) {
+      console.error('Error checking BOM usage:', bomError);
+    } else if (bomCount && bomCount > 0) {
       throw new ERPError(
         ErrorType.DATABASE_CONSTRAINT,
         'BOM에서 사용 중인 아이템은 삭제할 수 없습니다',
         {
           item_id: itemId,
-          item_code: item.item_code,
-          bom_usage_count: bomCheck[0].count
+          item_code: existsCheck.item_code,
+          bom_usage_count: bomCount
         },
         context
       );
     }
 
     // 재고 이동 기록이 있는지 확인
-    const transactionCheck = await query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM inventory_transactions WHERE item_id = ?',
-      [itemId]
-    );
+    const { count: transactionCount, error: transactionError } = await supabaseAdmin
+      .from('inventory_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('item_id', itemId);
 
-    if (Array.isArray(transactionCheck) && transactionCheck.length > 0 && transactionCheck[0].count > 0) {
+    if (transactionError) {
+      console.error('Error checking transaction history:', transactionError);
+    } else if (transactionCount && transactionCount > 0) {
       throw new ERPError(
         ErrorType.DATABASE_CONSTRAINT,
         '재고 이동 기록이 있는 아이템은 삭제할 수 없습니다',
         {
           item_id: itemId,
-          item_code: item.item_code,
-          transaction_count: transactionCheck[0].count
+          item_code: existsCheck.item_code,
+          transaction_count: transactionCount
         },
         context
       );
     }
 
     // 소프트 삭제 실행
-    const deleteSql = `
-      UPDATE items
-      SET is_active = 0, updated_at = NOW()
-      WHERE item_id = ? AND is_active = 1
-    `;
+    const { data: deletedItem, error: deleteError } = await supabaseAdmin
+      .from('items')
+      .update({ 
+        is_active: false, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('item_id', itemId)
+      .eq('is_active', true)
+      .select('item_id, item_code')
+      .single();
 
-    const result = await query(deleteSql, [itemId]);
+    if (deleteError) {
+      console.error('Error deleting item:', deleteError);
+      return handleNotFoundError('아이템', itemId, context);
+    }
 
-    if ((result as any).affectedRows === 0) {
+    if (!deletedItem) {
       return handleNotFoundError('아이템', itemId, context);
     }
 
     return createSuccessResponse(
-      { item_id: itemId, item_code: item.item_code },
+      { item_id: itemId, item_code: deletedItem.item_code },
       '아이템이 성공적으로 삭제되었습니다'
     );
   } catch (error) {

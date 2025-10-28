@@ -16,7 +16,7 @@ interface KPICardProps {
   icon: React.ComponentType<{ className?: string }>;
 
   /** Color theme for icon background */
-  color: 'blue' | 'green' | 'red' | 'purple';
+  color: 'blue' | 'green' | 'red' | 'purple' | 'gray';
 
   /** Optional trend indicator with direction and percentage */
   trend?: {
@@ -34,10 +34,11 @@ export default function KPICard({
 }: KPICardProps) {
   // Color mapping for icon backgrounds with dark mode support
   const colorClasses = {
-    blue: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20',
-    green: 'text-green-500 bg-green-50 dark:bg-green-900/20',
-    red: 'text-red-500 bg-red-50 dark:bg-red-900/20',
-    purple: 'text-purple-500 bg-purple-50 dark:bg-purple-900/20'
+    blue: 'text-gray-500 bg-gray-50 dark:bg-gray-900/20',
+    green: 'text-gray-500 bg-gray-50 dark:bg-gray-900/20',
+    red: 'text-gray-500 bg-gray-50 dark:bg-gray-900/20',
+    purple: 'text-gray-500 bg-gray-50 dark:bg-gray-900/20',
+    gray: 'text-gray-500 bg-gray-50 dark:bg-gray-900/20'
   };
 
   return (
@@ -57,8 +58,8 @@ export default function KPICard({
           {trend && (
             <div className={`flex items-center mt-2 text-sm font-medium ${
               trend.direction === 'up'
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400'
+                ? 'text-gray-600 dark:text-gray-400'
+                : 'text-gray-600 dark:text-gray-400'
             }`}>
               <span className="mr-1">
                 {trend.direction === 'up' ? '↑' : '↓'}

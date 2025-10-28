@@ -1,7 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Bell, CheckCircle, XCircle, AlertTriangle, Info, Trash2, Upload, Save, RotateCcw } from 'lucide-react';
+import {
+  Bell,
+  CheckCircle,
+  XCircle,
+  Info,
+  Trash2,
+  Upload,
+  Save,
+  RotateCcw
+} from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { useToastNotification } from '@/hooks/useToast';
 
@@ -117,7 +126,7 @@ export default function ToastDemo() {
   return (
     <div className="p-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
       <div className="flex items-center gap-3 mb-6">
-        <Bell className="w-8 h-8 text-blue-500" />
+        <Bell className="w-8 h-8 text-gray-500" />
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             Toast 알림 시스템 데모
@@ -136,7 +145,7 @@ export default function ToastDemo() {
           </h3>
           <button
             onClick={handleBasicToasts}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <CheckCircle className="w-5 h-5" />
             기본 알림 테스트
@@ -150,7 +159,7 @@ export default function ToastDemo() {
           </h3>
           <button
             onClick={handleKoreanToasts}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <Save className="w-5 h-5" />
             한국어 알림 테스트
@@ -164,7 +173,7 @@ export default function ToastDemo() {
           </h3>
           <button
             onClick={handleActionToasts}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <RotateCcw className="w-5 h-5" />
             액션 알림 테스트
@@ -178,9 +187,9 @@ export default function ToastDemo() {
           </h3>
           <button
             onClick={handlePersistentToasts}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
-            <AlertTriangle className="w-5 h-5" />
+            
             중요 알림 테스트
           </button>
         </div>
@@ -192,7 +201,7 @@ export default function ToastDemo() {
           </h3>
           <button
             onClick={handleCustomDuration}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <Upload className="w-5 h-5" />
             진행률 알림 테스트
@@ -206,7 +215,7 @@ export default function ToastDemo() {
           </h3>
           <button
             onClick={handleStressTest}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <XCircle className="w-5 h-5" />
             다중 알림 테스트
@@ -222,28 +231,28 @@ export default function ToastDemo() {
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => toast.success('성공', '작업 완료!')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded text-sm hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           >
             <CheckCircle className="w-4 h-4" />
             성공
           </button>
           <button
             onClick={() => toast.error('오류', '문제 발생!')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 rounded text-sm hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           >
             <XCircle className="w-4 h-4" />
             오류
           </button>
           <button
             onClick={() => toast.warning('경고', '주의 필요!')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300 rounded text-sm hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           >
-            <AlertTriangle className="w-4 h-4" />
+            
             경고
           </button>
           <button
             onClick={() => toast.info('정보', '알림 메시지!')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded text-sm hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
           >
             <Info className="w-4 h-4" />
             정보
@@ -265,7 +274,7 @@ export default function ToastDemo() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
           <div className="space-y-2">
-            <h4 className="font-medium text-gray-900 dark:text-white">✨ 향상된 기능</h4>
+            <h4 className="font-medium text-gray-900 dark:text-white">향상된 기능</h4>
             <ul className="space-y-1 list-disc list-inside">
               <li>진행률 바 표시 (호버 시 일시정지)</li>
               <li>액션 버튼 지원 (실행취소, 상세보기, 재시도)</li>
@@ -275,7 +284,7 @@ export default function ToastDemo() {
             </ul>
           </div>
           <div className="space-y-2">
-            <h4 className="font-medium text-gray-900 dark:text-white">🎨 디자인 개선</h4>
+            <h4 className="font-medium text-gray-900 dark:text-white">디자인 개선</h4>
             <ul className="space-y-1 list-disc list-inside">
               <li>좌측 컬러 보더로 타입 구분</li>
               <li>호버 시 스택 확장 효과</li>

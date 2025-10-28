@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, BarChart3, RefreshCcw, Download, Loader2, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
+import {
+  RefreshCcw,
+  Download,
+  Loader2,
+  Upload,
+  CheckCircle
+} from 'lucide-react';
 import TrendChart from '@/components/charts/TrendChart';
 import ComparisonTable from '@/components/tables/ComparisonTable';
-import { useToast } from '@/components/ui/use-toast';
 import { useToastNotification } from '@/hooks/useToast';
 
 interface TrendData {
@@ -52,8 +57,7 @@ export default function PriceAnalysisPage() {
   const [timeRange, setTimeRange] = useState<'3m' | '6m' | '12m'>('6m');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { toast } = useToast();
-  const toastNotif = useToastNotification();
+  const toast = useToastNotification();
 
   useEffect(() => {
     fetchAnalysisData();
@@ -88,11 +92,7 @@ export default function PriceAnalysisPage() {
       }
 
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '데이터 로드 실패',
-        description: error.message || '가격 분석 데이터를 불러올 수 없습니다'
-      });
+      toast.error('데이터 로드 실패', error.message || '가격 분석 데이터를 불러올 수 없습니다');
     } finally {
       setLoading(false);
     }
@@ -143,7 +143,7 @@ export default function PriceAnalysisPage() {
 
   const handleExport = async () => {
     try {
-      toastNotif.정보('Excel 파일 생성 중...');
+      toast.정보('Excel 파일 생성 중...');
 
       const response = await fetch(`/api/price-analysis/export?months=${getMonthsFromRange(timeRange)}`);
 
@@ -161,9 +161,9 @@ export default function PriceAnalysisPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toastNotif.저장완료('Excel 파일이 다운로드되었습니다');
+      toast.저장완료('Excel 파일이 다운로드되었습니다');
     } catch (error) {
-      toastNotif.저장실패('Excel 파일 생성 중 오류가 발생했습니다');
+      toast.저장실패('Excel 파일 생성 중 오류가 발생했습니다');
     }
   };
 
@@ -171,7 +171,7 @@ export default function PriceAnalysisPage() {
     if (!file) return;
 
     if (!file.name.match(/\.(xlsx|xls)$/i)) {
-      toastNotif.입력오류('Excel 파일(.xlsx, .xls)만 업로드할 수 있습니다.');
+      toast.입력오류('Excel 파일(.xlsx, .xls)만 업로드할 수 있습니다.');
       return;
     }
 
@@ -179,7 +179,7 @@ export default function PriceAnalysisPage() {
     formData.append('file', file);
 
     try {
-      toastNotif.정보('Excel 파일 처리 중...');
+      toast.정보('Excel 파일 처리 중...');
 
       const response = await fetch('/api/price-history/import', {
         method: 'POST',
@@ -192,16 +192,16 @@ export default function PriceAnalysisPage() {
       }
 
       const result = await response.json();
-      toastNotif.저장완료(`${result.data.successful}개 항목 가져오기 완료`);
+      toast.저장완료(`${result.data.successful}개 항목 가져오기 완료`);
 
       if (result.data.failed > 0) {
-        toastNotif.경고(`${result.data.failed}개 항목 실패`);
+        toast.경고(`${result.data.failed}개 항목 실패`);
       }
 
       // Refresh data after import
       await fetchAnalysisData();
     } catch (error: any) {
-      toastNotif.저장실패(error.message || 'Excel 가져오기 중 오류가 발생했습니다');
+      toast.저장실패(error.message || 'Excel 가져오기 중 오류가 발생했습니다');
     }
 
     // Reset file input
@@ -219,8 +219,8 @@ export default function PriceAnalysisPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex items-center gap-3">
-          <BarChart3 className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">가격 분석 대시보드</h1>
+          
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">가격 분석 대시보드</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -275,7 +275,7 @@ export default function PriceAnalysisPage() {
           <button
             onClick={handleExport}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors font-medium"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Excel 내보내기</span>
@@ -287,75 +287,75 @@ export default function PriceAnalysisPage() {
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           {/* Row 1: First 3 cards */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-gray-600 dark:text-gray-400">총 품목 수</div>
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
               {stats.total_items.toLocaleString('ko-KR')}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-gray-600 dark:text-gray-400">가격 상승</div>
-              <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                
               </div>
             </div>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
               {stats.items_with_increases.toLocaleString('ko-KR')}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-gray-600 dark:text-gray-400">가격 하락</div>
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400 rotate-180" />
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                
               </div>
             </div>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
               {stats.items_with_decreases.toLocaleString('ko-KR')}
             </div>
           </div>
 
           {/* Row 2: Next 3 cards */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-gray-600 dark:text-gray-400">평균 변동률</div>
-              <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                
               </div>
             </div>
-            <div className={`text-2xl font-bold ${stats.avg_price_change >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
               {stats.avg_price_change >= 0 ? '+' : ''}{stats.avg_price_change.toFixed(2)}%
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-gray-600 dark:text-gray-400">변동성 높음</div>
-              <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                
               </div>
             </div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white truncate" title={stats.most_volatile_item || '-'}>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate" title={stats.most_volatile_item || '-'}>
               {stats.most_volatile_item || '-'}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-gray-600 dark:text-gray-400">가장 안정적</div>
-              <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </div>
             </div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white truncate" title={stats.most_stable_item || '-'}>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate" title={stats.most_stable_item || '-'}>
               {stats.most_stable_item || '-'}
             </div>
           </div>
@@ -369,22 +369,22 @@ export default function PriceAnalysisPage() {
             onClick={() => setActiveTab('trends')}
             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
               activeTab === 'trends'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+                ? 'text-gray-800 dark:text-gray-100 border-b-2 border-gray-800 dark:border-gray-100'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <TrendingUp className="w-5 h-5" />
+            
             가격 추세 분석
           </button>
           <button
             onClick={() => setActiveTab('comparisons')}
             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
               activeTab === 'comparisons'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+                ? 'text-gray-800 dark:text-gray-100 border-b-2 border-gray-800 dark:border-gray-100'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <BarChart3 className="w-5 h-5" />
+            
             품목 간 비교
           </button>
         </div>
@@ -394,7 +394,7 @@ export default function PriceAnalysisPage() {
       <div className="bg-white dark:bg-gray-800 rounded-b-lg shadow-sm p-6">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-gray-700 dark:text-gray-300" />
           </div>
         ) : activeTab === 'trends' ? (
           <TrendChart

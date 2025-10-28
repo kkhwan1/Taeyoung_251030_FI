@@ -119,7 +119,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
 
         {/* 드롭다운 옵션 */}
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm max-h-60 overflow-auto">
             {/* 전체 선택/해제 (다중 선택 시) */}
             {multiple && options.length > 1 && (
               <>
@@ -143,7 +143,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
                 disabled={option.disabled}
                 className={`w-full px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   selectedValues.includes(option.value)
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    ? 'bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
@@ -154,7 +154,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
                         type="checkbox"
                         checked={selectedValues.includes(option.value)}
                         onChange={() => {}} // 부모 onClick에서 처리
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-blue-500"
                       />
                     )}
                     <span>{option.label}</span>
@@ -196,13 +196,13 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
             return (
               <span
                 key={String(val)}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs rounded-full"
+                className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-300 text-xs rounded-full"
               >
                 {label}
                 {!disabled && (
                   <button
                     onClick={() => handleOptionClick(String(val))}
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                    className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                   >
                     <X className="w-3 h-3" />
                   </button>

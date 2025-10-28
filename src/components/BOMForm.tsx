@@ -163,6 +163,11 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
 
     setLoading(true);
     try {
+      console.log('[BOM FORM] Submitting formData:', formData);
+      console.log('[BOM FORM] parent_item_id:', formData.parent_item_id);
+      console.log('[BOM FORM] child_item_id:', formData.child_item_id);
+      console.log('[BOM FORM] quantity:', formData.quantity);
+      
       await onSubmit(formData);
       // 성공 시 자동으로 모달 닫기
       onCancel();
@@ -180,7 +185,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
         {/* 모품목 (Parent Item) */}
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            모품목 <span className="text-red-500">*</span>
+            모품목 <span className="text-gray-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -197,7 +202,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
                 }
               }}
               className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.parent_item_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                errors.parent_item_id ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
               }`}
               placeholder="모품목을 검색하세요..."
             />
@@ -205,7 +210,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
           </div>
 
           {showParentDropdown && filteredParentItems.length > 0 && (
-            <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm max-h-60 overflow-y-auto">
               {filteredParentItems.map((item) => (
                 <button
                   key={item.item_id}
@@ -229,14 +234,14 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
           )}
 
           {errors.parent_item_id && (
-            <p className="mt-1 text-sm text-red-500">{errors.parent_item_id}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.parent_item_id}</p>
           )}
         </div>
 
         {/* 자품목 (Child Item) */}
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            자품목 <span className="text-red-500">*</span>
+            자품목 <span className="text-gray-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -253,7 +258,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
                 }
               }}
               className={`w-full px-4 py-2 pr-10 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.child_item_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                errors.child_item_id ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
               }`}
               placeholder="자품목을 검색하세요..."
             />
@@ -261,7 +266,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
           </div>
 
           {showChildDropdown && filteredChildItems.length > 0 && (
-            <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm max-h-60 overflow-y-auto">
               {filteredChildItems.map((item) => (
                 <button
                   key={item.item_id}
@@ -285,14 +290,14 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
           )}
 
           {errors.child_item_id && (
-            <p className="mt-1 text-sm text-red-500">{errors.child_item_id}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.child_item_id}</p>
           )}
         </div>
 
         {/* 소요량 (Quantity) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            소요량 <span className="text-red-500">*</span>
+            소요량 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -302,12 +307,12 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="1"
           />
           {errors.quantity && (
-            <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
           )}
         </div>
 
@@ -340,7 +345,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

@@ -24,7 +24,10 @@ import {
   Legend,
   ChartOptions
 } from 'chart.js';
-import { RefreshCw, Download, TrendingUp, DollarSign } from 'lucide-react';
+import {
+  RefreshCw,
+  Download
+} from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Register Chart.js components
@@ -275,7 +278,7 @@ export const CostAnalysisPanel: React.FC<CostAnalysisPanelProps> = ({
     return (
       <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 ${className}`}>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
         </div>
       </div>
     );
@@ -287,7 +290,7 @@ export const CostAnalysisPanel: React.FC<CostAnalysisPanelProps> = ({
       <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               원가 분석
             </h2>
@@ -297,7 +300,7 @@ export const CostAnalysisPanel: React.FC<CostAnalysisPanelProps> = ({
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center space-x-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg font-medium transition-colors disabled:opacity-50"
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/20 dark:hover:bg-gray-900/30 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>새로고침</span>
@@ -305,7 +308,7 @@ export const CostAnalysisPanel: React.FC<CostAnalysisPanelProps> = ({
 
             <button
               onClick={handleExport}
-              className="flex items-center space-x-2 px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg font-medium transition-colors"
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
             >
               <Download className="w-4 h-4" />
               <span>내보내기</span>
@@ -354,65 +357,65 @@ interface SummaryCardsProps {
 const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, isDark }) => (
   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
     {/* Total Material Cost */}
-    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
           총 자재비
         </div>
-        <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        
       </div>
-      <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         ₩{summary.total_material_cost.toLocaleString('ko-KR')}
       </div>
-      <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
         {summary.total_items}개 품목
       </div>
     </div>
 
     {/* Total Scrap Revenue */}
-    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium text-green-700 dark:text-green-300">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
           총 스크랩금액
         </div>
-        <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+        
       </div>
-      <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         -₩{summary.total_scrap_revenue.toLocaleString('ko-KR')}
       </div>
-      <div className="mt-1 text-xs text-green-600 dark:text-green-400">
+      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
         원가 절감
       </div>
     </div>
 
     {/* Net Cost */}
-    <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium text-purple-700 dark:text-purple-300">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
           순원가
         </div>
-        <DollarSign className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+        
       </div>
-      <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         ₩{summary.total_net_cost.toLocaleString('ko-KR')}
       </div>
-      <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
+      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
         최종 원가
       </div>
     </div>
 
     {/* Average Cost Per Item */}
-    <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium text-orange-700 dark:text-orange-300">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
           평균 품목당 원가
         </div>
-        <TrendingUp className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+        
       </div>
-      <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         ₩{Math.round(summary.avg_cost_per_item).toLocaleString('ko-KR')}
       </div>
-      <div className="mt-1 text-xs text-orange-600 dark:text-orange-400">
+      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
         단위당 평균
       </div>
     </div>
@@ -437,11 +440,12 @@ const ItemTypePieChart: React.FC<ItemTypePieChartProps> = ({ byItemType, isDark 
         byItemType.external_purchase.net_cost
       ],
       backgroundColor: [
-        'rgba(59, 130, 246, 0.8)',  // Blue for internal
-        'rgba(16, 185, 129, 0.8)'   // Green for external
+        'rgba(38, 38, 38, 0.6)',  // Gray-800 for internal
+        'rgba(82, 82, 82, 0.6)'   // Gray-600 for external
       ],
       borderColor: [
-        isDark ? 'rgba(55, 65, 81, 1)' : 'rgba(255, 255, 255, 1)'
+        '#262626',
+        '#525252'
       ],
       borderWidth: 2
     }]
@@ -489,15 +493,15 @@ const ItemTypePieChart: React.FC<ItemTypePieChartProps> = ({ byItemType, isDark 
 
       {/* Stats below chart */}
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-          <div className="text-xs text-blue-600 dark:text-blue-400">내부생산</div>
-          <div className="font-semibold text-blue-900 dark:text-blue-100">
+        <div className="text-center p-2 bg-gray-100 dark:bg-gray-700 rounded">
+          <div className="text-xs text-gray-600 dark:text-gray-400">내부생산</div>
+          <div className="font-semibold text-gray-900 dark:text-gray-100">
             {byItemType.internal_production.count}개
           </div>
         </div>
-        <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
-          <div className="text-xs text-green-600 dark:text-green-400">외부구매</div>
-          <div className="font-semibold text-green-900 dark:text-green-100">
+        <div className="text-center p-2 bg-gray-100 dark:bg-gray-700 rounded">
+          <div className="text-xs text-gray-600 dark:text-gray-400">외부구매</div>
+          <div className="font-semibold text-gray-900 dark:text-gray-100">
             {byItemType.external_purchase.count}개
           </div>
         </div>
@@ -546,7 +550,7 @@ const LevelDistribution: React.FC<LevelDistributionProps> = ({ byLevel, isDark }
 
               <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-300"
+                  className="absolute top-0 left-0 h-full bg-gray-600 rounded-full"
                   style={{ width: `${percentage}%` }}
                 />
               </div>
@@ -624,7 +628,7 @@ const LevelBreakdownTable: React.FC<LevelBreakdownTableProps> = ({ byLevel, isDa
                   }`}
                 >
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
                       Level {level.level}
                     </span>
                   </td>
@@ -634,7 +638,7 @@ const LevelBreakdownTable: React.FC<LevelBreakdownTableProps> = ({ byLevel, isDa
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900 dark:text-gray-100">
                     ₩{level.material_cost.toLocaleString('ko-KR')}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-green-600 dark:text-green-400">
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-600 dark:text-gray-400">
                     -₩{level.scrap_revenue.toLocaleString('ko-KR')}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900 dark:text-white">
@@ -644,13 +648,11 @@ const LevelBreakdownTable: React.FC<LevelBreakdownTableProps> = ({ byLevel, isDa
                     <div className="flex items-center justify-end space-x-2">
                       <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                          className="h-full bg-gray-600 rounded-full"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
-                      <span className={`text-sm font-medium ${
-                        percentage > 30 ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'
-                      }`}>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {percentage.toFixed(1)}%
                       </span>
                     </div>
@@ -667,7 +669,7 @@ const LevelBreakdownTable: React.FC<LevelBreakdownTableProps> = ({ byLevel, isDa
               <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-white">
                 ₩{byLevel.reduce((s, l) => s + l.material_cost, 0).toLocaleString('ko-KR')}
               </td>
-              <td className="px-4 py-3 text-right text-sm text-green-600 dark:text-green-400">
+              <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
                 -₩{byLevel.reduce((s, l) => s + l.scrap_revenue, 0).toLocaleString('ko-KR')}
               </td>
               <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-white">
@@ -747,13 +749,7 @@ const TopCostItemsTable: React.FC<TopCostItemsTableProps> = ({ topItems, isDark 
             >
               <td className="px-4 py-3 whitespace-nowrap text-center">
                 <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                  index === 0
-                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-                    : index === 1
-                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    : index === 2
-                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
-                    : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}>
                   {index + 1}
                 </span>
@@ -778,13 +774,7 @@ const TopCostItemsTable: React.FC<TopCostItemsTableProps> = ({ topItems, isDark 
                 ₩{item.total_cost.toLocaleString('ko-KR')}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-right">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  item.percentage > 15
-                    ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-                    : item.percentage > 10
-                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                }`}>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                   {item.percentage.toFixed(1)}%
                 </span>
               </td>

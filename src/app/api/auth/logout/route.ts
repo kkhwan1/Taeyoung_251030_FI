@@ -21,6 +21,15 @@ export async function POST() {
       path: '/'
     });
 
+    // user_id 쿠키도 제거
+    response.cookies.set('user_id', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 0, // 즉시 만료
+      path: '/'
+    });
+
     return response;
 
   } catch (_error) {

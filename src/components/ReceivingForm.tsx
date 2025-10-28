@@ -49,9 +49,10 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
   const handleItemChange = (item: Item | null) => {
     setSelectedItem(item);
     if (item) {
+      const itemId = item.item_id || item.id;
       setFormData(prev => ({
         ...prev,
-        item_id: item.item_id,
+        item_id: itemId,
         unit_price: item.unit_price || 0
       }));
     } else {
@@ -110,7 +111,7 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
       // Prepare submission data
       const submissionData = {
         ...formData,
-        created_by: 1 // Default user ID, should be from auth context
+        created_by: 1 // Default user ID
       };
 
       // Remove empty optional fields
@@ -138,7 +139,7 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            거래일자 <span className="text-red-500">*</span>
+            거래일자 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
@@ -146,11 +147,11 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
             value={formData.transaction_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -187,7 +188,7 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
         {/* 수량 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            수량 <span className="text-red-500">*</span>
+            수량 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -197,7 +198,7 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="0"
           />
@@ -205,14 +206,14 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
             <p className="mt-1 text-sm text-gray-500">단위: {selectedItem.unit}</p>
           )}
           {errors.quantity && (
-            <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
           )}
         </div>
 
         {/* 단가 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            단가 (₩) <span className="text-red-500">*</span>
+            단가 (₩) <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -222,12 +223,12 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.unit_price ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.unit_price ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             placeholder="0"
           />
           {errors.unit_price && (
-            <p className="mt-1 text-sm text-red-500">{errors.unit_price}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.unit_price}</p>
           )}
         </div>
 
@@ -272,11 +273,11 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
             value={formData.expiry_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.expiry_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.expiry_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
           />
           {errors.expiry_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.expiry_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.expiry_date}</p>
           )}
         </div>
 
@@ -330,7 +331,7 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
             </div>
             <div className="md:col-span-2">
               <span className="text-gray-500 dark:text-gray-400">총 금액:</span>
-              <span className="ml-2 font-bold text-lg text-blue-600 dark:text-blue-400">
+              <span className="ml-2 font-bold text-lg text-gray-600 dark:text-gray-400">
                 ₩{calculateTotalAmount().toLocaleString()}
               </span>
             </div>
@@ -350,7 +351,7 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

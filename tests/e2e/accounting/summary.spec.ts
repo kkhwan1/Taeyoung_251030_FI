@@ -148,7 +148,7 @@ test.describe('Accounting Summary - Category Filter', () => {
     const categoryFilter = page.locator('select#category-filter').first();
 
     // Select raw materials category
-    await categoryFilter.selectOption({ label: /협력업체.*원자재/ });
+    await categoryFilter.selectOption('협력업체 (원자재)');
     await page.waitForTimeout(1500);
 
     // Verify filter is applied (check URL or table data)
@@ -163,7 +163,7 @@ test.describe('Accounting Summary - Category Filter', () => {
     const categoryFilter = page.locator('select#category-filter').first();
 
     // Select consumables category
-    await categoryFilter.selectOption({ label: /소모품/ });
+    await categoryFilter.selectOption('소모품업체');
     await page.waitForTimeout(1500);
 
     // Verify filter is applied
@@ -176,7 +176,7 @@ test.describe('Accounting Summary - Category Filter', () => {
     const categoryFilter = page.locator('select#category-filter').first();
 
     // Apply filter first
-    await categoryFilter.selectOption({ label: /소모품/ });
+    await categoryFilter.selectOption('소모품업체');
     await page.waitForTimeout(1000);
 
     // Look for reset button
@@ -669,7 +669,7 @@ test.describe('Accounting Summary - Performance', () => {
     const startTime = Date.now();
 
     // Change filter
-    await categoryFilter.selectOption({ label: /소모품/ });
+    await categoryFilter.selectOption('소모품업체');
     await page.waitForTimeout(1500);
 
     const endTime = Date.now();

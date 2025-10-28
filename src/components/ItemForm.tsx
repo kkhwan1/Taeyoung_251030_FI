@@ -40,14 +40,18 @@ interface ItemFormValues {
   location: string;
   description: string;
   coating_status: CoatingStatus;
+  scrap_rate?: number;
+  scrap_unit_price?: number;
+  yield_rate?: number;
+  overhead_rate?: number;
 }
 
 const ITEM_CATEGORIES: { value: ItemCategory; label: string }[] = [
   { value: '원자재' as ItemCategory, label: '원자재' },
   { value: '부자재' as ItemCategory, label: '부자재' },
   { value: '반제품' as ItemCategory, label: '반제품' },
-  { value: '완제품' as ItemCategory, label: '완제품' },
-  { value: '폐제품' as ItemCategory, label: '폐제품' }
+  { value: '제품' as ItemCategory, label: '완제품' },
+  { value: '상품' as ItemCategory, label: '상품' }
 ];
 
 const ITEM_TYPES: { value: ItemTypeCode; label: string }[] = [
@@ -437,6 +441,60 @@ export default function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
         </div>
       </section>
 
+      {/* 원가 관련 정보 섹션 */}
+      <section className="space-y-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">
+          원가 관련 정보
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <FormNumber
+            label="스크랩율 (%)"
+            name="scrap_rate"
+            value={formData.scrap_rate?.toString() ?? ''}
+            onChange={handleInputChange}
+            error={errors.scrap_rate}
+            min={0}
+            step="0.1"
+            placeholder="0.0"
+          />
+          <FormNumber
+            label="스크랩 단가 (원/kg)"
+            name="scrap_unit_price"
+            value={formData.scrap_unit_price?.toString() ?? ''}
+            onChange={handleInputChange}
+            error={errors.scrap_unit_price}
+            min={0}
+            step="1"
+            prefix="₩"
+            placeholder="0"
+          />
+          <FormNumber
+            label="수율 (%)"
+            name="yield_rate"
+            value={formData.yield_rate?.toString() ?? ''}
+            onChange={handleInputChange}
+            error={errors.yield_rate}
+            min={0}
+            step="0.1"
+            placeholder="100"
+          />
+          <FormNumber
+            label="간접비율 (%)"
+            name="overhead_rate"
+            value={formData.overhead_rate?.toString() ?? ''}
+            onChange={handleInputChange}
+            error={errors.overhead_rate}
+            min={0}
+            step="0.1"
+            placeholder="10"
+          />
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          <p>• 수율 기본값: 100% (수율이 낮을수록 더 많은 원자재가 필요합니다)</p>
+          <p>• 간접비율 기본값: 10% (재료비 + 노무비의 10%로 계산됩니다)</p>
+        </div>
+      </section>
+
       <div className="flex justify-end gap-4 border-t border-gray-200 dark:border-gray-700 pt-6">
         <button
           type="button"
@@ -448,7 +506,7 @@ export default function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -596,7 +654,7 @@ function FormField({ label, name, value, onChange, error, placeholder, required 
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && <span className="text-gray-500">*</span>}
       </label>
       <input
         type="text"
@@ -606,7 +664,7 @@ function FormField({ label, name, value, onChange, error, placeholder, required 
         placeholder={placeholder}
         className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
     </div>
   );
 }
@@ -626,7 +684,7 @@ function FormNumber({ label, name, value, onChange, error, placeholder, min, ste
       </label>
       <div className="relative">
         {prefix && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">{prefix}</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 pointer-events-none">{prefix}</span>
         )}
         <input
           type="number"
@@ -636,11 +694,11 @@ function FormNumber({ label, name, value, onChange, error, placeholder, min, ste
           placeholder={placeholder}
           min={min}
           step={step}
-          className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${prefix ? 'pl-8 pr-4' : 'px-4'}`}
         />
       </div>
       {helperText && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{helperText}</p>}
-      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
     </div>
   );
 }
@@ -660,7 +718,7 @@ function FormSelect({ label, name, value, onChange, options, placeholder, error,
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && <span className="text-gray-500">*</span>}
       </label>
       <select
         name={name}
@@ -675,7 +733,7 @@ function FormSelect({ label, name, value, onChange, options, placeholder, error,
           </option>
         ))}
       </select>
-      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
     </div>
   );
 }
@@ -705,7 +763,7 @@ function FormTextArea({ label, name, value, onChange, error, placeholder, rows =
         rows={rows}
         className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
     </div>
   );
 }

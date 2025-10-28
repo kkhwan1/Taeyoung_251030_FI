@@ -54,7 +54,8 @@ export const GET = createValidatedRoute(
     const stocks = ((items || []) as any[]).map((item: any) => {
       const currentStock = item.current_stock || 0;
       const safetyStock = item.safety_stock || 0;
-      const stockValue = (item.price || 0) * currentStock;
+      const unitPrice = item.price || 0;
+      const stockValue = unitPrice * currentStock;
       const isLowStock = currentStock <= safetyStock;
 
       return {
@@ -66,6 +67,7 @@ export const GET = createValidatedRoute(
         unit: item.unit,
         current_stock: currentStock,
         safety_stock: safetyStock,
+        unit_price: unitPrice,
         stock_value: stockValue,
         is_low_stock: isLowStock
       };
@@ -125,7 +127,7 @@ export const POST = createValidatedRoute(
 
     const supabase = getSupabaseClient();
 
-    // ✅ SECURITY FIX: Use Supabase client instead of raw SQL to prevent SQL injection
+    // SECURITY FIX: Use Supabase client instead of raw SQL to prevent SQL injection
     // Build query with parameterized filters
     let query = supabase
       .from('inventory_transactions')

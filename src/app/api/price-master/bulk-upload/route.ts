@@ -313,8 +313,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       const { error: insertError, count } = await supabase
         .from('price_master')
-        .insert(batch)
-        .select('price_id', { count: 'exact' });
+        .insert(batch) as any;
 
       if (insertError) {
         // Rollback is not possible, but return error

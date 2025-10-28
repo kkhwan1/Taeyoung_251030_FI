@@ -9,7 +9,7 @@ import { createValidatedRoute } from '@/lib/validationMiddleware';
 import { calculateKPIs } from '@/utils/chartUtils';
 
 export const GET = createValidatedRoute(
-  async () => {
+  async (request: Request) => {
     try {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);

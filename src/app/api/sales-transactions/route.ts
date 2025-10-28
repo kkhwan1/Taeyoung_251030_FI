@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
-import { APIError, validateRequiredFields } from '@/lib/api-error-handler';
+import { ERPError, ErrorType, handleError as handleErrorResponse } from '@/lib/errorHandler';
 import type { Database } from '@/types/supabase';
 
 type SalesTransactionRow = Database['public']['Tables']['sales_transactions']['Row'];
@@ -8,28 +8,6 @@ type SalesTransactionInsert = Database['public']['Tables']['sales_transactions']
 type SalesTransactionUpdate = Database['public']['Tables']['sales_transactions']['Update'];
 
 const DEFAULT_LIMIT = 20;
-
-function handleError(error: unknown, fallbackMessage: string): NextResponse {
-  if (error instanceof APIError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        details: error.details,
-      },
-      { status: error.statusCode }
-    );
-  }
-
-  console.error('[sales-transactions] Unexpected error:', error);
-  return NextResponse.json(
-    {
-      success: false,
-      error: fallbackMessage,
-    },
-    { status: 500 }
-  );
-}
 
 function normalizeString(value: unknown): string | null {
   if (value === undefined || value === null) {
@@ -133,7 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { data, error, count } = await query;
 
     if (error) {
-      throw new APIError('판매 거래 내역을 조회하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     // Calculate summary statistics
@@ -175,7 +153,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    return handleError(error, '판매 거래 내역을 조회하지 못했습니다.');
+    return handleErrorResponse(error, { resource: 'sales_transactions', action: 'read' });
   }
 }
 
@@ -203,43 +181,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const notes = normalizeString(body.notes);
 
     // Validate required fields
-    const requiredErrors = validateRequiredFields(
-      {
-        transaction_date: transactionDate,
-        customer_id: customerId,
-        item_id: itemId,
-        quantity,
-        unit_price: unitPrice,
-        supply_amount: supplyAmount,
-        tax_amount: taxAmount,
-        total_amount: totalAmount,
-      },
-      ['transaction_date', 'customer_id', 'item_id', 'quantity', 'unit_price', 'supply_amount', 'tax_amount', 'total_amount']
-    );
+    const missingFields = [];
+    if (!transactionDate) missingFields.push('transaction_date');
+    if (!customerId) missingFields.push('customer_id');
+    if (!itemId) missingFields.push('item_id');
+    if (quantity === null) missingFields.push('quantity');
+    if (unitPrice === null) missingFields.push('unit_price');
+    if (supplyAmount === null) missingFields.push('supply_amount');
+    if (taxAmount === null) missingFields.push('tax_amount');
+    if (totalAmount === null) missingFields.push('total_amount');
 
-    if (requiredErrors.length > 0) {
-      throw new APIError('필수 입력값을 확인해주세요.', 400, requiredErrors);
+    if (missingFields.length > 0) {
+      throw new ERPError(ErrorType.VALIDATION, `필수 입력값을 확인해주세요: ${missingFields.join(', ')}`);
     }
 
     // Business rule validation
     if (quantity! <= 0) {
-      throw new APIError('수량은 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '수량은 0보다 커야 합니다.');
     }
 
     if (unitPrice! <= 0) {
-      throw new APIError('단가는 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '단가는 0보다 커야 합니다.');
     }
 
     if (totalAmount! <= 0) {
-      throw new APIError('합계금액은 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '합계금액은 0보다 커야 합니다.');
     }
 
     if (paidAmount < 0) {
-      throw new APIError('지급액은 0 이상이어야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '지급액은 0 이상이어야 합니다.');
     }
 
     if (paidAmount > totalAmount!) {
-      throw new APIError('지급액은 합계금액을 초과할 수 없습니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '지급액은 합계금액을 초과할 수 없습니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -274,8 +248,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       `)
       .single();
 
-    if (error || !data) {
-      throw new APIError('판매 거래를 등록하지 못했습니다.', 500, error?.message);
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw new ERPError(ErrorType.NOT_FOUND, '판매 거래를 등록하지 못했습니다.');
     }
 
     return NextResponse.json({
@@ -284,6 +262,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: '판매 거래가 등록되었습니다.',
     });
   } catch (error) {
-    return handleError(error, '판매 거래 등록 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'sales_transactions', action: 'create' });
   }
 }

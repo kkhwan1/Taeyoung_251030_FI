@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { APIError, handleAPIError } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
+import { metricsCollector } from '@/lib/metrics';
 
 export async function GET(): Promise<NextResponse> {
+  const startTime = Date.now();
+  const endpoint = '/api/inventory/shipping';
+
   try {
+    logger.info('Inventory shipping GET request', { endpoint });
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data: transactions, error } = await supabase
       .from('inventory_transactions')
-      .select('*')
+      .select(`
+        *,
+        items!inner(item_code, item_name, spec, unit),
+        companies(company_name),
+        users!created_by(username)
+      `)
       .eq('transaction_type', '출고')
       .order('transaction_date', { ascending: false });
 
@@ -18,10 +30,21 @@ export async function GET(): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: { transactions: transactions || [] } });
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, false);
+    logger.info('Inventory shipping GET success', { endpoint, duration, transactionCount: transactions?.length || 0 });
+
+    return NextResponse.json({ success: true, data: { transactions: transactions || [] } }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
+    });
   } catch (error) {
-    console.error('Error fetching shipping history:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch shipping history' }, { status: 500 });
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, true);
+    logger.error('Inventory shipping GET error', error as Error, { endpoint, duration });
+
+    return handleAPIError(error);
   }
 }
 
@@ -30,7 +53,11 @@ export async function GET(): Promise<NextResponse> {
  * Create new shipping transaction
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const startTime = Date.now();
+  const endpoint = '/api/inventory/shipping';
+
   try {
+    logger.info('Inventory shipping POST request', { endpoint });
     const body = await request.json();
     const {
       transaction_date,
@@ -41,7 +68,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       reference_number,
       lot_no,
       expiry_date,
-      to_location,
+      location,
       notes,
       created_by
     } = body;
@@ -125,29 +152,41 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .insert([{
         item_id,
         company_id,
-        user_id: created_by,
         created_by,
         transaction_type: '출고',
         quantity,
         unit_price,
         total_amount,
-        to_location,
-        lot_no,
+        location,
+        lot_number: lot_no,
         expiry_date,
         reference_number,
         transaction_date,
-        notes,
-        document_status: 'DRAFT'
+        notes
       }])
       .select(`
         *,
         items!inner(item_code, item_name, spec, unit),
-        companies(company_name),
-        users!created_by(username)
+        companies(company_name)
       `);
 
     if (error) {
       console.error('Supabase insert error:', error);
+      console.error('Insert data:', {
+        item_id,
+        company_id,
+        created_by,
+        transaction_type: '출고',
+        quantity,
+        unit_price,
+        total_amount,
+        location,
+        lot_number: lot_no,
+        expiry_date,
+        reference_number,
+        transaction_date,
+        notes
+      });
       return NextResponse.json({
         success: false,
         error: '출고 등록 중 오류가 발생했습니다.',
@@ -155,21 +194,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 500 });
     }
 
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, false);
+    logger.info('Inventory shipping POST success', { endpoint, duration, transactionId: data[0]?.transaction_id });
+
     return NextResponse.json({
       success: true,
       message: '출고가 성공적으로 등록되었습니다.',
       data: data[0]
     });
   } catch (error) {
-    console.error('Error creating shipping transaction:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: '출고 등록 중 오류가 발생했습니다.',
-        details: error instanceof Error ? error.message : String(error)
-      },
-      { status: 500 }
-    );
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, true);
+    logger.error('Inventory shipping POST error', error as Error, { endpoint, duration });
+
+    return handleAPIError(error);
   }
 }
 

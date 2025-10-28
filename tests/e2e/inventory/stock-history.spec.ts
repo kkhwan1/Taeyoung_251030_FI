@@ -179,7 +179,8 @@ test.describe('Stock History (재고 이력)', () => {
     );
 
     if (await itemFilter.count() > 0) {
-      if (itemFilter.first().evaluate(el => el.tagName) === 'SELECT') {
+      const tagName = await itemFilter.first().evaluate(el => el.tagName);
+      if (tagName === 'SELECT') {
         // Dropdown filter
         const options = await itemFilter.first().locator('option').count();
         if (options > 1) {

@@ -174,7 +174,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         item_code: item.item_code,
         item_name: item.item_name,
         quantity,
-        unit_price,
+        unit_price: unit_price ?? undefined,
         level,
         children: childrenData.length > 0 ? childrenData : undefined,
         subtotal_cost

@@ -118,9 +118,9 @@ export function extractCursorValue(item: any, orderBy: string): string | number 
  * - Consistent performance regardless of page depth
  */
 export function applyCursorPagination<T>(
-  query: PostgrestFilterBuilder<Database['public'], any, T[], 'public', any>,
+  query: PostgrestFilterBuilder<any, any, any, T[]>,
   params: CursorPaginationParams
-): PostgrestFilterBuilder<Database['public'], any, T[], 'public', any> {
+): PostgrestFilterBuilder<any, any, any, T[]> {
   const {
     limit = 20,
     cursor,

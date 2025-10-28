@@ -1,7 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Calendar, Building2, Package, DollarSign, Hash, FileText } from 'lucide-react';
+import {
+  Save,
+  Loader2,
+  Calendar,
+  Building2,
+  Hash
+} from 'lucide-react';
 import CompanySelect from '@/components/CompanySelect';
 import ItemSelect from '@/components/ItemSelect';
 
@@ -21,6 +27,7 @@ type PurchaseTransaction = {
   tax_amount?: number;
   total_amount: number;
   payment_status?: PaymentStatus;
+  payment_due_date?: string;
   payment_amount?: number;
   reference_no?: string;
   notes?: string;
@@ -46,9 +53,9 @@ interface PurchaseFormProps {
 }
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: 'PENDING', label: '대기', color: 'text-yellow-600 dark:text-yellow-400' },
-  { value: 'PARTIAL', label: '부분', color: 'text-blue-600 dark:text-blue-400' },
-  { value: 'COMPLETED', label: '완료', color: 'text-green-600 dark:text-green-400' }
+  { value: 'PENDING', label: '대기', color: 'text-gray-600 dark:text-gray-400' },
+  { value: 'PARTIAL', label: '부분', color: 'text-gray-600 dark:text-gray-400' },
+  { value: 'COMPLETED', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
 ];
 
 export default function PurchaseForm({ transaction, onSave, onCancel }: PurchaseFormProps) {
@@ -64,6 +71,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
     tax_amount: 0,
     total_amount: 0,
     payment_status: 'PENDING',
+    payment_due_date: '',
     payment_amount: 0,
     reference_no: '',
     notes: '',
@@ -77,7 +85,12 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
     if (transaction) {
       setFormData({
         ...transaction,
-        transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0]
+        transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0],
+        payment_due_date: transaction.payment_due_date || '',
+        payment_status: transaction.payment_status || 'PENDING',
+        payment_amount: transaction.payment_amount ?? 0,
+        reference_no: transaction.reference_no ?? '',
+        notes: transaction.notes ?? ''
       });
     }
   }, [transaction]);
@@ -163,6 +176,11 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
       newErrors.unit_price = '단가는 0 이상이어야 합니다';
     }
 
+    if (formData.payment_due_date && formData.transaction_date &&
+        formData.payment_due_date < formData.transaction_date) {
+      newErrors.payment_due_date = '지급 예정일은 거래일자 이후여야 합니다';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -196,7 +214,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            거래일자 <span className="text-red-500">*</span>
+            거래일자 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
@@ -204,12 +222,12 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
             value={formData.transaction_date}
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -217,7 +235,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Building2 className="w-4 h-4 inline mr-2" />
-            공급업체 <span className="text-red-500">*</span>
+            공급업체 <span className="text-gray-500">*</span>
           </label>
           <CompanySelect
             value={formData.supplier_id}
@@ -248,7 +266,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
         {formData.item_name && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <Package className="w-4 h-4 inline mr-2" />
+              
               품목명
             </label>
             <input
@@ -264,7 +282,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
         {formData.spec && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <FileText className="w-4 h-4 inline mr-2" />
+              
               규격
             </label>
             <input
@@ -280,7 +298,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Hash className="w-4 h-4 inline mr-2" />
-            수량 <span className="text-red-500">*</span>
+            수량 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -290,20 +308,20 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           />
           {errors.quantity && (
-            <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
           )}
         </div>
 
         {/* 단가 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <DollarSign className="w-4 h-4 inline mr-2" />
-            단가 <span className="text-red-500">*</span>
+            
+            단가 <span className="text-gray-500">*</span>
           </label>
           <input
             type="number"
@@ -313,12 +331,12 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
             min="0"
             step="0.01"
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              errors.unit_price ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+              errors.unit_price ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
             }`}
             required
           />
           {errors.unit_price && (
-            <p className="mt-1 text-sm text-red-500">{errors.unit_price}</p>
+            <p className="mt-1 text-sm text-gray-500">{errors.unit_price}</p>
           )}
         </div>
 
@@ -380,6 +398,26 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
           </select>
         </div>
 
+        {/* 지급 예정일 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <Calendar className="w-4 h-4 inline mr-2" />
+            지급 예정일
+          </label>
+          <input
+            type="date"
+            name="payment_due_date"
+            value={formData.payment_due_date}
+            onChange={handleChange}
+            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+              errors.payment_due_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+            }`}
+          />
+          {errors.payment_due_date && (
+            <p className="mt-1 text-sm text-gray-500">{errors.payment_due_date}</p>
+          )}
+        </div>
+
         {/* 지급금액 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -388,7 +426,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
           <input
             type="number"
             name="payment_amount"
-            value={formData.payment_amount}
+            value={formData.payment_amount ?? 0}
             onChange={handleChange}
             min="0"
             step="0.01"
@@ -404,7 +442,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
           <input
             type="text"
             name="reference_no"
-            value={formData.reference_no}
+            value={formData.reference_no ?? ''}
             onChange={handleChange}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             placeholder="예: PO-2024-001"
@@ -418,7 +456,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
           </label>
           <textarea
             name="notes"
-            value={formData.notes}
+            value={formData.notes ?? ''}
             onChange={handleChange}
             rows={3}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -439,7 +477,7 @@ export default function PurchaseForm({ transaction, onSave, onCancel }: Purchase
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>

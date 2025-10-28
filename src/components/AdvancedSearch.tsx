@@ -48,12 +48,12 @@ function FilterChip({
   onRemove: () => void;
 }) {
   return (
-    <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+    <div className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 text-xs rounded-full">
       <span className="font-medium">{label}:</span>
       <span>{value}</span>
       <button
         onClick={onRemove}
-        className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+        className="ml-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full p-0.5"
       >
         <X className="w-3 h-3" />
       </button>
@@ -359,7 +359,7 @@ export default function AdvancedSearch<T extends BaseSearchFilters>({
 
               {/* Search Suggestions */}
               {showSuggestions && searchSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-sm z-50 max-h-48 overflow-y-auto">
                   {searchSuggestions.map((suggestion, index) => (
                     <button
                       key={index}
@@ -404,12 +404,12 @@ export default function AdvancedSearch<T extends BaseSearchFilters>({
           {/* Filter Toggle */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`flex items-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors ${hasActiveFilters ? 'bg-blue-50 dark:bg-blue-900 border-blue-300 dark:border-blue-600' : ''}`}
+            className={`flex items-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors ${hasActiveFilters ? 'bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600' : ''}`}
           >
             <Filter className="w-5 h-5" />
             <span className="hidden sm:inline">필터</span>
             {getActiveFilterCount > 0 && (
-              <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="bg-gray-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 {getActiveFilterCount}
               </span>
             )}
@@ -431,7 +431,7 @@ export default function AdvancedSearch<T extends BaseSearchFilters>({
           {showExport && searchResults.length > 0 && (
             <button
               onClick={handleExportResults}
-              className="flex items-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
               title="검색 결과 내보내기"
             >
               <Download className="w-5 h-5" />
@@ -472,7 +472,7 @@ export default function AdvancedSearch<T extends BaseSearchFilters>({
             )}
           </div>
           {error && (
-            <div className="text-red-500 dark:text-red-400">
+            <div className="text-gray-500 dark:text-gray-400">
               {error}
             </div>
           )}
@@ -590,7 +590,7 @@ function renderItemFilters(filters: ItemSearchFilters, updateFilter: (key: strin
               type="checkbox"
               checked={filters.isLowStock === true}
               onChange={(e) => updateFilter('isLowStock', e.target.checked ? true : null)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 text-gray-600 focus:ring-blue-500"
             />
             <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">재고 부족 품목만</span>
           </label>
@@ -599,7 +599,7 @@ function renderItemFilters(filters: ItemSearchFilters, updateFilter: (key: strin
               type="checkbox"
               checked={filters.hasMinStock === true}
               onChange={(e) => updateFilter('hasMinStock', e.target.checked ? true : null)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 text-gray-600 focus:ring-blue-500"
             />
             <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">최소재고 설정된 품목만</span>
           </label>

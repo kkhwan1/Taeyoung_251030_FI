@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
@@ -9,6 +10,8 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === '/login';
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -60,6 +63,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
     }
   };
 
+  // 로그인 페이지면 헤더/사이드바 없이 children만 렌더링
+  if (isLoginPage) {
+    return <div className="min-h-screen">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Header
@@ -74,7 +82,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       />
 
       <main
-        className={`pt-4 px-4 md:px-6 transition-all duration-300 ${
+        className={`pt-4 px-4 md:px-6 ${
           isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'
         }`}
       >

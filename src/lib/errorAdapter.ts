@@ -158,7 +158,7 @@ export function migrateErrorHandling(
 export function printMigrationGuide(): void {
   if (process.env.NODE_ENV === 'development') {
     console.log(`
-🔄 에러 핸들링 마이그레이션 가이드
+[MIGRATION GUIDE] 에러 핸들링 마이그레이션 가이드
 
 기존 코드:
   try {

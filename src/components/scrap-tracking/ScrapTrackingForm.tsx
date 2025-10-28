@@ -9,9 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
+import { useToastNotification } from '@/hooks/useToast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, DollarSign, Weight, Package } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  Weight
+} from 'lucide-react';
 
 const scrapTrackingSchema = z.object({
   tracking_date: z.string().min(1, '추적 날짜를 선택해주세요'),
@@ -41,7 +45,7 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [itemsLoading, setItemsLoading] = useState(true);
-  const { toast } = useToast();
+  const toast = useToastNotification();
 
   const {
     register,
@@ -76,18 +80,10 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
         if (data.success) {
           setItems(data.data.data || []);
         } else {
-          toast({
-            variant: 'destructive',
-            title: '품목 조회 실패',
-            description: data.error || '품목 목록을 불러올 수 없습니다'
-          });
+          toast.error('품목 조회 실패', data.error || '품목 목록을 불러올 수 없습니다');
         }
       } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: '오류 발생',
-          description: '품목 목록을 불러오는 중 오류가 발생했습니다'
-        });
+        toast.error('오류 발생', '품목 목록을 불러오는 중 오류가 발생했습니다');
       } finally {
         setItemsLoading(false);
       }
@@ -122,17 +118,8 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
       }
 
       if (result.success) {
-        toast({
-          title: '스크랩 등록 완료',
-          description: (
-            <div className="space-y-1">
-              <p>{result.message}</p>
-              <p className="text-sm text-muted-foreground">
-                스크랩 수익: {scrapRevenue.toLocaleString('ko-KR')}원
-              </p>
-            </div>
-          ),
-        });
+        const successMsg = `${result.message} (스크랩 수익: ${scrapRevenue.toLocaleString('ko-KR')}원)`;
+        toast.success('스크랩 등록 완료', successMsg);
 
         // Reset form
         reset({
@@ -150,11 +137,7 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
         }
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: '오류 발생',
-        description: error.message || '스크랩 등록 중 오류가 발생했습니다'
-      });
+      toast.error('오류 발생', error.message || '스크랩 등록 중 오류가 발생했습니다');
     } finally {
       setLoading(false);
     }
@@ -218,7 +201,7 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
             생산 수량 <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
-            <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            
             <Input
               id="production_quantity"
               type="number"
@@ -260,7 +243,7 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
             스크랩 단가 (원/kg) <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            
             <Input
               id="scrap_unit_price"
               type="number"
@@ -281,7 +264,7 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
             스크랩 수익 (원)
           </Label>
           <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            
             <Input
               id="scrap_revenue"
               type="text"
@@ -309,12 +292,12 @@ export default function ScrapTrackingForm({ onSuccess }: ScrapTrackingFormProps)
 
       {/* Revenue Preview Alert */}
       {scrapRevenue > 0 && (
-        <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
-          <DollarSign className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-900 dark:text-green-100">
+        <Alert className="bg-gray-50 border-gray-200 dark:bg-gray-950/20 dark:border-gray-900">
+          
+          <AlertTitle className="text-gray-900 dark:text-gray-100">
             예상 스크랩 수익
           </AlertTitle>
-          <AlertDescription className="text-green-700 dark:text-green-300">
+          <AlertDescription className="text-gray-700 dark:text-gray-300">
             이번 스크랩 등록으로 <span className="font-bold">{scrapRevenue.toLocaleString('ko-KR')}원</span>의 수익이 발생합니다.
           </AlertDescription>
         </Alert>

@@ -23,6 +23,7 @@ export const ItemStatusSchema = z.enum(['ACTIVE', 'INACTIVE', 'DISCONTINUED']);
 export const CompanyTypeSchema = z.enum(['CUSTOMER', 'SUPPLIER', 'BOTH', '고객사', '공급사', '양방향']);
 export const TransactionTypeSchema = z.enum(['입고', '생산입고', '생산출고', '출고', 'BOM_DEDUCTION', 'RECEIVE', 'PRODUCTION', 'SHIP']);
 export const UserRoleSchema = z.enum(['admin', 'manager', 'operator', 'viewer']);
+export const ContractStatusSchema = z.enum(['ACTIVE', 'EXPIRED', 'TERMINATED']);
 
 // Item validation schemas (matching actual database schema)
 export const ItemCreateSchema = z.object({
@@ -172,9 +173,7 @@ export const DailyCalendarQuerySchema = z.object({
   min_stock_value: z.coerce.number().min(0, '재고금액은 0 이상이어야 합니다').optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(1000, '최대 1,000건까지 조회 가능합니다').default(100),
-  format: z.enum(['json', 'excel'], {
-    errorMap: () => ({ message: 'json 또는 excel 형식만 지원됩니다' })
-  }).default('json')
+  format: z.enum(['json', 'excel'], 'json 또는 excel 형식만 지원됩니다').default('json')
 });
 
 // User validation schemas
@@ -484,7 +483,57 @@ export const TrendAnalysisQuerySchema = z.object({
   path: ['start_date']
 });
 
+// Contract validation schemas
+export const ContractCreateSchema = z.object({
+  company_id: IdSchema,
+  contract_no: EnglishTextSchema.max(50),
+  contract_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식'),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식'),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식'),
+  total_amount: PositiveNumberSchema,
+  status: ContractStatusSchema.default('ACTIVE'),
+  searchable_text: z.string().max(10000).optional(),
+  notes: OptionalTextSchema
+}).refine((data) => {
+  return data.start_date <= data.end_date;
+}, {
+  message: '시작일이 종료일보다 늦을 수 없습니다',
+  path: ['start_date']
+});
+
+export const ContractUpdateSchema = ContractCreateSchema.partial().extend({
+  contract_id: IdSchema
+});
+
+export const ContractQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  company_id: IdSchema.optional(),
+  status: ContractStatusSchema.optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식').optional(),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식').optional(),
+  search: z.string().max(255).optional(),
+  sort_by: z.enum(['contract_date', 'start_date', 'end_date', 'total_amount']).default('contract_date'),
+  sort_order: z.enum(['asc', 'desc']).default('desc')
+});
+
+export const ContractDocumentUploadSchema = z.object({
+  contract_id: IdSchema,
+  file_size: z.number().max(52428800, '파일 크기는 50MB 이하여야 합니다'),
+  file_type: z.enum([
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]),
+  file_name: z.string().min(1).max(255)
+});
+
 // Export types
+export type ContractCreate = z.infer<typeof ContractCreateSchema>;
+export type ContractUpdate = z.infer<typeof ContractUpdateSchema>;
+export type ContractQuery = z.infer<typeof ContractQuerySchema>;
+export type ContractDocumentUpload = z.infer<typeof ContractDocumentUploadSchema>;
+
 export type NotificationCreate = z.infer<typeof NotificationCreateSchema>;
 export type NotificationUpdate = z.infer<typeof NotificationUpdateSchema>;
 export type NotificationQuery = z.infer<typeof NotificationQuerySchema>;

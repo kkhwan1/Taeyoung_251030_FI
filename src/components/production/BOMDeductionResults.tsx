@@ -4,7 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, TrendingDown, Package } from 'lucide-react';
+import {
+  CheckCircle2
+} from 'lucide-react';
 
 interface BOMDeduction {
   log_id: number;
@@ -28,15 +30,15 @@ export default function BOMDeductionResults({ deductions }: BOMDeductionResultsP
   }
 
   return (
-    <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
+    <Card className="border-gray-200 bg-gray-50/50 dark:border-gray-900 dark:bg-gray-950/20">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-          <CardTitle className="text-green-900 dark:text-green-100">
+          <CheckCircle2 className="h-5 w-5 text-gray-600" />
+          <CardTitle className="text-gray-900 dark:text-gray-100">
             BOM 자동 차감 완료
           </CardTitle>
         </div>
-        <CardDescription className="text-green-700 dark:text-green-300">
+        <CardDescription className="text-gray-700 dark:text-gray-300">
           {deductions.length}개 원자재가 BOM에 따라 자동으로 차감되었습니다
         </CardDescription>
       </CardHeader>
@@ -76,7 +78,7 @@ export default function BOMDeductionResults({ deductions }: BOMDeductionResultsP
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       <div className="flex items-center justify-end gap-1">
-                        <TrendingDown className="h-3 w-3 text-red-500" />
+                        
                         {deduction.deducted_quantity.toLocaleString('ko-KR')}
                       </div>
                     </TableCell>
@@ -84,7 +86,7 @@ export default function BOMDeductionResults({ deductions }: BOMDeductionResultsP
                       {deduction.stock_before.toLocaleString('ko-KR')}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      <span className={lowStock ? 'text-orange-600' : ''}>
+                      <span className={lowStock ? 'text-gray-600' : ''}>
                         {deduction.stock_after.toLocaleString('ko-KR')}
                       </span>
                     </TableCell>
@@ -94,7 +96,7 @@ export default function BOMDeductionResults({ deductions }: BOMDeductionResultsP
                           저재고
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                        <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-800">
                           정상
                         </Badge>
                       )}
@@ -109,7 +111,7 @@ export default function BOMDeductionResults({ deductions }: BOMDeductionResultsP
         {/* Summary */}
         <div className="mt-4 flex items-center justify-between rounded-md bg-white/60 dark:bg-gray-900/40 p-4">
           <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-muted-foreground" />
+            
             <span className="text-sm font-medium">총 차감 품목</span>
           </div>
           <span className="text-lg font-bold">{deductions.length}개</span>

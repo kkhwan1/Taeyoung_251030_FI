@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
-import { APIError, validateRequiredFields } from '@/lib/api-error-handler';
-import type { Database } from '@/types/supabase';
+import { APIError, handleAPIError, validateRequiredFields } from '@/lib/api-utils';
+import { checkAPIResourcePermission } from '@/lib/api-permission-check';
+import { logger } from '@/lib/logger';
+import { metricsCollector } from '@/lib/metrics';
+import type { Database, ItemInsert, ItemRow, ItemUpdate } from '@/types/supabase';
 import { type CoatingStatus, normalizeCoatingStatus } from '@/lib/constants/coatingStatus';
-
-type ItemRow = Database['public']['Tables']['items']['Row'];
-type ItemInsert = Database['public']['Tables']['items']['Insert'];
-type ItemUpdate = Database['public']['Tables']['items']['Update'];
 
 type NormalizedItemPayload = {
   item_code: string;
@@ -33,26 +32,9 @@ type NormalizedItemPayload = {
 
 const DEFAULT_LIMIT = 20;
 
+// handleError는 이제 api-utils.ts의 handleAPIError를 사용
 function handleError(error: unknown, fallbackMessage: string): NextResponse {
-  if (error instanceof APIError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        details: error.details,
-      },
-      { status: error.statusCode }
-    );
-  }
-
-  console.error('[items] Unexpected error:', error);
-  return NextResponse.json(
-    {
-      success: false,
-      error: fallbackMessage,
-    },
-    { status: 500 }
-  );
+  return handleAPIError(error);
 }
 
 function normalizeString(value: unknown): string | null {
@@ -113,7 +95,8 @@ function computeMmWeight(payload: {
   return Number.isFinite(weightKg) ? Number(weightKg.toFixed(4)) : null;
 }
 
-function mapRow(row: ItemRow): ItemRow {
+function mapRow(row: ItemRow): ItemRow & { unit_price?: number } {
+  const price = row.price === null ? null : Number(row.price);
   return {
     ...row,
     thickness: row.thickness === null ? null : Number(row.thickness),
@@ -123,7 +106,8 @@ function mapRow(row: ItemRow): ItemRow {
     mm_weight: row.mm_weight === null ? null : Number(row.mm_weight),
     daily_requirement: row.daily_requirement === null ? null : Number(row.daily_requirement),
     blank_size: row.blank_size === null ? null : Number(row.blank_size),
-    price: row.price === null ? null : Number(row.price),
+    price: price,
+    unit_price: price, // Add unit_price for backward compatibility
     safety_stock: row.safety_stock === null ? null : Number(row.safety_stock),
     current_stock: row.current_stock === null ? null : Number(row.current_stock),
   };
@@ -149,7 +133,7 @@ async function assertUniqueItemCode(itemCode: string, excludeId?: number): Promi
   }
 
   if (data && data.length > 0) {
-    throw new APIError('이미 사용 중인 품목 코드입니다.', 409, { item_code: itemCode });
+    throw new APIError('이미 사용 중인 품목 코드입니다.', 409, 'DUPLICATE_ITEM_CODE', { item_code: itemCode });
   }
 }
 
@@ -190,7 +174,15 @@ function buildNormalizedPayload(body: Record<string, unknown>): NormalizedItemPa
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const startTime = Date.now();
+  const endpoint = '/api/items';
+
   try {
+    // 권한 체크
+    const { user, response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'read');
+    if (permissionResponse) return permissionResponse;
+    
+    logger.info('Items GET request', { endpoint });
     const supabase = getSupabaseClient();
     const searchParams = request.nextUrl.searchParams;
 
@@ -218,8 +210,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Apply filters
     if (search) {
+      // Use pg_trgm similarity search for better Korean text search
       query = query.or(
-        `item_code.ilike.%${search}%,item_name.ilike.%${search}%,spec.ilike.%${search}%`
+        `item_code.ilike.%${search}%,item_name.ilike.%${search}%,spec.ilike.%${search}%,material.ilike.%${search}%`
       );
     }
 
@@ -259,6 +252,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
       
       query = query
+        .order('created_at', { ascending: false })
         .order('item_code', { ascending })
         .limit(limit + 1); // +1 to check if there are more items
 
@@ -289,6 +283,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const offset = (pageNum - 1) * limit;
       
       query = query
+        .order('created_at', { ascending: false })
         .order('item_code', { ascending: true })
         .range(offset, offset + limit - 1);
 
@@ -304,7 +299,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const items = itemsData.map((item) => mapRow(item as ItemRow));
 
-    const response: any = {
+    const resultData: any = {
       success: true,
       data: {
         items,
@@ -319,7 +314,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     if (useCursorPagination) {
-      response.data.pagination = {
+      resultData.data.pagination = {
         limit,
         total: totalCount,
         hasMore,
@@ -329,7 +324,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
     } else {
       const pageNum = page || 1;
-      response.data.pagination = {
+      resultData.data.pagination = {
         page: pageNum,
         limit,
         total: totalCount,
@@ -338,14 +333,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
     }
 
-    return NextResponse.json(response);
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, false);
+    logger.info('Items GET success', { endpoint, duration, itemCount: items.length });
+
+    return NextResponse.json(resultData, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
+      }
+    });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, true);
+    logger.error('Items GET error', error as Error, { endpoint, duration });
+
     return handleError(error, '품목 정보를 조회하지 못했습니다.');
   }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // 권한 체크
+    const { response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'create');
+    if (permissionResponse) return permissionResponse;
+    
     const body = await request.json();
     const normalized = buildNormalizedPayload(body);
 
@@ -360,7 +371,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     if (requiredErrors.length > 0) {
-      throw new APIError('필수 입력값을 확인해주세요.', 400, requiredErrors);
+      throw new APIError('필수 입력값을 확인해주세요.', 400, 'VALIDATION_ERROR', requiredErrors);
     }
 
     await assertUniqueItemCode(normalized.item_code);

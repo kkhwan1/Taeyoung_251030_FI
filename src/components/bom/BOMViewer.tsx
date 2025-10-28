@@ -10,9 +10,7 @@ import {
   Search,
   Filter,
   Download,
-  Package,
   Wrench,
-  Box,
   AlertCircle,
   Check,
   X,
@@ -82,11 +80,11 @@ const formatCurrency = (value?: number): string => {
 const getItemIcon = (itemType: string): React.ReactNode => {
   switch (itemType) {
     case 'internal_production':
-      return <Wrench className="w-4 h-4 text-blue-500" />;
+      return <Wrench className="w-4 h-4 text-gray-500" />;
     case 'external_purchase':
-      return <Package className="w-4 h-4 text-green-500" />;
+      return ;
     default:
-      return <Box className="w-4 h-4 text-gray-500" />;
+      return ;
   }
 };
 
@@ -410,7 +408,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
                   step="0.01"
                   value={editValues.quantity_required || ''}
                   onChange={(e) => setEditValues({ quantity_required: parseFloat(e.target.value) })}
-                  className="w-full px-2 py-1 border border-blue-500 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-blue-400"
+                  className="w-full px-2 py-1 border border-gray-500 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-400"
                   autoFocus
                 />
               ) : (
@@ -437,7 +435,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
             {entry.net_cost !== undefined && (
               <div className="col-span-2 text-right">
                 <div className="text-xs text-gray-500 dark:text-gray-400">순원가</div>
-                <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   ₩{formatCurrency(entry.net_cost)}
                 </div>
               </div>
@@ -450,7 +448,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
                   <>
                     <button
                       onClick={handleSave}
-                      className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                      className="p-1 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded"
                       title="저장"
                     >
                       <Check className="w-4 h-4" />
@@ -467,14 +465,14 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
                   <>
                     <button
                       onClick={() => handleEdit(entry)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                      className="p-1 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded"
                       title="편집"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(entry.bom_id)}
-                      className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      className="p-1 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded"
                       title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -527,7 +525,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center space-x-2 px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
             >
               <Download className="w-4 h-4" />
               <span>엑셀 내보내기</span>
@@ -557,7 +555,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
                 showFilters
-                  ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+                  ? 'bg-gray-50 border-gray-300 text-gray-700 dark:bg-gray-900/20 dark:border-gray-700 dark:text-gray-300'
                   : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -624,8 +622,8 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
 
       {/* Error Display */}
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
-          <div className="flex items-center space-x-2 text-red-700 dark:text-red-300">
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/20 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
             <AlertCircle className="w-5 h-5" />
             <span className="font-medium">{error}</span>
           </div>
@@ -643,7 +641,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
       <div className="max-h-[600px] overflow-y-auto">
         {filteredBOMData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-            <Box className="w-12 h-12 mb-4 opacity-50" />
+            
             <p className="text-lg font-medium">BOM 데이터가 없습니다</p>
             <p className="text-sm">품목에 BOM을 추가해주세요</p>
           </div>
@@ -664,7 +662,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
             {/* Total Material Cost */}
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">총 자재비</div>
-              <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+              <div className="text-xl font-bold text-gray-600 dark:text-gray-400">
                 ₩{formatCurrency(costSummary.total_material_cost)}
               </div>
             </div>
@@ -672,7 +670,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
             {/* Total Scrap Revenue */}
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">총 스크랩금액</div>
-              <div className="text-xl font-bold text-orange-600 dark:text-orange-400">
+              <div className="text-xl font-bold text-gray-600 dark:text-gray-400">
                 ₩{formatCurrency(costSummary.total_scrap_revenue)}
               </div>
             </div>
@@ -680,7 +678,7 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
             {/* Total Net Cost */}
             <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">순원가</div>
-              <div className="text-xl font-bold text-green-600 dark:text-green-400">
+              <div className="text-xl font-bold text-gray-600 dark:text-gray-400">
                 ₩{formatCurrency(costSummary.total_net_cost)}
               </div>
             </div>

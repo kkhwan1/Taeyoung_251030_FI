@@ -1,32 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
-import { APIError, validateRequiredFields } from '@/lib/api-error-handler';
+import { ERPError, ErrorType, handleError as handleErrorResponse } from '@/lib/errorHandler';
 import type { Database } from '@/types/supabase';
 
 type SalesTransactionRow = Database['public']['Tables']['sales_transactions']['Row'];
 type SalesTransactionUpdate = Database['public']['Tables']['sales_transactions']['Update'];
-
-function handleError(error: unknown, fallbackMessage: string): NextResponse {
-  if (error instanceof APIError) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        details: error.details,
-      },
-      { status: error.statusCode }
-    );
-  }
-
-  console.error('[sales-transactions/[id]] Unexpected error:', error);
-  return NextResponse.json(
-    {
-      success: false,
-      error: fallbackMessage,
-    },
-    { status: 500 }
-  );
-}
 
 function normalizeString(value: unknown): string | null {
   if (value === undefined || value === null) {
@@ -78,7 +56,7 @@ export async function GET(
     const transactionId = normalizeInteger(id);
 
     if (!transactionId) {
-      throw new APIError('유효한 거래 ID가 필요합니다.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '유효한 거래 ID가 필요합니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -96,13 +74,13 @@ export async function GET(
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new APIError('판매 거래를 찾을 수 없습니다.', 404);
+        throw new ERPError(ErrorType.NOT_FOUND, '판매 거래를 찾을 수 없습니다.');
       }
-      throw new APIError('판매 거래 조회 중 오류가 발생했습니다.', 500, error.message);
+      throw error;
     }
 
     if (!data) {
-      throw new APIError('판매 거래를 찾을 수 없습니다.', 404);
+      throw new ERPError(ErrorType.NOT_FOUND, '판매 거래를 찾을 수 없습니다.');
     }
 
     return NextResponse.json({
@@ -110,7 +88,7 @@ export async function GET(
       data,
     });
   } catch (error) {
-    return handleError(error, '판매 거래 조회 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'sales_transactions', action: 'read' });
   }
 }
 
@@ -127,7 +105,7 @@ export async function PUT(
     const transactionId = normalizeInteger(id);
 
     if (!transactionId) {
-      throw new APIError('유효한 거래 ID가 필요합니다.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '유효한 거래 ID가 필요합니다.');
     }
 
     // Korean character handling: use request.text() + JSON.parse()
@@ -157,24 +135,24 @@ export async function PUT(
       paymentStatus === null &&
       notes === null
     ) {
-      throw new APIError('수정할 값이 없습니다.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '수정할 값이 없습니다.');
     }
 
     // Business rule validation for provided values
     if (quantity !== null && quantity <= 0) {
-      throw new APIError('수량은 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '수량은 0보다 커야 합니다.');
     }
 
     if (unitPrice !== null && unitPrice <= 0) {
-      throw new APIError('단가는 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '단가는 0보다 커야 합니다.');
     }
 
     if (totalAmount !== null && totalAmount <= 0) {
-      throw new APIError('합계금액은 0보다 커야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '합계금액은 0보다 커야 합니다.');
     }
 
     if (paidAmount !== null && paidAmount < 0) {
-      throw new APIError('지급액은 0 이상이어야 합니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '지급액은 0 이상이어야 합니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -188,7 +166,7 @@ export async function PUT(
       .single();
 
     if (fetchError || !currentTxn) {
-      throw new APIError('수정할 판매 거래를 찾을 수 없습니다.', 404);
+      throw new ERPError(ErrorType.NOT_FOUND, '수정할 판매 거래를 찾을 수 없습니다.');
     }
 
     // Validate paid_amount doesn't exceed total_amount
@@ -196,7 +174,7 @@ export async function PUT(
     const finalPaidAmount = paidAmount ?? (currentTxn.paid_amount ?? 0);
 
     if (finalPaidAmount > finalTotalAmount) {
-      throw new APIError('지급액은 합계금액을 초과할 수 없습니다.', 400);
+      throw new ERPError(ErrorType.BUSINESS_RULE, '지급액은 합계금액을 초과할 수 없습니다.');
     }
 
     const now = new Date().toISOString();
@@ -228,11 +206,11 @@ export async function PUT(
       .single();
 
     if (error) {
-      throw new APIError('판매 거래 정보를 수정하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     if (!data) {
-      throw new APIError('수정 대상 판매 거래를 찾을 수 없습니다.', 404);
+      throw new ERPError(ErrorType.NOT_FOUND, '수정 대상 판매 거래를 찾을 수 없습니다.');
     }
 
     return NextResponse.json({
@@ -241,7 +219,7 @@ export async function PUT(
       message: '판매 거래 정보가 수정되었습니다.',
     });
   } catch (error) {
-    return handleError(error, '판매 거래 수정 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'sales_transactions', action: 'update' });
   }
 }
 
@@ -258,7 +236,7 @@ export async function DELETE(
     const transactionId = normalizeInteger(id);
 
     if (!transactionId) {
-      throw new APIError('유효한 거래 ID가 필요합니다.', 400);
+      throw new ERPError(ErrorType.VALIDATION, '유효한 거래 ID가 필요합니다.');
     }
 
     const supabase = getSupabaseClient();
@@ -276,11 +254,11 @@ export async function DELETE(
       .single();
 
     if (error) {
-      throw new APIError('판매 거래를 비활성화하지 못했습니다.', 500, error.message);
+      throw error;
     }
 
     if (!data) {
-      throw new APIError('삭제 대상 판매 거래를 찾을 수 없습니다.', 404);
+      throw new ERPError(ErrorType.NOT_FOUND, '삭제 대상 판매 거래를 찾을 수 없습니다.');
     }
 
     return NextResponse.json({
@@ -292,6 +270,6 @@ export async function DELETE(
       },
     });
   } catch (error) {
-    return handleError(error, '판매 거래 삭제 중 오류가 발생했습니다.');
+    return handleErrorResponse(error, { resource: 'sales_transactions', action: 'delete' });
   }
 }

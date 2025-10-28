@@ -131,7 +131,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
       {/* 선택된 범위 표시 */}
       {hasValue && (
-        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-blue-700 dark:text-blue-300">
+        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900/20 rounded text-sm text-gray-700 dark:text-gray-300">
           {startDate && formatDateForDisplay(startDate)}
           {startDate && endDate && ' ~ '}
           {endDate && formatDateForDisplay(endDate)}
@@ -140,7 +140,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
       {/* 유효성 검사 메시지 */}
       {startDate && endDate && new Date(startDate) > new Date(endDate) && (
-        <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+        <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           시작일은 종료일보다 이전이어야 합니다.
         </div>
       )}

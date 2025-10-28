@@ -300,6 +300,10 @@ describe('Phase P4 Wave 2: BOM Calculation API 통합 테스트', () => {
             data: [], // 빈 데이터
             error: null
           }))
+        })),
+        insert: jest.fn(() => ({
+          data: { success: true },
+          error: null
         }))
       });
       
@@ -574,7 +578,10 @@ describe('Phase P4 Wave 2: BOM Calculation API 통합 테스트', () => {
 
 // 테스트 설정
 beforeAll(() => {
-  process.env.NODE_ENV = 'test';
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value: 'test',
+    writable: true
+  });
 });
 
 afterAll(() => {

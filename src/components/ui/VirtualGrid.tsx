@@ -253,7 +253,7 @@ export function VirtualGrid<T extends Record<string, any>>({
                     placeholder={searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
                   />
                 </div>
               </div>
@@ -273,7 +273,7 @@ export function VirtualGrid<T extends Record<string, any>>({
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
                     showFilters
-                      ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-300'
+                      ? 'bg-gray-100 border-gray-400 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
                       : 'border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
@@ -306,7 +306,7 @@ export function VirtualGrid<T extends Record<string, any>>({
                     <select
                       value={activeFilters[filter.key] || ''}
                       onChange={(e) => handleFilterChange(filter.key, e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500"
                     >
                       <option value="">전체</option>
                       {filter.options.map(option => (
@@ -319,7 +319,7 @@ export function VirtualGrid<T extends Record<string, any>>({
                       placeholder={`${filter.label} 필터...`}
                       value={activeFilters[filter.key] || ''}
                       onChange={(e) => handleFilterChange(filter.key, e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500"
                     />
                   )}
                 </div>
@@ -333,7 +333,7 @@ export function VirtualGrid<T extends Record<string, any>>({
       <div className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
         <span>전체 {data.length}개 항목 중 {processedData.length}개 표시</span>
         {selectable && selectedItems.length > 0 && (
-          <span className="text-blue-600 dark:text-blue-400">
+          <span className="text-gray-800 dark:text-gray-200 font-medium">
             {selectedItems.length}개 선택됨
           </span>
         )}
@@ -393,7 +393,7 @@ export function VirtualGrid<T extends Record<string, any>>({
                           key={getItemKey ? getItemKey(item, itemIndex) : itemIndex}
                           className={`relative transition-all duration-200 ${
                             onItemClick || selectable ? 'cursor-pointer' : ''
-                          } ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''} ${
+                          } ${isSelected ? 'ring-2 ring-gray-400 dark:ring-gray-500 ring-opacity-50' : ''} ${
                             getItemClassName(item, itemIndex)
                           }`}
                           style={{
@@ -411,8 +411,8 @@ export function VirtualGrid<T extends Record<string, any>>({
 
                           {/* Selection indicator */}
                           {selectable && isSelected && (
-                            <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                              ✓
+                            <div className="absolute top-2 right-2 w-6 h-6 bg-gray-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                              
                             </div>
                           )}
                         </div>

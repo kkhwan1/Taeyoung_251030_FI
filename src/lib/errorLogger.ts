@@ -363,7 +363,7 @@ export class ConsoleLogger {
     const color = ConsoleLogger.COLORS[errorInfo.severity] || ConsoleLogger.COLORS.LOW;
     const reset = ConsoleLogger.COLORS.RESET;
 
-    console.log(`\n${color}🚨 ERP 에러 발생${reset}`);
+    console.log(`\n${color}[ERP 에러 발생]${reset}`);
     console.log(`${color}┌─ 시간: ${errorInfo.timestamp}${reset}`);
     console.log(`${color}├─ 유형: ${errorInfo.type}${reset}`);
     console.log(`${color}├─ 심각도: ${errorInfo.severity}${reset}`);

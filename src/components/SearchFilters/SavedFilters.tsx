@@ -154,7 +154,7 @@ export const SavedFilters: React.FC<SavedFiltersProps> = ({
             <button
               onClick={() => setShowSaveDialog(true)}
               disabled={disabled}
-              className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
               title="현재 필터 저장"
             >
               <Save className="w-4 h-4" />
@@ -184,7 +184,7 @@ export const SavedFilters: React.FC<SavedFiltersProps> = ({
               className="w-full p-2 text-left text-sm bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded border border-gray-200 dark:border-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center gap-2">
-                <Bookmark className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                <Bookmark className="w-3 h-3 text-gray-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-gray-900 dark:text-white truncate">
                     {filter.name}
@@ -256,7 +256,7 @@ export const SavedFilters: React.FC<SavedFiltersProps> = ({
                 <button
                   onClick={handleSaveFilter}
                   disabled={!newFilterName.trim()}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   저장
                 </button>
@@ -311,7 +311,7 @@ export const SavedFilters: React.FC<SavedFiltersProps> = ({
                   <div className="flex gap-1">
                     <button
                       onClick={() => onLoadFilter(filter.name)}
-                      className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      className="p-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
                       title="필터 적용"
                     >
                       <Bookmark className="w-4 h-4" />
@@ -328,7 +328,7 @@ export const SavedFilters: React.FC<SavedFiltersProps> = ({
                     </button>
                     <button
                       onClick={() => handleDeleteFilter(filter.name)}
-                      className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                      className="p-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
                       title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />

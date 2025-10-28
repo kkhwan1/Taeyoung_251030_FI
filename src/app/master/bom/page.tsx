@@ -12,8 +12,6 @@ import {
   Upload,
   Download,
   RefreshCw,
-  TrendingUp,
-  Layers,
   Settings
 } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -22,6 +20,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 import { BOMExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
+import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Pie } from 'recharts';
 
 interface BOM {
   bom_id: number;
@@ -42,6 +41,8 @@ interface BOM {
   item_scrap_revenue?: number;
   purchase_unit_price?: number;
   item_type?: 'internal_production' | 'external_purchase';
+  // 원가 정보 추가
+  unit_price?: number;
 }
 
 interface CoilSpecification {
@@ -83,6 +84,10 @@ export default function BOMPage() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedCoilItem, setSelectedCoilItem] = useState<number | null>(null);
   const [costSummary, setCostSummary] = useState<any>(null);
+  const [priceMonth, setPriceMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const { success, error, info } = useToast();
   const { warningConfirm, deleteWithToast, ConfirmDialog } = useConfirm();
@@ -111,10 +116,17 @@ export default function BOMPage() {
   // Fetch items
   const fetchItems = useCallback(async () => {
     try {
-      const response = await fetch('/api/items');
+      const response = await fetch('/api/items?limit=1000'); // 모든 품목 가져오기
       const data = await response.json();
       if (data.success) {
         setItems(data.data.items || []);
+        console.log('[BOM] Fetched items:', {
+          count: data.data.items?.length || 0,
+          sample: data.data.items?.slice(0, 3).map((item: any) => ({
+            item_code: item.item_code,
+            item_name: item.item_name
+          }))
+        });
       }
     } catch (error) {
       console.error('Failed to fetch items:', error);
@@ -127,6 +139,7 @@ export default function BOMPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (selectedParentItem) params.append('parent_item_id', selectedParentItem);
+      params.append('price_month', priceMonth + '-01'); // 기준 월 추가
 
       const response = await fetch(`/api/bom?${params}`);
       const data = await response.json();
@@ -144,7 +157,11 @@ export default function BOMPage() {
           child_item_code: item.child_code || '',
           quantity: item.quantity_required || 0,
           level: item.level_no || 1,
-          is_active: item.is_active !== undefined ? item.is_active : true
+          is_active: item.is_active !== undefined ? item.is_active : true,
+          // 원가 정보 추가
+          unit_price: item.unit_price || 0,
+          material_cost: item.material_cost || 0,
+          net_cost: item.net_cost || 0
         }));
 
         const bomList = showActiveOnly
@@ -153,6 +170,11 @@ export default function BOMPage() {
 
         setBomData(bomList);
         setCostSummary(data.data.cost_summary);
+        console.log('[BOM] Fetched data:', {
+          count: bomList.length,
+          costSummary: data.data.cost_summary,
+          priceMonth: data.data.price_month
+        });
       } else {
         console.error('API Error:', data.error);
         error('데이터 로딩 실패', data.error || 'BOM 데이터를 불러오는데 실패했습니다.');
@@ -162,7 +184,7 @@ export default function BOMPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedParentItem, showActiveOnly]);
+  }, [selectedParentItem, showActiveOnly, priceMonth]);
 
   // Initial fetch
   useEffect(() => {
@@ -304,9 +326,18 @@ export default function BOMPage() {
   const handleSaveBOM = async (bomData: Omit<BOM, 'bom_id' | 'is_active' | 'level'>) => {
     try {
       const method = editingBOM ? 'PUT' : 'POST';
+      // API는 quantity_required를 기대하므로 변환
+      const apiBody = {
+        ...bomData,
+        quantity_required: bomData.quantity,
+      };
+      delete (apiBody as any).quantity; // quantity 제거
+      
       const body = editingBOM
-        ? { ...bomData, bom_id: editingBOM.bom_id }
-        : bomData;
+        ? { ...apiBody, bom_id: editingBOM.bom_id }
+        : apiBody;
+
+      console.log('[BOM API] Sending:', body);
 
       const response = await fetch('/api/bom', {
         method,
@@ -381,51 +412,54 @@ export default function BOMPage() {
   const renderBOMRows = (bomList: BOM[]): React.ReactElement[] => {
     return bomList.map((bom) => (
       <tr key={bom.bom_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-        <td className="px-6 py-4 whitespace-nowrap">
+        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
           <div className="flex items-center" style={{ paddingLeft: `${(bom.level || 0) * 20}px` }}>
             <span className="text-sm font-medium text-gray-900 dark:text-white">
               {bom.parent_item_code || '-'}
             </span>
           </div>
         </td>
-        <td className="px-6 py-4">
+        <td className="px-3 sm:px-6 py-3 sm:py-4">
           <span className="text-sm text-gray-900 dark:text-white">
             {bom.parent_item_name || '-'}
           </span>
         </td>
-        <td className="px-6 py-4">
+        <td className="px-3 sm:px-6 py-3 sm:py-4">
           <span className="text-sm text-gray-600 dark:text-gray-400">
             {bom.child_item_code || '-'}
           </span>
         </td>
-        <td className="px-6 py-4">
+        <td className="px-3 sm:px-6 py-3 sm:py-4">
           <span className="text-sm text-gray-600 dark:text-gray-400">
             {bom.child_item_name || '-'}
           </span>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
           {parseFloat((bom.quantity || 0).toString()).toLocaleString()}
         </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
           EA
         </td>
-        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+        {/* 원가 정보 추가 */}
+        <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-right text-gray-900 dark:text-white">
+          {bom.unit_price?.toLocaleString() || '-'}
+        </td>
+        <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-right font-semibold text-gray-900 dark:text-white">
+          {bom.material_cost?.toLocaleString() || '-'}
+        </td>
+        <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-gray-600 dark:text-gray-400">
           {bom.notes || '-'}
         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-            bom.is_active
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-          }`}>
+        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300">
             {bom.is_active ? '활성' : '비활성'}
           </span>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap text-center">
+        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => handleCopyBOM(bom)}
-              className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
               title="BOM 복사"
             >
               <Copy className="w-4 h-4" />
@@ -435,7 +469,7 @@ export default function BOMPage() {
                 setEditingBOM(bom);
                 setShowAddModal(true);
               }}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
               title="수정"
             >
               <Edit2 className="w-4 h-4" />
@@ -443,11 +477,11 @@ export default function BOMPage() {
             <button
               onClick={() => handleDelete(bom)}
               disabled={deletingBomId === bom.bom_id}
-              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               title="삭제"
             >
               {deletingBomId === bom.bom_id ? (
-                <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <Trash2 className="w-4 h-4" />
               )}
@@ -472,21 +506,21 @@ export default function BOMPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-gray-100 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     품목코드
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     품목명
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     재질등급
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     EA중량 (kg)
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     작업
                   </th>
                 </tr>
@@ -516,7 +550,7 @@ export default function BOMPage() {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => setSelectedCoilItem(item.child_item_id)}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
                         >
                           <Settings className="w-4 h-4 inline" />
                         </button>
@@ -565,83 +599,170 @@ export default function BOMPage() {
       <div className="cost-analysis-tab space-y-4">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">총 재료비</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  ₩{costSummary.total_material_cost?.toLocaleString() || 0}
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">총 재료비</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                  ₩{(costSummary?.total_material_cost || 0).toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  기준월: {priceMonth}
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-blue-500" />
+              
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">스크랩 수익</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">스크랩 수익</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
                   ₩{costSummary.total_scrap_revenue?.toLocaleString() || 0}
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">순 원가</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">순 원가</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
                   ₩{costSummary.total_net_cost?.toLocaleString() || 0}
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-purple-500" />
+              
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">품목 구성</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">품목 구성</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
                   {filteredData.length}개
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   코일 {costSummary.coil_count || 0} / 구매 {costSummary.purchased_count || 0}
                 </p>
               </div>
-              <Layers className="w-8 h-8 text-orange-500" />
+              
             </div>
           </div>
         </div>
 
-        {/* Detailed Cost Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
+        {/* 차트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 원가 구성비 파이 차트 */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">원가 구성비</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={[
+                      { name: '재료비', value: costSummary?.total_material_cost || 0, color: '#4B5563' },
+                      { name: '스크랩 수익', value: costSummary?.total_scrap_revenue || 0, color: '#525252' },
+                      { name: '순 원가', value: costSummary?.total_net_cost || 0, color: '#6B7280' }
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={(props: any) => `${props.name} ${((props.percent ?? 0) * 100).toFixed(1)}%`}
+                  >
+                    {[
+                      { name: '재료비', value: costSummary?.total_material_cost || 0, color: '#4B5563' },
+                      { name: '스크랩 수익', value: costSummary?.total_scrap_revenue || 0, color: '#525252' },
+                      { name: '순 원가', value: costSummary?.total_net_cost || 0, color: '#6B7280' }
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`₩${Number(value).toLocaleString()}`, '금액']} />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* 레벨별 원가 분석 바 차트 */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">레벨별 원가 분석</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredData.map(item => ({
+                  level: `L${item.level || 1}`,
+                  cost: item.net_cost || 0,
+                  materialCost: item.material_cost || 0
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="level" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`₩${Number(value).toLocaleString()}`, '원가']} />
+                  <Legend />
+                  <Bar dataKey="cost" fill="#4B5563" name="순 원가" />
+                  <Bar dataKey="materialCost" fill="#6B7280" name="재료비" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* 수율 분석 섹션 */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">수율 분석</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">내부생산 품목</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                {filteredData.filter(item => item.item_type === 'internal_production').length}개
+              </p>
+            </div>
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">외부구매 품목</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                {filteredData.filter(item => item.item_type === 'external_purchase').length}개
+              </p>
+            </div>
+            <div className="text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">평균 레벨</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                {filteredData.length > 0 ? (filteredData.reduce((sum, item) => sum + (item.level || 1), 0) / filteredData.length).toFixed(1) : '0'}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">상세 원가 분석</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-gray-100 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     품목코드
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     품목명
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     재료비
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     스크랩 수익
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     순 원가
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    레벨
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     구분
                   </th>
                 </tr>
@@ -649,7 +770,7 @@ export default function BOMPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       데이터가 없습니다
                     </td>
                   </tr>
@@ -665,18 +786,19 @@ export default function BOMPage() {
                       <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white">
                         ₩{item.material_cost?.toLocaleString() || '-'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-right text-green-600 dark:text-green-400">
+                      <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">
                         ₩{item.item_scrap_revenue?.toLocaleString() || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900 dark:text-white">
                         ₩{item.net_cost?.toLocaleString() || '-'}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.item_type === 'internal_production'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                        }`}>
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+                          L{item.level || 1}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300">
                           {item.item_type === 'internal_production' ? '내부생산' : '외부구매'}
                         </span>
                       </td>
@@ -698,33 +820,40 @@ export default function BOMPage() {
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+                <thead className="bg-gray-100 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       모품번
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       모품명
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       자품번
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       자품명
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       소요량
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       단위
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    {/* 원가 정보 컬럼 추가 */}
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                      단가 (₩)
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                      재료비 (₩)
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       비고
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       상태
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       작업
                     </th>
                   </tr>
@@ -771,22 +900,22 @@ export default function BOMPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Network className="w-8 h-8 text-blue-500" />
+            <Network className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">BOM 관리</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">부품 구성표(Bill of Materials)를 관리합니다</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">BOM 관리</h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">부품 구성표(Bill of Materials)를 관리합니다</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+          <div className="flex flex-wrap gap-2">
+            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 whitespace-nowrap">
               <input
                 type="checkbox"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">자동 새로고침</span>
             </label>
@@ -795,7 +924,7 @@ export default function BOMPage() {
               <select
                 value={refreshInterval}
                 onChange={(e) => setRefreshInterval(parseInt(e.target.value))}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm whitespace-nowrap"
               >
                 <option value={10000}>10초</option>
                 <option value={30000}>30초</option>
@@ -807,16 +936,16 @@ export default function BOMPage() {
             <button
               onClick={fetchBOMData}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 whitespace-nowrap"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               새로고침
             </button>
 
             <label
-              className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors whitespace-nowrap ${
                 dragActive
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  ? 'border-gray-500 bg-gray-50 dark:bg-gray-900/20'
                   : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
               } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
               onDragEnter={handleDrag}
@@ -837,7 +966,7 @@ export default function BOMPage() {
 
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 whitespace-nowrap"
             >
               <Download className="w-4 h-4" />
               다운로드
@@ -849,12 +978,12 @@ export default function BOMPage() {
               title="BOM 구조도"
               subtitle={selectedParentItem ? `모품목 필터 적용` : undefined}
               orientation="landscape"
-              className="bg-purple-500 hover:bg-purple-600"
+              className="bg-gray-800 hover:bg-gray-700 text-white whitespace-nowrap"
             />
 
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
             >
               <Plus className="w-5 h-5" />
               BOM 등록
@@ -864,7 +993,7 @@ export default function BOMPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -874,11 +1003,24 @@ export default function BOMPage() {
                 placeholder="품번, 품명으로 검색..."
                 value={filters.searchTerm}
                 onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
               />
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {/* 기준 월 선택 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                기준 월
+              </label>
+              <input
+                type="month"
+                value={priceMonth}
+                onChange={(e) => setPriceMonth(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+              />
+            </div>
+
             <select
               value={filters.level || ''}
               onChange={(e) => setFilters(prev => ({
@@ -951,7 +1093,7 @@ export default function BOMPage() {
                 id="activeOnly"
                 checked={showActiveOnly}
                 onChange={(e) => setShowActiveOnly(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
               />
               <label htmlFor="activeOnly" className="text-sm text-gray-700 dark:text-gray-300">
                 활성만 표시
@@ -975,52 +1117,52 @@ export default function BOMPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-        <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
           <nav className="flex -mb-px">
             <button
               onClick={() => setActiveTab('structure')}
-              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'structure'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  ? 'border-gray-500 text-gray-600 dark:text-gray-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Network className="w-4 h-4" />
+                <Network className="w-3 h-3 sm:w-4 sm:h-4" />
                 BOM 구조
               </div>
             </button>
             <button
               onClick={() => setActiveTab('coil-specs')}
-              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'coil-specs'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  ? 'border-gray-500 text-gray-600 dark:text-gray-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4" />
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
                 코일 규격
               </div>
             </button>
             <button
               onClick={() => setActiveTab('cost-analysis')}
-              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'cost-analysis'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  ? 'border-gray-500 text-gray-600 dark:text-gray-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
+                
                 원가 분석
               </div>
             </button>
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           {renderTabContent()}
         </div>
       </div>

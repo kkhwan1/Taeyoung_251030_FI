@@ -198,6 +198,30 @@ export interface ValidatedRequest<TBody = any, TQuery = any, TParams = any> exte
 
 /**
  * Create a validated and authenticated route handler
+ * Overload 1: For routes without dynamic params
+ */
+export function createValidatedRoute<TBody = any, TQuery = any>(
+  handler: (request: ValidatedRequest<TBody, TQuery>) => Promise<NextResponse>,
+  options: ValidatedRouteOptions<TBody, TQuery> & { paramsSchema?: undefined }
+): (request: NextRequest) => Promise<NextResponse>;
+
+/**
+ * Create a validated and authenticated route handler
+ * Overload 2: For routes with dynamic params
+ */
+export function createValidatedRoute<TBody = any, TQuery = any, TParams = any>(
+  handler: (
+    request: ValidatedRequest<TBody, TQuery, TParams>,
+    context?: { params: Promise<Record<string, string>> }
+  ) => Promise<NextResponse>,
+  options?: ValidatedRouteOptions<TBody, TQuery, TParams>
+): (
+  request: NextRequest,
+  context?: { params: Promise<Record<string, string>> }
+) => Promise<NextResponse>;
+
+/**
+ * Implementation
  */
 export function createValidatedRoute<TBody = any, TQuery = any, TParams = any>(
   handler: (
@@ -293,7 +317,7 @@ export function createValidatedRoute<TBody = any, TQuery = any, TParams = any>(
 export function validateOnly<TBody = any, TQuery = any, TParams = any>(
   handler: (
     request: ValidatedRequest<TBody, TQuery, TParams>,
-    context?: { params: Promise<Record<string, string>> }
+    context?: { params: Promise<Record<string, string>> } | undefined
   ) => Promise<NextResponse>,
   options: {
     bodySchema?: ZodSchema<TBody>;
