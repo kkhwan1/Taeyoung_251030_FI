@@ -10,7 +10,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // 인증 비활성화 모드인 경우 바로 대시보드 표시
-    if (process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true') {
+    if (process.env.NEXT_PUBLIC_DISABLE_AUTH?.trim() === 'true') {
       setIsAuthenticated(true);
       return;
     }

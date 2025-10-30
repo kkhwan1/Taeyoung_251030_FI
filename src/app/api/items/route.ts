@@ -179,7 +179,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     // 권한 체크 (DISABLE_AUTH 환경변수로 우회 가능)
-    if (process.env.DISABLE_AUTH !== 'true') {
+    if (process.env.DISABLE_AUTH?.trim() !== 'true') {
       const { user, response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'read');
       if (permissionResponse) return permissionResponse;
     }
@@ -356,7 +356,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // 권한 체크 (DISABLE_AUTH 환경변수로 우회 가능)
-    if (process.env.DISABLE_AUTH !== 'true') {
+    if (process.env.DISABLE_AUTH?.trim() !== 'true') {
       const { response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'create');
       if (permissionResponse) return permissionResponse;
     }
