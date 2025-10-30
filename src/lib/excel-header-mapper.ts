@@ -17,6 +17,8 @@ export const companiesHeaderMapping: HeaderMapping = {
   // 한글 헤더 → 영문 필드명 (주요 매핑)
   '거래처명': 'company_name',
   '회사명': 'company_name',  // import-map.ts 호환성
+  '협력사': 'company_name',  // 원자재수불관리 파일 호환성
+  '양산처': 'company_name',  // 입고현황 파일 호환성
   '거래처구분': 'company_type',
   '회사구분': 'company_type',  // import-map.ts 호환성
   '사업자번호': 'business_number',
@@ -24,12 +26,16 @@ export const companiesHeaderMapping: HeaderMapping = {
   '담당자': 'representative',  // import-map.ts 호환성
   '연락처': 'phone',
   '전화번호': 'phone',  // import-map.ts 호환성
+  '핸드폰': 'mobile',  // 신규 추가
+  '휴대폰': 'mobile',  // 신규 추가
   '이메일': 'email',
   '주소': 'address',
   '메모': 'notes',
   '비고': 'notes',
   '회사코드': 'company_code',  // import-map.ts 호환성 (내보내기용)
   '활성여부': 'is_active',  // import-map.ts 호환성 (내보내기용)
+  '결제조건': 'payment_terms',  // 신규 추가
+  '연락정보': 'contact_info',  // 신규 추가
   // 영문 헤더는 그대로 유지 (이미 매핑된 경우)
   'company_name': 'company_name',
   'company_type': 'company_type',
@@ -38,10 +44,13 @@ export const companiesHeaderMapping: HeaderMapping = {
   'representative': 'representative',
   'contact_person': 'representative',  // import-map.ts 호환성
   'phone': 'phone',
+  'mobile': 'mobile',
   'email': 'email',
   'address': 'address',
   'notes': 'notes',
-  'is_active': 'is_active'
+  'is_active': 'is_active',
+  'payment_terms': 'payment_terms',
+  'contact_info': 'contact_info'
 };
 
 /**
@@ -50,19 +59,31 @@ export const companiesHeaderMapping: HeaderMapping = {
 export const itemsHeaderMapping: HeaderMapping = {
   // 한글 헤더 → 영문 필드명
   '품목코드': 'item_code',
+  '품번': 'item_code',  // BOM/수불관리 파일 호환성
+  'P/NO': 'item_code',  // 입고현황 파일 호환성
   '품목명': 'item_name',
+  '품명': 'item_name',  // BOM/수불관리 파일 호환성
+  'Part Name': 'item_name',  // 입고현황 파일 호환성
   '차종': 'car_model',
   '규격': 'spec',
   '타입': 'item_type',
   '품목분류': 'item_type',  // import-map.ts 호환성
+  '구분': 'item_type',  // 종합관리 파일 호환성
   'category': 'category',  // import-map.ts 호환성
   '단위': 'unit',
   '도장상태': 'coating_status',
+  '도해': 'coating_status',  // 입고현황 파일 호환성
   '단가': 'unit_price',
   '최소재고': 'min_stock_level',
   '안전재고': 'safety_stock',  // import-map.ts 호환성
   '현재고': 'current_stock',  // import-map.ts 호환성
+  '재고': 'current_stock',  // 종합관리 파일 호환성
   '활성여부': 'is_active',  // import-map.ts 호환성
+  '위치': 'location',  // 신규 추가
+  '창고': 'location',  // 신규 추가
+  '업체': 'supplier_name',  // 종합관리 파일 호환성
+  '일소요량': 'daily_requirement',  // 종합관리 파일 호환성
+  '사용일': 'usage_days',  // 종합관리 파일 호환성
   // 영문 헤더는 그대로 유지
   'item_code': 'item_code',
   'item_name': 'item_name',
@@ -76,7 +97,11 @@ export const itemsHeaderMapping: HeaderMapping = {
   'min_stock_level': 'min_stock_level',
   'safety_stock': 'safety_stock',
   'current_stock': 'current_stock',
-  'is_active': 'is_active'
+  'is_active': 'is_active',
+  'location': 'location',
+  'supplier_name': 'supplier_name',
+  'daily_requirement': 'daily_requirement',
+  'usage_days': 'usage_days'
 };
 
 /**
@@ -115,10 +140,18 @@ export const inventoryHeaderMapping: HeaderMapping = {
   '거래일자': 'transaction_date',
   '거래유형': 'transaction_type',
   '품목코드': 'item_code',
+  'P/NO': 'item_code',  // 입고현황 파일 호환성
+  '품번': 'item_code',  // BOM 파일 호환성
   '수량': 'quantity',
+  '입고수량': 'quantity',  // 입고현황 파일 호환성
+  '납품실적': 'quantity',  // 납품현황 파일 호환성
+  '이월수량': 'carryover_quantity',  // 입고현황 파일 호환성
   '단위': 'unit',
   '회사코드': 'company_code',
+  '협력사': 'company_name',  // 납품현황 파일 호환성
+  '양산처': 'company_name',  // 입고현황 파일 호환성
   '참조번호': 'reference_number',
+  'NO': 'reference_number',  // 입고현황 파일 호환성
   '비고': 'remarks',
   '메모': 'remarks',
   // 영문 헤더는 그대로 유지
@@ -126,8 +159,10 @@ export const inventoryHeaderMapping: HeaderMapping = {
   'transaction_type': 'transaction_type',
   'item_code': 'item_code',
   'quantity': 'quantity',
+  'carryover_quantity': 'carryover_quantity',
   'unit': 'unit',
   'company_code': 'company_code',
+  'company_name': 'company_name',
   'reference_number': 'reference_number',
   'remarks': 'remarks'
 };
