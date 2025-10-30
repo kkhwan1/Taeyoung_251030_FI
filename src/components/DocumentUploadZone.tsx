@@ -123,7 +123,7 @@ export function DocumentUploadZone({
           ) : error ? (
             <AlertCircle className="w-12 h-12 text-gray-600" />
           ) : (
-            
+            <Upload className="w-12 h-12 text-gray-600" />
           )}
 
           <div>

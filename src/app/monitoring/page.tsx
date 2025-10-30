@@ -163,7 +163,8 @@ export default function MonitoringDashboard() {
   };
 
   // Format uptime
-  const formatUptime = (ms: number) => {
+  const formatUptime = (ms: number | undefined) => {
+    if (!ms || isNaN(ms)) return '0분';
     const seconds = Math.floor(ms / 1000);
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
@@ -305,7 +306,7 @@ export default function MonitoringDashboard() {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">시스템 가동시간</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {formatUptime(healthStatus.uptime)}
+                  {formatUptime(healthStatus.uptime || healthStatus.checks?.system?.uptime)}
                 </p>
               </div>
               <Clock className="w-8 h-8 text-gray-600 dark:text-gray-400" />

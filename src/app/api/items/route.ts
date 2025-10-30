@@ -357,7 +357,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'create');
     if (permissionResponse) return permissionResponse;
     
-    const body = await request.json();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body = JSON.parse(text);
     const normalized = buildNormalizedPayload(body);
 
     const requiredErrors = validateRequiredFields(

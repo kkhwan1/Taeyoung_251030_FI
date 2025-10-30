@@ -50,13 +50,54 @@ export const GET = createValidatedRoute(
       throw new Error(error.message);
     }
 
-    // Transform data and calculate stock status
+    // 1. 현재 월 계산
+    const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+
+    // 2. 모든 품목 ID 추출
+    const itemIds = (items || []).map(i => i.item_id);
+
+    // 3. 월별 단가 배치 조회 (생산관리와 동일한 로직)
+    const { data: monthlyPrices } = await supabase
+      .from('item_price_history')
+      .select('item_id, unit_price')
+      .in('item_id', itemIds.length > 0 ? itemIds : [])
+      .eq('price_month', currentMonth);
+
+    // 4. 각 품목의 마지막 거래 조회 (배치)
+    const { data: lastTransactions } = await supabase
+      .from('inventory_transactions')
+      .select('item_id, transaction_date, created_at, transaction_type')
+      .in('item_id', itemIds.length > 0 ? itemIds : [])
+      .order('created_at', { ascending: false });
+
+    // 5. Map으로 빠른 조회
+    const priceMap = new Map(
+      (monthlyPrices || []).map(p => [p.item_id, p.unit_price])
+    );
+
+    // 각 품목의 첫 번째(최신) 거래만 저장
+    const lastTxMap = new Map();
+    (lastTransactions || []).forEach((tx: any) => {
+      if (!lastTxMap.has(tx.item_id)) {
+        lastTxMap.set(tx.item_id, {
+          date: tx.transaction_date || tx.created_at,
+          type: tx.transaction_type
+        });
+      }
+    });
+
+    // 6. Transform data and calculate stock status with monthly price
     const stocks = ((items || []) as any[]).map((item: any) => {
       const currentStock = item.current_stock || 0;
       const safetyStock = item.safety_stock || 0;
-      const unitPrice = item.price || 0;
+      
+      // 월별 단가 우선 적용 (월별 단가 > 기본 단가)
+      const unitPrice = priceMap.get(item.item_id) || item.price || 0;
       const stockValue = unitPrice * currentStock;
       const isLowStock = currentStock <= safetyStock;
+      
+      // 마지막 거래 정보
+      const lastTx = lastTxMap.get(item.item_id);
 
       return {
         item_id: item.item_id,
@@ -69,7 +110,9 @@ export const GET = createValidatedRoute(
         safety_stock: safetyStock,
         unit_price: unitPrice,
         stock_value: stockValue,
-        is_low_stock: isLowStock
+        is_low_stock: isLowStock,
+        last_transaction_date: lastTx?.date || null,
+        last_transaction_type: lastTx?.type || null
       };
     });
 
@@ -112,7 +155,9 @@ export const GET = createValidatedRoute(
 export const POST = createValidatedRoute(
   async (request: NextRequest) => {
   try {
-    const body = await request.json();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body = JSON.parse(text);
     const { item_id, start_date, end_date } = body;
 
     if (!item_id) {

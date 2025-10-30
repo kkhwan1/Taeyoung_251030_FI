@@ -1,0 +1,116 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - button "Toggle sidebar"
+  - text: TC
+  - heading "태창 ERP" [level=1]
+  - button "Notifications"
+  - button "Settings"
+  - button "Switch to dark mode"
+  - button "로그인"
+- complementary:
+  - navigation:
+    - button "대시보드"
+    - link "메인 대시보드":
+      - /url: /
+    - button "기준정보"
+    - link "품목관리":
+      - /url: /master/items
+    - link "거래처관리":
+      - /url: /master/companies
+    - link "BOM관리":
+      - /url: /master/bom
+    - link "월별 단가 관리":
+      - /url: /price-management
+    - button "재고관리"
+    - link "입고관리":
+      - /url: /inventory?tab=receiving
+    - link "생산관리":
+      - /url: /inventory?tab=production
+    - link "출고관리":
+      - /url: /inventory?tab=shipping
+    - button "재고현황"
+    - link "재고 현황":
+      - /url: /stock
+    - link "재고이력":
+      - /url: /stock/history
+    - link "재고보고서":
+      - /url: /stock/reports
+    - button "회계관리"
+    - link "매출 관리":
+      - /url: /sales
+    - link "매입 관리":
+      - /url: /purchases
+    - link "수금 관리":
+      - /url: /collections
+    - link "지급 관리":
+      - /url: /payments
+    - link "회계 요약":
+      - /url: /accounting/summary
+    - button "시스템 모니터링"
+    - link "모니터링 대시보드":
+      - /url: /monitoring
+    - link "헬스체크":
+      - /url: /monitoring/health
+    - link "사용자 관리":
+      - /url: /admin/users
+    - link "계약 관리":
+      - /url: /contracts
+  - button "설정"
+- main:
+  - heading "품목 관리" [level=1]
+  - paragraph: 자동차 부품 및 원자재 품목을 관리합니다.
+  - button "인쇄" [disabled]
+  - button "템플릿 다운로드"
+  - button "품목 목록 Excel 내보내기 (0개)": 품목 내보내기
+  - button "일괄 업로드"
+  - button "품목 등록"
+  - textbox "품목코드, 품목명, 규격, 소재로 검색..."
+  - combobox:
+    - option "전체 분류" [selected]
+    - option "원자재"
+    - option "부자재"
+    - option "반제품"
+    - option "제품"
+    - option "상품"
+  - combobox:
+    - option "전체 타입" [selected]
+    - option "원자재 (RAW)"
+    - option "부자재 (SUB)"
+    - option "완제품 (FINISHED)"
+  - combobox:
+    - option "전체 소재" [selected]
+    - option "COIL"
+    - option "SHEET"
+    - option "기타 (OTHER)"
+  - textbox "차종 필터"
+  - combobox:
+    - option "전체 도장상태" [selected]
+    - option "도장 불필요"
+    - option "도장 전"
+    - option "도장 후"
+  - button "초기화"
+  - table:
+    - rowgroup:
+      - row "품목코드 품목명 분류 타입 소재형태 차종 규격 / 소재 단위중량(kg) 현재고 안전재고 기준단가 도장상태 작업":
+        - cell "품목코드"
+        - cell "품목명"
+        - cell "분류"
+        - cell "타입"
+        - cell "소재형태"
+        - cell "차종"
+        - cell "규격 / 소재"
+        - cell "단위중량(kg)"
+        - cell "현재고"
+        - cell "안전재고"
+        - cell "기준단가"
+        - cell "도장상태"
+        - cell "작업"
+    - rowgroup:
+      - row "조건에 맞는 품목이 없습니다.":
+        - cell "조건에 맞는 품목이 없습니다."
+- button "Open Tanstack query devtools":
+  - img
+- alert
+```

@@ -83,19 +83,54 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
 
   // Get available categories
   const categories = useMemo(() => {
-    if (!data) return [];
-    return [...new Set(data.map(item => item.category))].sort();
+    if (!data || !Array.isArray(data)) return [];
+    return [...new Set(data.map(item => item.category || item.카테고리).filter(Boolean))].sort();
   }, [data]);
 
   // Process and filter data
   const processedData = useMemo(() => {
-    if (!data) return [];
+    if (!data || !Array.isArray(data)) return [];
 
-    let filtered = data;
+    // Normalize data format (handle both TopItemData and StockChartDatum formats)
+    const normalizedData = data.map(item => {
+      // If already in TopItemData format, use as-is
+      if (item.item_id && item.totalValue !== undefined) {
+        return item as TopItemData;
+      }
+      
+      // Otherwise, convert from StockChartDatum format
+      const currentStock = item.current_stock ?? item.현재고 ?? item.현재재고 ?? 0;
+      const safetyStock = item.safety_stock ?? item.안전재고 ?? item.최소재고 ?? 0;
+      const unitPrice = item.unitPrice ?? item.price ?? item.단가 ?? 0;
+      
+      return {
+        item_id: item.item_id || item.code || item.item_code || '',
+        item_name: item.item_name || item.name || '',
+        item_code: item.item_code || item.code || '',
+        category: item.category || item.카테고리 || '',
+        currentStock,
+        unitPrice,
+        totalValue: currentStock * unitPrice,
+        monthlyVolume: item.monthlyVolume || item.월간거래량 || 0,
+        turnoverRate: item.turnoverRate || item.회전율 || 0,
+        lastTransactionDate: item.lastTransactionDate ? new Date(item.lastTransactionDate) : null,
+        stockStatus: currentStock < safetyStock * 0.5 ? 'low' 
+                    : currentStock < safetyStock ? 'normal'
+                    : currentStock > safetyStock * 2 ? 'overstock'
+                    : 'high' as 'low' | 'normal' | 'high' | 'overstock',
+        rank: item.rank || 0
+      } as TopItemData;
+    });
+
+    let filtered = normalizedData.filter(item => 
+      item && 
+      (item.item_id || item.item_code) &&
+      (item.item_name || item.item_code)
+    );
 
     // Apply category filter
     if (categoryFilter !== 'all') {
-      filtered = filtered.filter(item => item.category === categoryFilter);
+      filtered = filtered.filter(item => (item.category || '') === categoryFilter);
     }
 
     // Sort by selected metric
@@ -120,9 +155,9 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
     // Add display value and colors
     return topItems.map((item, index) => ({
       ...item,
-      displayName: item.item_name.length > 15
+      displayName: (item.item_name && item.item_name.length > 15)
         ? `${item.item_name.substring(0, 12)}...`
-        : item.item_name,
+        : (item.item_name || item.item_code || '알 수 없음'),
       displayValue: sortMetric === 'value' ? item.totalValue
                    : sortMetric === 'volume' ? item.monthlyVolume
                    : sortMetric === 'turnover' ? item.turnoverRate
@@ -152,12 +187,14 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
   const stats = useMemo(() => {
     if (!processedData.length) return null;
 
-    const totalValue = processedData.reduce((sum, item) => sum + item.totalValue, 0);
-    const totalVolume = processedData.reduce((sum, item) => sum + item.monthlyVolume, 0);
-    const avgTurnover = processedData.reduce((sum, item) => sum + item.turnoverRate, 0) / processedData.length;
+    const totalValue = processedData.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+    const totalVolume = processedData.reduce((sum, item) => sum + (item.monthlyVolume || 0), 0);
+    const avgTurnover = processedData.length > 0
+      ? processedData.reduce((sum, item) => sum + (item.turnoverRate || 0), 0) / processedData.length
+      : 0;
     const topItem = processedData[0];
-    const topItemPercentage = data && data.length > 0
-      ? (topItem.totalValue / data.reduce((sum, item) => sum + item.totalValue, 0)) * 100
+    const topItemPercentage = totalValue > 0 && topItem && topItem.totalValue !== undefined
+      ? (topItem.totalValue / totalValue) * 100
       : 0;
 
     return {
@@ -478,7 +515,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
               {stats.topItem}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              ({stats.topItemPercentage.toFixed(1)}%)
+              ({isNaN(stats.topItemPercentage) ? '0.0' : stats.topItemPercentage.toFixed(1)}%)
             </p>
           </div>
           <div className="text-center">

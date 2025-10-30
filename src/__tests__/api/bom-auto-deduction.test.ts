@@ -12,7 +12,8 @@
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 
 // Test configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+// Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Windows
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 const PRODUCTION_ENDPOINT = `${API_BASE_URL}/api/inventory/production`;
 const BOM_ENDPOINT = `${API_BASE_URL}/api/bom`;
 const ITEMS_ENDPOINT = `${API_BASE_URL}/api/items`;

@@ -292,6 +292,104 @@ export const formatChartDate = (
  * @param previous Previous value
  * @returns Percentage change as number
  */
+/**
+ * KPI 데이터 타입 정의
+ */
+interface KPIData {
+  items: Array<{
+    is_active: boolean;
+    current_stock?: number;
+    minimum_stock?: number;
+    min_stock_level?: number;
+  }>;
+  transactions: Array<{
+    transaction_date: string;
+    quantity: number | string;
+  }>;
+  companies: Array<{
+    is_active: boolean;
+  }>;
+}
+
+interface KPIResult {
+  totalItems: number;
+  activeCompanies: number;
+  monthlyVolume: number;
+  lowStockItems: number;
+  volumeChange: number;
+  trends: {
+    items: number;
+    companies: number;
+    volume: number;
+    lowStock: number;
+  };
+}
+
+/**
+ * KPI 계산 함수
+ * @param data KPI 계산에 필요한 데이터
+ * @returns 계산된 KPI 결과
+ */
+export const calculateKPIs = (data: KPIData): KPIResult => {
+  const { items, transactions, companies } = data;
+
+  // 활성 품목 수 계산
+  const totalItems = items.filter(item => item.is_active).length;
+
+  // 활성 거래처 수 계산
+  const activeCompanies = companies.filter(company => company.is_active).length;
+
+  // 월별 거래량 계산
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyTransactions = transactions.filter(transaction => {
+    const date = new Date(transaction.transaction_date);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  });
+
+  const monthlyVolume = monthlyTransactions.reduce((sum, transaction) => {
+    return sum + (parseFloat(String(transaction.quantity)) || 0);
+  }, 0);
+
+  // 재고 부족 품목 수 계산
+  const lowStockItems = items.filter(item => {
+    const current = item.current_stock || 0;
+    const minimum = item.minimum_stock || item.min_stock_level || 0;
+    return current < minimum && item.is_active;
+  }).length;
+
+  // 전월 비교를 통한 트렌드 계산
+  const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+  const previousMonthTransactions = transactions.filter(transaction => {
+    const date = new Date(transaction.transaction_date);
+    return date.getMonth() === previousMonth && date.getFullYear() === previousYear;
+  });
+
+  const previousMonthVolume = previousMonthTransactions.reduce((sum, transaction) => {
+    return sum + (parseFloat(String(transaction.quantity)) || 0);
+  }, 0);
+
+  const volumeChange = previousMonthVolume > 0
+    ? ((monthlyVolume - previousMonthVolume) / previousMonthVolume * 100)
+    : 0;
+
+  return {
+    totalItems,
+    activeCompanies,
+    monthlyVolume,
+    lowStockItems,
+    volumeChange,
+    trends: {
+      items: 0, // 필요시 historical data 기반으로 계산
+      companies: 0, // 필요시 historical data 기반으로 계산
+      volume: volumeChange,
+      lowStock: 0 // 필요시 historical data 기반으로 계산
+    }
+  };
+};
+
 export const calculatePercentChange = (current: number, previous: number): number => {
   if (previous === 0) return 0;
   return ((current - previous) / previous) * 100;

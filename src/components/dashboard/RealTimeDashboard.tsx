@@ -231,8 +231,13 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
 
     // Calculate stock value change (mock calculation - would need historical data)
     const stockValueChange = monthlyTrends.length >= 2 
-      ? ((monthlyTrends[monthlyTrends.length - 1].총재고량 - monthlyTrends[monthlyTrends.length - 2].총재고량) / 
-         monthlyTrends[monthlyTrends.length - 2].총재고량) * 100
+      ? (() => {
+          const latest = monthlyTrends[monthlyTrends.length - 1]?.총재고량 || 0;
+          const previous = monthlyTrends[monthlyTrends.length - 2]?.총재고량 || 0;
+          if (previous === 0) return 0;
+          const change = ((latest - previous) / previous) * 100;
+          return isNaN(change) ? 0 : change;
+        })()
       : 0;
 
     // Calculate average turnover rate
@@ -320,7 +325,9 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
                   ? 'text-gray-600 dark:text-gray-400' 
                   : 'text-gray-600 dark:text-gray-400'
               }`}>
-                {analytics.stockValueChange >= 0 ? '+' : ''}{analytics.stockValueChange.toFixed(1)}%
+                {isNaN(analytics.stockValueChange) 
+                  ? '0.0' 
+                  : `${analytics.stockValueChange >= 0 ? '+' : ''}${analytics.stockValueChange.toFixed(1)}`}%
               </span>
             </div>
           </div>

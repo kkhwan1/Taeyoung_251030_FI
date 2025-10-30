@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseExcelFile, isValidEmail, isValidBusinessNumber } from '@/lib/excel-utils';
+import { mapExcelHeaders, companiesHeaderMapping } from '@/lib/excel-header-mapper';
 import { ExcelCompanyData, ValidationError, UploadResult, VALID_COMPANY_TYPES } from '@/types/upload';
 import formidable from 'formidable';
 import fs from 'fs';
@@ -193,12 +194,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // 한글 헤더를 영문 필드명으로 매핑
+    const mappedData = mapExcelHeaders(rawData, companiesHeaderMapping);
+
     // 데이터 유효성 검증
     const validCompanies: ExcelCompanyData[] = [];
     const allErrors: ValidationError[] = [];
 
-    for (let i = 0; i < rawData.length; i++) {
-      const { company, errors } = validateCompanyData(rawData[i], i);
+    for (let i = 0; i < mappedData.length; i++) {
+      const { company, errors } = validateCompanyData(mappedData[i], i);
 
       if (errors.length > 0) {
         allErrors.push(...errors);
@@ -214,7 +218,7 @@ export async function POST(request: NextRequest) {
     // 결과 생성
     const result: UploadResult = {
       success: allErrors.length === 0 && duplicates.length === 0,
-      total_rows: rawData.length,
+      total_rows: mappedData.length,
       success_count: 0,
       error_count: allErrors.length + duplicates.length,
       errors: allErrors,

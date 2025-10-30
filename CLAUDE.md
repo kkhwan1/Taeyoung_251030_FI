@@ -598,7 +598,7 @@ import { db } from '../../../lib/db-unified';
   - 자동 결제 상태 계산
   - Excel 3-Sheet 내보내기
 
-### Phase 2: 회계 모듈 (100% 완료) ✅
+### Phase 2: 회계 모듈 및 확장 기능 (100% 완료) ✅
 - **상태**: Production Ready
 - **규모**: 5개 API, 2개 PostgreSQL 뷰, 1,865줄 테스트 코드
 - **핵심 기능**:
@@ -607,6 +607,12 @@ import { db } from '../../../lib/db-unified';
   - 자동 company_code 생성 (CUS001, SUP001...)
   - 월별 회계 집계 뷰 (v_monthly_accounting)
   - 카테고리별 집계 뷰 (v_category_monthly_summary)
+  - **입고/출고 다중 제품 지원**: `items` 배열 기반 다중 제품 동시 등록
+  - **월별 단가 자동 적용**: 입고/출고 폼에서 거래일 기준 월별 단가 자동 로드 및 "월별 단가 적용" 배지 표시
+  - **거래처 정보 자동 입력**: 고객사 선택 시 배송주소 등 저장된 정보 자동 입력
+  - **BOM 템플릿 다운로드**: `/api/download/template/bom` 엔드포인트 제공
+  - **엑셀 템플릿-업로드 통합**: `excel-header-mapper.ts` 통합으로 한글 헤더 매핑 일관성 확보
+  - **한글 인코딩 패턴 전면 적용**: 모든 POST/PUT API에서 `request.text() + JSON.parse()` 패턴 적용
 - **테스트 커버리지**: 100% (5/5 엔드포인트)
 
 ### 전체 시스템 점수: 97/100

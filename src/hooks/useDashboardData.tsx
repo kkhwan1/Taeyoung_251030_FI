@@ -153,31 +153,55 @@ export const useDashboardData = (
         setLoading(true);
       }
       setError(null);
-      
-      // Use single unified API endpoint with no-cache to prevent stale data
-      const response = await fetch('/api/dashboard-simple', {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Fetch data from multiple endpoints for complete dashboard
+      const [statsRes, chartsRes, alertsRes] = await Promise.all([
+        fetch('/api/dashboard/stats', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }),
+        fetch('/api/dashboard/charts', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }),
+        fetch('/api/dashboard/alerts', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+      ]);
+
+      if (!statsRes.ok || !chartsRes.ok || !alertsRes.ok) {
+        throw new Error(`HTTP error! status: ${statsRes.status}, ${chartsRes.status}, ${alertsRes.status}`);
       }
 
-      const result = await response.json();
+      const statsResult = await statsRes.json();
+      const chartsResult = await chartsRes.json();
+      const alertsResult = await alertsRes.json();
 
-      // Validate response
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch dashboard data');
+      // Validate responses
+      if (!statsResult.success) {
+        throw new Error(statsResult.error || 'Failed to fetch stats');
+      }
+      if (!chartsResult.success) {
+        throw new Error(chartsResult.error || 'Failed to fetch charts');
+      }
+      if (!alertsResult.success) {
+        throw new Error(alertsResult.error || 'Failed to fetch alerts');
       }
 
       const newData: DashboardData = {
-        stats: result.data.stats,
-        charts: result.data.charts,
-        alerts: result.data.alerts,
+        stats: statsResult.data,
+        charts: chartsResult.data,
+        alerts: alertsResult.data,
         lastUpdated: new Date()
       };
 

@@ -3,7 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Package2,
+  AlertTriangle,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 
 interface StockSummaryData {
@@ -111,7 +115,7 @@ const StockSummaryCard: React.FC = () => {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="text-center py-8">
-          
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={handleRefresh}
@@ -138,7 +142,7 @@ const StockSummaryCard: React.FC = () => {
       title: '전체 품목',
       value: formatNumber(summaryData.total_items),
       subtitle: '등록된 전체 품목 수',
-      icon: ,
+      icon: <Package2 className="w-6 h-6" />,
       color: 'text-gray-800',
       bgColor: 'bg-gray-100'
     },
@@ -159,7 +163,7 @@ const StockSummaryCard: React.FC = () => {
       title: '부족/경고',
       value: formatNumber(summaryData.low_stock_items),
       subtitle: `전체의 ${lowStockPercentage}%`,
-      icon: ,
+      icon: <AlertTriangle className="w-6 h-6" />,
       color: 'text-gray-900',
       bgColor: 'bg-gray-100',
       change: {
@@ -172,7 +176,7 @@ const StockSummaryCard: React.FC = () => {
       title: '총 재고 가치',
       value: formatCurrency(summaryData.total_value),
       subtitle: '현재 재고의 총 가치',
-      icon: ,
+      icon: <DollarSign className="w-6 h-6" />,
       color: 'text-gray-600',
       bgColor: 'bg-gray-50'
     }

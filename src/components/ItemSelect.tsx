@@ -83,14 +83,6 @@ export default function ItemSelect({
       if (selectedItem && !filtered.find(i => i.item_id === selectedItem.item_id)) {
         filtered = [selectedItem, ...filtered];
       }
-      
-      console.log('[ItemSelect] Search filtering:', {
-        search,
-        totalItems: items.length,
-        filteredCount: filtered.length,
-        hasSelectedItem: !!selectedItem,
-        sampleItems: items.slice(0, 3).map(i => ({ code: i.item_code, name: i.item_name }))
-      });
       setFilteredItems(filtered.slice(0, 10)); // Limit to 10 results for performance
       setIsOpen(true);
     } else {
@@ -173,13 +165,6 @@ export default function ItemSelect({
           unit_price: item.unit_price || item.price || 0
         }));
 
-        console.log('[ItemSelect] Fetched items:', {
-          count: transformedItems.length,
-          sample: transformedItems.slice(0, 3),
-          itemType,
-          url
-        });
-
         setItems(transformedItems);
       } else {
         const errorMsg = !data.success && 'error' in data ? data.error : '품목 목록을 불러오는데 실패했습니다.';
@@ -202,10 +187,13 @@ export default function ItemSelect({
   };
 
   const handleItemSelect = (item: Item) => {
-    setSelectedItem(item);
-    setSearch(`${item.item_code} - ${item.item_name}`);
-    setIsOpen(false);
     onChange(item);
+    // onChange 호출 후 상태 초기화 (깜빡임 방지)
+    setTimeout(() => {
+      setSelectedItem(null);
+      setSearch('');
+      setIsOpen(false);
+    }, 0);
   };
 
   const handleInputFocus = () => {

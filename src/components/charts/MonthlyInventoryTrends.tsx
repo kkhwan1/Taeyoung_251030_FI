@@ -21,7 +21,8 @@ import {
 import {
   Download,
   Printer,
-  RefreshCcw
+  RefreshCcw,
+  AlertCircle
 } from 'lucide-react';
 import {
   formatKoreanNumber,
@@ -267,7 +268,7 @@ export const MonthlyInventoryTrends: React.FC<MonthlyInventoryTrendsProps> = ({
         </div>
         <div className="flex items-center justify-center h-64 text-gray-500">
           <div className="text-center">
-            
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
             <p>차트 데이터 로드 실패</p>
             <p className="text-sm text-gray-500 mt-1">{error}</p>
             {onRefresh && (
@@ -374,7 +375,7 @@ export const MonthlyInventoryTrends: React.FC<MonthlyInventoryTrendsProps> = ({
         ) : !displayData.length ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <p>표시할 동향 데이터가 없습니다</p>
             </div>
           </div>

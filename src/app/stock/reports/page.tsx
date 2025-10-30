@@ -69,16 +69,11 @@ export default function StockReportsPage() {
   const fetchReportData = async () => {
     setLoading(true);
     try {
-      console.log('[Stock Reports] Fetching report for date:', reportDate);
       const response = await fetch(`/api/stock/reports?date=${reportDate}`);
-      console.log('[Stock Reports] Response status:', response.status);
-      
       const result = await response.json();
-      console.log('[Stock Reports] Result:', result);
 
       if (result.success) {
         const data = result.data;
-        console.log('[Stock Reports] Setting data:', data);
         setStockSummary(data.summary || null);
         setCategoryBreakdown(data.categoryBreakdown || []);
         setMonthlyTrend(data.monthlyTrend || []);
@@ -92,7 +87,6 @@ export default function StockReportsPage() {
       console.error('[Stock Reports] Fetch error:', error);
       alert('보고서 조회 중 오류가 발생했습니다.');
     } finally {
-      console.log('[Stock Reports] Setting loading to false');
       setLoading(false);
     }
   };

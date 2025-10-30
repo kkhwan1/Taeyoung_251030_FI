@@ -1,0 +1,253 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - button "Toggle sidebar"
+  - text: TC
+  - heading "태창 ERP" [level=1]
+  - button "Notifications"
+  - button "Settings"
+  - button "Switch to dark mode"
+  - button "로그인"
+- complementary:
+  - navigation:
+    - button "대시보드"
+    - link "메인 대시보드":
+      - /url: /
+    - button "기준정보"
+    - link "품목관리":
+      - /url: /master/items
+    - link "거래처관리":
+      - /url: /master/companies
+    - link "BOM관리":
+      - /url: /master/bom
+    - link "월별 단가 관리":
+      - /url: /price-management
+    - button "재고관리"
+    - link "입고관리":
+      - /url: /inventory?tab=receiving
+    - link "생산관리":
+      - /url: /inventory?tab=production
+    - link "출고관리":
+      - /url: /inventory?tab=shipping
+    - button "재고현황"
+    - link "재고 현황":
+      - /url: /stock
+    - link "재고이력":
+      - /url: /stock/history
+    - link "재고보고서":
+      - /url: /stock/reports
+    - button "회계관리"
+    - link "매출 관리":
+      - /url: /sales
+    - link "매입 관리":
+      - /url: /purchases
+    - link "수금 관리":
+      - /url: /collections
+    - link "지급 관리":
+      - /url: /payments
+    - link "회계 요약":
+      - /url: /accounting/summary
+    - button "시스템 모니터링"
+    - link "모니터링 대시보드":
+      - /url: /monitoring
+    - link "헬스체크":
+      - /url: /monitoring/health
+    - link "사용자 관리":
+      - /url: /admin/users
+    - link "계약 관리":
+      - /url: /contracts
+  - button "설정"
+- main:
+  - heading "재고 관리" [level=1]
+  - paragraph: 입고, 생산, 출고 통합 관리
+  - button "인쇄"
+  - button "재고 현황 Excel 내보내기 (208개)": 재고현황 내보내기
+  - button "입고 관리"
+  - button "생산 관리"
+  - button "출고 관리"
+  - heading "입고 관리" [level=2]
+  - paragraph: 자재 및 제품 입고 처리
+  - button "인쇄"
+  - button "입고 관리 거래내역 Excel 내보내기 (20개)": 거래내역 내보내기
+  - button "입고 등록"
+  - heading "실시간 재고 현황" [level=3]
+  - text: "업데이트: 오전 08:26:08"
+  - heading "12900-06161" [level=4]
+  - paragraph: BOLT
+  - text: 15 EA
+  - paragraph: "최근 거래: 조정"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "13194-08220" [level=4]
+  - paragraph: CAP NUT M8
+  - text: 100 EA
+  - paragraph: "최근 거래: 조정"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "13911-08001" [level=4]
+  - paragraph: W/NUT T형 M08*1.25P
+  - text: 20 EA
+  - paragraph: "최근 거래: 조정"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "13917-10120" [level=4]
+  - paragraph: NUT (사1)M10*1.25P*12H
+  - text: 400 EA
+  - paragraph: "최근 거래: 입고"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "19353-07250" [level=4]
+  - paragraph: NUT (F/CAP형)7/16-2UNF
+  - text: 200 EA
+  - paragraph: "최근 거래: 입고"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "30032844A" [level=4]
+  - paragraph: MOUNTING BRACKET RH
+  - text: 39 EA
+  - paragraph: "최근 거래: 출고"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "50007300D" [level=4]
+  - paragraph: GLASS PANEL REINFORCEMENT
+  - text: 99 EA
+  - paragraph: "최근 거래: 출고"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "65412-L1000" [level=4]
+  - paragraph: AREINF ASS’Y RR S/BELT ANCH LH
+  - text: 130 EA
+  - paragraph: "최근 거래: 입고"
+  - paragraph: 10. 29. 오전 09:00
+  - heading "최근 거래 내역" [level=3]
+  - table:
+    - rowgroup:
+      - row "거래일시 ↓ 구분 품번/품명 수량 단가 금액 거래처 참조번호 작업":
+        - cell "거래일시 ↓"
+        - cell "구분"
+        - cell "품번/품명"
+        - cell "수량"
+        - cell "단가"
+        - cell "금액"
+        - cell "거래처"
+        - cell "참조번호"
+        - cell "작업"
+    - rowgroup:
+      - row "2025.10.30 05:33:40 입고 SU2 LWB 50012088C 70 ₩7,000 ₩490,000 테스트 공급사 1 KOREAN-FIXED-004":
+        - cell "2025.10.30 05:33:40"
+        - cell "입고"
+        - cell "SU2 LWB 50012088C"
+        - cell "70"
+        - cell "₩7,000"
+        - cell "₩490,000"
+        - cell "테스트 공급사 1"
+        - cell "KOREAN-FIXED-004"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.30 05:32:24 입고 SU2 LWB 50012088C 65 ₩6,500 ₩422,500 테스트 공급사 1 DIRECT-SQL-TEST":
+        - cell "2025.10.30 05:32:24"
+        - cell "입고"
+        - cell "SU2 LWB 50012088C"
+        - cell "65"
+        - cell "₩6,500"
+        - cell "₩422,500"
+        - cell "테스트 공급사 1"
+        - cell "DIRECT-SQL-TEST"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.30 05:31:24 입고 SU2 LWB 50012088C 60 ₩6,000 ₩360,000 테스트 공급사 1 FINAL-TEST-003":
+        - cell "2025.10.30 05:31:24"
+        - cell "입고"
+        - cell "SU2 LWB 50012088C"
+        - cell "60"
+        - cell "₩6,000"
+        - cell "₩360,000"
+        - cell "테스트 공급사 1"
+        - cell "FINAL-TEST-003"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.30 05:30:37 입고 SU2 LWB 50012088C 55 ₩5,500 ₩302,500 테스트 공급사 1 TEST-KOREAN-FIX-002":
+        - cell "2025.10.30 05:30:37"
+        - cell "입고"
+        - cell "SU2 LWB 50012088C"
+        - cell "55"
+        - cell "₩5,500"
+        - cell "₩302,500"
+        - cell "테스트 공급사 1"
+        - cell "TEST-KOREAN-FIX-002"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.30 05:26:09 입고 SU2 LWB 50012088C 50 ₩5,000 ₩250,000 테스트 공급사 1 TEST-ARRIVAL-001":
+        - cell "2025.10.30 05:26:09"
+        - cell "입고"
+        - cell "SU2 LWB 50012088C"
+        - cell "50"
+        - cell "₩5,000"
+        - cell "₩250,000"
+        - cell "테스트 공급사 1"
+        - cell "TEST-ARRIVAL-001"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.29 17:56:27 입고 65722-A3000 MBR RR FLR SIDE RH 100 ₩28,000 ₩2,800,000 테스트 공급사 1 STOCK-ADD-20251029085627":
+        - cell "2025.10.29 17:56:27"
+        - cell "입고"
+        - cell "65722-A3000 MBR RR FLR SIDE RH"
+        - cell "100"
+        - cell "₩28,000"
+        - cell "₩2,800,000"
+        - cell "테스트 공급사 1"
+        - cell "STOCK-ADD-20251029085627"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.29 17:56:27 입고 65639-3K000 MTG BOLT M10*60 100 ₩2,000 ₩200,000 테스트 공급사 1 STOCK-ADD-20251029085627":
+        - cell "2025.10.29 17:56:27"
+        - cell "입고"
+        - cell "65639-3K000 MTG BOLT M10*60"
+        - cell "100"
+        - cell "₩2,000"
+        - cell "₩200,000"
+        - cell "테스트 공급사 1"
+        - cell "STOCK-ADD-20251029085627"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.29 17:56:27 입고 13194-08220 CAP NUT M8 100 ₩500 ₩50,000 테스트 공급사 1 STOCK-ADD-20251029085627":
+        - cell "2025.10.29 17:56:27"
+        - cell "입고"
+        - cell "13194-08220 CAP NUT M8"
+        - cell "100"
+        - cell "₩500"
+        - cell "₩50,000"
+        - cell "테스트 공급사 1"
+        - cell "STOCK-ADD-20251029085627"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.29 17:56:27 입고 65916-L1000 SUPT F/TANK BAND RR MTG BRK 100 ₩28,000 ₩2,800,000 테스트 공급사 1 STOCK-ADD-20251029085627":
+        - cell "2025.10.29 17:56:27"
+        - cell "입고"
+        - cell "65916-L1000 SUPT F/TANK BAND RR MTG BRK"
+        - cell "100"
+        - cell "₩28,000"
+        - cell "₩2,800,000"
+        - cell "테스트 공급사 1"
+        - cell "STOCK-ADD-20251029085627"
+        - cell:
+          - button "수정"
+          - button "삭제"
+      - row "2025.10.29 17:56:27 입고 13911-08001 W/NUT T형 M08*1.25P 100 ₩600 ₩60,000 테스트 공급사 1 STOCK-ADD-20251029085627":
+        - cell "2025.10.29 17:56:27"
+        - cell "입고"
+        - cell "13911-08001 W/NUT T형 M08*1.25P"
+        - cell "100"
+        - cell "₩600"
+        - cell "₩60,000"
+        - cell "테스트 공급사 1"
+        - cell "STOCK-ADD-20251029085627"
+        - cell:
+          - button "수정"
+          - button "삭제"
+- button "Open Tanstack query devtools":
+  - img
+- alert
+```

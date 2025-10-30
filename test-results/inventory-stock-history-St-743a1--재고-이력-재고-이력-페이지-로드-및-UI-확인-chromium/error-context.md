@@ -1,0 +1,100 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - button "Toggle sidebar"
+  - text: TC
+  - heading "태창 ERP" [level=1]
+  - button "Notifications"
+  - button "Settings"
+  - button "Switch to dark mode"
+  - button "로그인"
+- complementary:
+  - navigation:
+    - button "대시보드"
+    - link "메인 대시보드":
+      - /url: /
+    - button "기준정보"
+    - link "품목관리":
+      - /url: /master/items
+    - link "거래처관리":
+      - /url: /master/companies
+    - link "BOM관리":
+      - /url: /master/bom
+    - link "월별 단가 관리":
+      - /url: /price-management
+    - button "재고관리"
+    - link "입고관리":
+      - /url: /inventory?tab=receiving
+    - link "생산관리":
+      - /url: /inventory?tab=production
+    - link "출고관리":
+      - /url: /inventory?tab=shipping
+    - button "재고현황"
+    - link "재고 현황":
+      - /url: /stock
+    - link "재고이력":
+      - /url: /stock/history
+    - link "재고보고서":
+      - /url: /stock/reports
+    - button "회계관리"
+    - link "매출 관리":
+      - /url: /sales
+    - link "매입 관리":
+      - /url: /purchases
+    - link "수금 관리":
+      - /url: /collections
+    - link "지급 관리":
+      - /url: /payments
+    - link "회계 요약":
+      - /url: /accounting/summary
+    - button "시스템 모니터링"
+    - link "모니터링 대시보드":
+      - /url: /monitoring
+    - link "헬스체크":
+      - /url: /monitoring/health
+    - link "사용자 관리":
+      - /url: /admin/users
+    - link "계약 관리":
+      - /url: /contracts
+  - button "설정"
+- main:
+  - heading "재고 이력" [level=1]
+  - paragraph: 품목별 재고 변동 이력을 조회합니다
+  - button "CSV 내보내기" [disabled]
+  - paragraph: 총 거래 건수
+  - paragraph: "0"
+  - paragraph: 총 재고금액
+  - paragraph: ₩0
+  - paragraph: 총 입고수량
+  - paragraph: 0 EA
+  - paragraph: 총 출고수량
+  - paragraph: 0 EA
+  - text: 품목 선택
+  - combobox:
+    - option "전체 품목" [selected]
+  - text: 시작일
+  - textbox: 2025-09-29
+  - text: 종료일
+  - textbox: 2025-10-29
+  - text: 검색
+  - textbox "품목명, 거래처..."
+  - button "조회 중..." [disabled]
+  - table:
+    - rowgroup:
+      - row "거래일자 ↓ 구분 품번/품명 수량 단가 금액 거래처 참조번호":
+        - cell "거래일자 ↓"
+        - cell "구분"
+        - cell "품번/품명"
+        - cell "수량"
+        - cell "단가"
+        - cell "금액"
+        - cell "거래처"
+        - cell "참조번호"
+    - rowgroup:
+      - row "재고 이력을 조회하고 있습니다...":
+        - cell "재고 이력을 조회하고 있습니다..."
+- button "Open Tanstack query devtools":
+  - img
+- alert
+```

@@ -34,7 +34,7 @@ const getTransactionTypeInfo = (type: string) => {
     case '입고':
       return {
         label: '입고',
-        icon: ,
+        icon: <Building2 className="w-4 h-4" />,
         color: 'text-gray-700 dark:text-gray-400',
         bgColor: 'bg-gray-100 dark:bg-gray-800',
         borderColor: 'border-gray-300 dark:border-gray-600'
@@ -42,7 +42,7 @@ const getTransactionTypeInfo = (type: string) => {
     case '출고':
       return {
         label: '출고',
-        icon: ,
+        icon: <Building2 className="w-4 h-4" />,
         color: 'text-gray-800 dark:text-gray-300',
         bgColor: 'bg-gray-200 dark:bg-gray-700',
         borderColor: 'border-gray-400 dark:border-gray-600'
@@ -50,7 +50,7 @@ const getTransactionTypeInfo = (type: string) => {
     case '생산입고':
       return {
         label: '생산입고',
-        icon: ,
+        icon: <Clock className="w-4 h-4" />,
         color: 'text-gray-600',
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200'
@@ -58,7 +58,7 @@ const getTransactionTypeInfo = (type: string) => {
     case '생산출고':
       return {
         label: '생산출고',
-        icon: ,
+        icon: <Clock className="w-4 h-4" />,
         color: 'text-gray-600',
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200'
@@ -74,7 +74,7 @@ const getTransactionTypeInfo = (type: string) => {
     default:
       return {
         label: type,
-        icon: ,
+        icon: <Clock className="w-4 h-4" />,
         color: 'text-gray-600',
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200'

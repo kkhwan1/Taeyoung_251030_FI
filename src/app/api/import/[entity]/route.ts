@@ -8,6 +8,12 @@ import {
   mapCompanyType,
   mapTransactionType
 } from '@/lib/import-map';
+import {
+  mapExcelHeaders,
+  companiesHeaderMapping,
+  itemsHeaderMapping,
+  bomHeaderMapping
+} from '@/lib/excel-header-mapper';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,10 +72,33 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Convert Excel data using mapping
+    // 새 헤더 매핑 규칙 사용 (excel-header-mapper.ts)
+    let headerMapping: Record<string, string> | null = null;
+    switch (entity) {
+      case 'items':
+        headerMapping = itemsHeaderMapping;
+        break;
+      case 'companies':
+        headerMapping = companiesHeaderMapping;
+        break;
+      case 'bom':
+        headerMapping = bomHeaderMapping;
+        break;
+    }
+
+    // 헤더 매핑 적용 (한글 헤더 → 영문 필드명)
+    let mappedData: Record<string, any>[];
+    if (headerMapping) {
+      mappedData = mapExcelHeaders(rawData as Record<string, any>[], headerMapping);
+    } else {
+      // 기존 방식 사용 (하위 호환성)
+      mappedData = rawData as Record<string, any>[];
+    }
+
+    // Convert Excel data using mapping (타입 변환 및 기본값 처리)
     let convertedData: Record<string, any>[];
     try {
-      convertedData = convertExcelData(rawData as Record<string, any>[], mapping);
+      convertedData = convertExcelData(mappedData, mapping);
     } catch (error: unknown) {
       return NextResponse.json({
         success: false,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Calendar,
   Search,
@@ -18,7 +19,11 @@ interface StockHistoryItem {
   item_name: string;
   transaction_type: string;
   quantity_change: number;
+  quantity?: number;
   stock_balance: number;
+  unit?: string;
+  unit_price?: number;
+  total_amount?: number;
   shortage?: number; // 부족 수량 (새 필드)
   company_name?: string;
   reference_number?: string;
@@ -33,6 +38,7 @@ interface StockItem {
 }
 
 export default function StockHistoryPage() {
+  const router = useRouter();
   const [stockHistory, setStockHistory] = useState<StockHistoryItem[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,6 +46,9 @@ export default function StockHistoryPage() {
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   // Initialize date range (last 30 days)
   useEffect(() => {
@@ -69,8 +78,8 @@ export default function StockHistoryPage() {
   }, []);
 
   // Fetch stock history
-  const fetchStockHistory = async () => {
-    setLoading(true);
+  const fetchStockHistory = async (showLoading: boolean = true) => {
+    if (showLoading) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (selectedItem) params.append('item_id', selectedItem);
@@ -83,15 +92,19 @@ export default function StockHistoryPage() {
       if (result.success) {
         setStockHistory(result.data.history || []);
       } else {
-        alert(`재고 이력 조회 실패: ${result.error}`);
+        if (showLoading) {
+          alert(`재고 이력 조회 실패: ${result.error}`);
+        }
         setStockHistory([]);
       }
     } catch (error) {
       console.error('재고 이력 조회 오류:', error);
-      alert('재고 이력 조회 중 오류가 발생했습니다.');
+      if (showLoading) {
+        alert('재고 이력 조회 중 오류가 발생했습니다.');
+      }
       setStockHistory([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -102,12 +115,48 @@ export default function StockHistoryPage() {
     }
   }, [selectedItem, dateFrom, dateTo]);
 
+  // 실시간 자동 업데이트 (5초마다)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (dateFrom && dateTo) {
+        fetchStockHistory(false); // showLoading=false로 깜빡임 방지
+      }
+    }, 5000); // 5초마다 업데이트
+
+    return () => clearInterval(interval);
+  }, [dateFrom, dateTo, selectedItem]);
+
   // Filter history by search term
-  const filteredHistory = stockHistory.filter(item =>
-    item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.item_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.company_name && item.company_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredHistory = stockHistory
+    .filter(item =>
+      item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.item_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.company_name && item.company_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const dateA = a.transaction_date || a.created_at;
+      const dateB = b.transaction_date || b.created_at;
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      
+      const timeA = new Date(dateA).getTime();
+      const timeB = new Date(dateB).getTime();
+      
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+  const paginatedHistory = filteredHistory.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
+
+  // 페이지당 항목 수 변경 시 첫 페이지로 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   // Get transaction type display info
   const getTransactionTypeInfo = (type: string) => {
@@ -178,7 +227,7 @@ export default function StockHistoryPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <History className="w-6 h-6 sm:w-8 sm:h-8 text-gray-800 dark:text-gray-100" />
@@ -190,49 +239,43 @@ export default function StockHistoryPage() {
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            
-            <div>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">입고 건수</p>
-              <p className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
-                {filteredHistory.filter(item => 
-                  item.transaction_type === 'IN' || 
-                  item.transaction_type === '입고' || 
+          <div>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">총 재고금액</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
+              {filteredHistory.reduce((sum, item) => sum + (item.total_amount || 0), 0).toLocaleString('ko-KR', { style: 'currency', currency: 'KRW' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+          <div>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">총 입고수량</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
+              {filteredHistory
+                .filter(item =>
+                  item.transaction_type === 'IN' ||
+                  item.transaction_type === '입고' ||
                   item.transaction_type === '생산입고'
-                ).length}
-              </p>
-            </div>
+                )
+                .reduce((sum, item) => sum + Math.abs(item.quantity || item.quantity_change || 0), 0)
+                .toLocaleString('ko-KR')} EA
+            </p>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            
-            <div>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">출고 건수</p>
-              <p className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
-                {filteredHistory.filter(item => 
-                  item.transaction_type === 'OUT' || 
-                  item.transaction_type === '출고' || 
+          <div>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">총 출고수량</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
+              {filteredHistory
+                .filter(item =>
+                  item.transaction_type === 'OUT' ||
+                  item.transaction_type === '출고' ||
                   item.transaction_type === '생산출고'
-                ).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <RotateCcw className="w-6 h-6 sm:w-8 sm:h-8 text-gray-800 dark:text-gray-100" />
-            <div>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">조정 건수</p>
-              <p className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
-                {filteredHistory.filter(item => 
-                  item.transaction_type === 'ADJUST' || 
-                  item.transaction_type === '조정'
-                ).length}
-              </p>
-            </div>
+                )
+                .reduce((sum, item) => sum + Math.abs(item.quantity || item.quantity_change || 0), 0)
+                .toLocaleString('ko-KR')} EA
+            </p>
           </div>
         </div>
       </div>
@@ -324,32 +367,40 @@ export default function StockHistoryPage() {
       {/* History Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed">
+          <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  일자
+                <th
+                  className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle"
+                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                >
+                  <div className="flex items-center gap-1">
+                    거래일자
+                    <span className="ml-1">
+                      {sortOrder === 'desc' ? '↓' : '↑'}
+                    </span>
+                  </div>
                 </th>
-                <th className="w-[120px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  품목코드
+                <th className="w-[100px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  구분
                 </th>
-                <th className="w-[200px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  품목명
+                <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  품번/품명
                 </th>
-                <th className="w-[100px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  거래유형
+                <th className="w-[100px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  수량
                 </th>
-                <th className="w-[100px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  변동수량
+                <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  단가
                 </th>
-                <th className="w-[100px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  재고잔량
+                <th className="w-[130px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  금액
                 </th>
-                <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
                   거래처
                 </th>
-                <th className="w-[200px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  비고
+                <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  참조번호
                 </th>
               </tr>
             </thead>
@@ -363,7 +414,7 @@ export default function StockHistoryPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredHistory.length === 0 ? (
+              ) : paginatedHistory.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-3 sm:px-6 py-8 text-center">
                     <div className="text-gray-500 dark:text-gray-400">
@@ -374,70 +425,70 @@ export default function StockHistoryPage() {
                   </td>
                 </tr>
               ) : (
-                filteredHistory.map((item) => {
+                paginatedHistory.map((item) => {
                   const typeInfo = getTransactionTypeInfo(item.transaction_type);
+                  const date = item.transaction_date || item.created_at;
+                  const d = date ? new Date(date) : null;
+                  const quantity = item.quantity || item.quantity_change || 0;
+                  const unitPrice = item.unit_price || 0;
+                  const totalAmount = item.total_amount || 0;
 
                   return (
-                    <tr key={item.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-white truncate">
-                          {item.created_at 
-                            ? new Date(item.created_at).toLocaleString('ko-KR', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : new Date(item.transaction_date).toLocaleString('ko-KR', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                          }
-                        </div>
+                    <tr
+                      key={item.transaction_id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                      onClick={() => {
+                        const transactionType = item.transaction_type === '생산입고' ? 'production' :
+                                                item.transaction_type === '입고' ? 'receiving' :
+                                                item.transaction_type === '출고' ? 'shipping' : 'production';
+                        router.push(`/inventory?tab=${transactionType}&transaction_id=${item.transaction_id}`);
+                      }}
+                    >
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap align-middle">
+                        {d ? (
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            <div className="flex flex-col">
+                              <span>
+                                {d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, '0')}.{String(d.getDate()).padStart(2, '0')}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {String(d.getHours()).padStart(2, '0')}:{String(d.getMinutes()).padStart(2, '0')}:{String(d.getSeconds()).padStart(2, '0')}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
+                        )}
                       </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={item.item_code}>
-                          {item.item_code}
-                        </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-white truncate" title={item.item_name}>
-                          {item.item_name}
-                        </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden align-middle">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full truncate ${typeInfo.color}`}>
                           {typeInfo.label}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-right text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
-                          {item.quantity_change > 0 ? '+' : ''}{item.quantity_change.toLocaleString()}
-                          {item.shortage && item.shortage > 0 && (
-                            <span className="text-orange-600 ml-1">
-                              (부족: {item.shortage.toLocaleString()})
-                            </span>
-                          )}
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden align-middle">
+                        <div className="flex flex-col">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={item.item_code}>
+                            {item.item_code}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={item.item_name}>
+                            {item.item_name}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-right text-sm text-gray-900 dark:text-white truncate">
-                          {item.stock_balance.toLocaleString()}
-                        </div>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right align-middle">
+                        {quantity > 0 ? '+' : ''}{quantity.toLocaleString('ko-KR')} {item.unit || 'EA'}
                       </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-white truncate" title={item.company_name || '-'}>
-                          {item.company_name || '-'}
-                        </div>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right align-middle">
+                        {unitPrice?.toLocaleString('ko-KR', { style: 'currency', currency: 'KRW' }) || '₩0'}
                       </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={item.notes || '-'}>
-                          {item.notes || '-'}
-                        </div>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right align-middle">
+                        {totalAmount?.toLocaleString('ko-KR', { style: 'currency', currency: 'KRW' }) || '₩0'}
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden text-sm text-gray-500 dark:text-gray-400 truncate align-middle" title={item.company_name || '-'}>
+                        {item.company_name || '-'}
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden text-sm text-gray-500 dark:text-gray-400 truncate align-middle" title={item.reference_number || item.reference_no || '-'}>
+                        {item.reference_number || item.reference_no || '-'}
                       </td>
                     </tr>
                   );
@@ -446,6 +497,68 @@ export default function StockHistoryPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* 페이지네이션 컨트롤 */}
+        {paginatedHistory.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 gap-3">
+            {/* 페이지당 항목 수 선택 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700 dark:text-gray-300">페이지당:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value={30}>30개</option>
+                <option value={50}>50개</option>
+                <option value={70}>70개</option>
+                <option value={100}>100개</option>
+                <option value={130}>130개</option>
+              </select>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                총 {filteredHistory.length.toLocaleString()}개 중 {((currentPage - 1) * itemsPerPage + 1).toLocaleString()}-{Math.min(currentPage * itemsPerPage, filteredHistory.length).toLocaleString()}개 표시
+              </span>
+            </div>
+
+            {/* 페이지 이동 버튼 */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                처음
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                이전
+              </button>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {currentPage} / {totalPages || 1}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                다음
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages || 1)}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                마지막
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

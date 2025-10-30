@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Award
+  Award,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 
 interface TopNItem {
@@ -111,7 +113,7 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
     return (
       <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 p-6 ${className}`}>
         <h3 className="text-base font-semibold text-gray-800 dark:text-gray-300 mb-2 flex items-center gap-2 min-w-fit">
-          {isGainers ?  : }
+          {isGainers ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
           {isGainers ? `상위 ${count}개 상승` : `상위 ${count}개 하락`}
         </h3>
         <p className="text-sm text-gray-700 dark:text-gray-400">{error}</p>
@@ -125,9 +127,9 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 min-w-fit">
           {isGainers ? (
-            
+            <TrendingUp className="h-5 w-5" />
           ) : (
-            
+            <TrendingDown className="h-5 w-5" />
           )}
           {isGainers ? `상위 ${count}개 상승` : `상위 ${count}개 하락`}
         </h3>

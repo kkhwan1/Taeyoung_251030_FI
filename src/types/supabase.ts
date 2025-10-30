@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          audit_id: number
+          created_at: string
+          error_message: string | null
+          execution_time: number | null
+          ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          operation: string
+          record_id: number | null
+          status: string
+          table_name: string
+          user_agent: string | null
+          user_id: number | null
+        }
+        Insert: {
+          audit_id?: number
+          created_at?: string
+          error_message?: string | null
+          execution_time?: number | null
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          operation: string
+          record_id?: number | null
+          status?: string
+          table_name: string
+          user_agent?: string | null
+          user_id?: number | null
+        }
+        Update: {
+          audit_id?: number
+          created_at?: string
+          error_message?: string | null
+          execution_time?: number | null
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          operation?: string
+          record_id?: number | null
+          status?: string
+          table_name?: string
+          user_agent?: string | null
+          user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       bom: {
         Row: {
           bom_id: number
@@ -435,6 +491,7 @@ export type Database = {
           email: string | null
           fax: string | null
           is_active: boolean | null
+          payment_terms: number | null
           phone: string | null
           representative: string | null
           updated_at: string | null
@@ -455,6 +512,7 @@ export type Database = {
           email?: string | null
           fax?: string | null
           is_active?: boolean | null
+          payment_terms?: number | null
           phone?: string | null
           representative?: string | null
           updated_at?: string | null
@@ -475,6 +533,7 @@ export type Database = {
           email?: string | null
           fax?: string | null
           is_active?: boolean | null
+          payment_terms?: number | null
           phone?: string | null
           representative?: string | null
           updated_at?: string | null
@@ -503,30 +562,51 @@ export type Database = {
           document_id: number
           document_type: string
           document_url: string
+          file_name: string | null
+          file_path: string | null
           file_size: number
+          is_active: boolean | null
+          mime_type: string | null
           original_filename: string
           page_count: number | null
+          updated_at: string | null
           uploaded_at: string | null
+          uploaded_by: number | null
+          version: number | null
         }
         Insert: {
           contract_id: number
           document_id?: number
           document_type: string
           document_url: string
+          file_name?: string | null
+          file_path?: string | null
           file_size: number
+          is_active?: boolean | null
+          mime_type?: string | null
           original_filename: string
           page_count?: number | null
+          updated_at?: string | null
           uploaded_at?: string | null
+          uploaded_by?: number | null
+          version?: number | null
         }
         Update: {
           contract_id?: number
           document_id?: number
           document_type?: string
           document_url?: string
+          file_name?: string | null
+          file_path?: string | null
           file_size?: number
+          is_active?: boolean | null
+          mime_type?: string | null
           original_filename?: string
           page_count?: number | null
+          updated_at?: string | null
           uploaded_at?: string | null
+          uploaded_by?: number | null
+          version?: number | null
         }
         Relationships: [
           {
@@ -536,48 +616,70 @@ export type Database = {
             referencedRelation: "contracts"
             referencedColumns: ["contract_id"]
           },
+          {
+            foreignKeyName: "contract_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       contracts: {
         Row: {
           company_id: number
-          contract_date: string
+          contract_date: string | null
           contract_id: number
+          contract_name: string | null
           contract_no: string
+          contract_type: string | null
           created_at: string | null
+          created_by: number | null
           end_date: string
+          is_active: boolean | null
           notes: string | null
           searchable_text: string | null
           start_date: string
           status: string
+          terms: string | null
           total_amount: number
           updated_at: string | null
         }
         Insert: {
           company_id: number
-          contract_date: string
+          contract_date?: string | null
           contract_id?: number
+          contract_name?: string | null
           contract_no: string
+          contract_type?: string | null
           created_at?: string | null
+          created_by?: number | null
           end_date: string
+          is_active?: boolean | null
           notes?: string | null
           searchable_text?: string | null
           start_date: string
           status: string
+          terms?: string | null
           total_amount: number
           updated_at?: string | null
         }
         Update: {
           company_id?: number
-          contract_date?: string
+          contract_date?: string | null
           contract_id?: number
+          contract_name?: string | null
           contract_no?: string
+          contract_type?: string | null
           created_at?: string | null
+          created_by?: number | null
           end_date?: string
+          is_active?: boolean | null
           notes?: string | null
           searchable_text?: string | null
           start_date?: string
           status?: string
+          terms?: string | null
           total_amount?: number
           updated_at?: string | null
         }
@@ -596,13 +698,22 @@ export type Database = {
             referencedRelation: "v_monthly_accounting"
             referencedColumns: ["company_id"]
           },
+          {
+            foreignKeyName: "contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       inventory_transactions: {
         Row: {
+          arrival_date: string | null
           company_id: number | null
           created_at: string | null
           created_by: number | null
+          delivery_date: string | null
           description: string | null
           document_number: string | null
           expiry_date: string | null
@@ -626,9 +737,11 @@ export type Database = {
           warehouse_id: number | null
         }
         Insert: {
+          arrival_date?: string | null
           company_id?: number | null
           created_at?: string | null
           created_by?: number | null
+          delivery_date?: string | null
           description?: string | null
           document_number?: string | null
           expiry_date?: string | null
@@ -652,9 +765,11 @@ export type Database = {
           warehouse_id?: number | null
         }
         Update: {
+          arrival_date?: string | null
           company_id?: number | null
           created_at?: string | null
           created_by?: number | null
+          delivery_date?: string | null
           description?: string | null
           document_number?: string | null
           expiry_date?: string | null
@@ -731,38 +846,50 @@ export type Database = {
       }
       item_images: {
         Row: {
+          compression_ratio: number | null
           display_order: number | null
           file_name: string | null
           file_size: number | null
+          full_url: string | null
           image_id: number
           image_url: string
           is_primary: boolean | null
           item_id: number | null
+          medium_url: string | null
           mime_type: string | null
+          thumbnail_url: string | null
           updated_at: string | null
           uploaded_at: string | null
         }
         Insert: {
+          compression_ratio?: number | null
           display_order?: number | null
           file_name?: string | null
           file_size?: number | null
+          full_url?: string | null
           image_id?: number
           image_url: string
           is_primary?: boolean | null
           item_id?: number | null
+          medium_url?: string | null
           mime_type?: string | null
+          thumbnail_url?: string | null
           updated_at?: string | null
           uploaded_at?: string | null
         }
         Update: {
+          compression_ratio?: number | null
           display_order?: number | null
           file_name?: string | null
           file_size?: number | null
+          full_url?: string | null
           image_id?: number
           image_url?: string
           is_primary?: boolean | null
           item_id?: number | null
+          medium_url?: string | null
           mime_type?: string | null
+          thumbnail_url?: string | null
           updated_at?: string | null
           uploaded_at?: string | null
         }
@@ -1897,6 +2024,7 @@ export type Database = {
       users: {
         Row: {
           created_at: string | null
+          department: string | null
           email: string | null
           is_active: boolean | null
           name: string
@@ -1909,6 +2037,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          department?: string | null
           email?: string | null
           is_active?: boolean | null
           name: string
@@ -1921,6 +2050,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          department?: string | null
           email?: string | null
           is_active?: boolean | null
           name?: string
@@ -2316,26 +2446,48 @@ export type Database = {
           table_name: string
         }[]
       }
-      create_receiving_transaction: {
-        Args: {
-          p_company_id?: number
-          p_item_id: number
-          p_notes?: string
-          p_quantity: number
-          p_reference_number?: string
-          p_total_amount: number
-          p_transaction_date?: string
-          p_unit_price: number
-        }
-        Returns: {
-          current_stock: number
-          item_id: number
-          quantity: number
-          total_amount: number
-          transaction_id: number
-          unit_price: number
-        }[]
-      }
+      create_receiving_transaction:
+        | {
+            Args: {
+              p_company_id?: number
+              p_item_id: number
+              p_notes?: string
+              p_quantity: number
+              p_reference_number?: string
+              p_total_amount: number
+              p_transaction_date?: string
+              p_unit_price: number
+            }
+            Returns: {
+              current_stock: number
+              item_id: number
+              quantity: number
+              total_amount: number
+              transaction_id: number
+              unit_price: number
+            }[]
+          }
+        | {
+            Args: {
+              p_arrival_date?: string
+              p_company_id?: number
+              p_item_id: number
+              p_notes?: string
+              p_quantity: number
+              p_reference_number?: string
+              p_total_amount: number
+              p_transaction_date?: string
+              p_unit_price: number
+            }
+            Returns: {
+              current_stock: number
+              item_id: number
+              quantity: number
+              total_amount: number
+              transaction_id: number
+              unit_price: number
+            }[]
+          }
       exec_sql: { Args: { sql_query: string }; Returns: Json }
       execute_sql: {
         Args: { params?: Json; query_text: string }
@@ -2343,6 +2495,10 @@ export type Database = {
       }
       execute_transaction: { Args: { queries: Json }; Returns: Json }
       generate_collection_no: { Args: never; Returns: string }
+      generate_contract_no: {
+        Args: { p_contract_type: string }
+        Returns: string
+      }
       generate_payment_no: { Args: never; Returns: string }
       generate_purchase_no: { Args: never; Returns: string }
       generate_purchase_transaction_no: { Args: never; Returns: string }
@@ -2519,13 +2675,3 @@ export const Constants = {
     },
   },
 } as const
-
-// Type aliases for items table
-export type ItemInsert = Database['public']['Tables']['items']['Insert'];
-export type ItemRow = Database['public']['Tables']['items']['Row'];
-export type ItemUpdate = Database['public']['Tables']['items']['Update'];
-
-// Type aliases for item enums and codes
-export type ItemCategory = Database['public']['Enums']['item_category'];
-export type ItemTypeCode = 'RAW' | 'SUB' | 'FINISHED' | 'PRODUCT';
-export type MaterialTypeCode = 'COIL' | 'SHEET' | 'OTHER';

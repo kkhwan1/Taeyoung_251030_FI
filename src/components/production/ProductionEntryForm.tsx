@@ -17,6 +17,10 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import BOMDeductionResults from './BOMDeductionResults';
+import { useBomCheck } from '@/lib/hooks/useBomCheck';
+import { useDebounce } from '@/lib/hooks/useDebounce';
+import BOMPreviewPanel from '@/components/inventory/BOMPreviewPanel';
+import CompanySelect from '@/components/CompanySelect';
 
 const productionSchema = z.object({
   transaction_date: z.string().min(1, '거래일자를 선택해주세요'),
@@ -24,6 +28,7 @@ const productionSchema = z.object({
   quantity: z.number().positive('수량은 0보다 커야 합니다'),
   unit_price: z.number().min(0, '단가는 0 이상이어야 합니다'),
   transaction_type: z.enum(['생산입고', '생산출고'], '거래유형을 선택해주세요'),
+  company_id: z.number().nullable().optional(),
   reference_number: z.string().optional(),
   notes: z.string().optional(),
   created_by: z.number().positive('작성자 ID가 필요합니다')
@@ -64,19 +69,26 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
   const [stockError, setStockError] = useState<string | null>(null);
   const toast = useToastNotification();
 
+  // BOM 체크 훅 추가
+  const { data: bomCheckData, loading: bomLoading, error: bomError, checkBom } = useBomCheck();
+  const debouncedCheckBom = useDebounce(checkBom, 500);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-    setValue,
-    watch
+        setValue,
+    watch,
+    getValues
   } = useForm<ProductionFormData>({
     resolver: zodResolver(productionSchema),
     defaultValues: {
       transaction_date: new Date().toISOString().split('T')[0],
       transaction_type: '생산입고',
-      created_by: 1 // admin user_id from users table
+      created_by: 1, // admin user_id from users table
+      company_id: null,
+      quantity: 1
     }
   });
 
@@ -107,6 +119,16 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
     fetchItems();
   }, [toast]);
 
+  // BOM 체크 - 품목과 수량이 변경될 때 실시간으로 확인
+  useEffect(() => {
+    if (selectedItemId && quantity && Number(quantity) > 0) {
+      const productItemId = parseInt(selectedItemId);
+      if (!isNaN(productItemId)) {
+        debouncedCheckBom(productItemId, Number(quantity));
+      }
+    }
+  }, [selectedItemId, quantity, debouncedCheckBom]);
+
   const onSubmit = async (data: ProductionFormData) => {
     setLoading(true);
     setStockError(null);
@@ -122,7 +144,8 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
           ...data,
           item_id: parseInt(data.item_id),
           quantity: Number(data.quantity),
-          unit_price: Number(data.unit_price)
+          unit_price: Number(data.unit_price),
+          company_id: data.company_id ? Number(data.company_id) : null
         }),
       });
 
@@ -159,8 +182,9 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
           transaction_date: new Date().toISOString().split('T')[0],
           transaction_type: '생산입고',
           created_by: 1, // admin user_id from users table
+          company_id: null,
           item_id: '',
-          quantity: undefined,
+          quantity: 1,
           unit_price: undefined,
           reference_number: '',
           notes: ''
@@ -264,14 +288,44 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
             )}
           </div>
 
-          {/* Reference Number */}
+          {/* Company/Customer */}
           <div className="space-y-2">
-            <Label htmlFor="reference_number">참조번호</Label>
-            <Input
-              id="reference_number"
-              placeholder="예: PROD-2025-001"
-              {...register('reference_number')}
+            <Label htmlFor="company_id">고객사 (주문처)</Label>
+            <CompanySelect
+              value={watch('company_id') || null}
+              onChange={(value) => setValue('company_id', value ? Number(value) : null)}
+              companyType="CUSTOMER"
+              placeholder="고객사를 선택하세요 (선택사항)"
             />
+          </div>
+
+          {/* Reference Number / Production Order Number */}
+          <div className="space-y-2">
+            <Label htmlFor="reference_number">생산오더 번호 (참조번호)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="reference_number"
+                placeholder="예: PROD-2025-001"
+                {...register('reference_number')}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const now = new Date();
+                  const year = now.getFullYear();
+                  const month = String(now.getMonth() + 1).padStart(2, '0');
+                  const day = String(now.getDate()).padStart(2, '0');
+                  const timestamp = Date.now().toString().slice(-6);
+                  const generatedRef = `PRD-${year}${month}${day}-${timestamp}`;
+                  setValue('reference_number', generatedRef);
+                }}
+                title="자동 생성"
+              >
+                자동 생성
+              </Button>
+            </div>
           </div>
 
           {/* Quantity */}
@@ -283,8 +337,9 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
               id="quantity"
               type="number"
               step="0.01"
-              placeholder="0"
-              {...register('quantity', { valueAsNumber: true })}
+              min="1"
+              placeholder="1"
+              {...register('quantity', { valueAsNumber: true, setValueAs: (v) => v === '' ? 1 : Number(v) })}
             />
             {errors.quantity && (
               <p className="text-sm text-destructive">{errors.quantity.message}</p>
@@ -329,6 +384,21 @@ export default function ProductionEntryForm({ onSuccess }: ProductionEntryFormPr
             {...register('notes')}
           />
         </div>
+
+        {/* BOM 분석 결과 미리보기 */}
+        {selectedItemId && quantity && Number(quantity) > 0 && (
+          <BOMPreviewPanel
+            bomCheckData={bomCheckData}
+            loading={bomLoading}
+            error={bomError}
+            onRefresh={() => {
+              const productItemId = parseInt(selectedItemId);
+              if (!isNaN(productItemId)) {
+                checkBom(productItemId, Number(quantity));
+              }
+            }}
+          />
+        )}
 
         {/* Submit Button */}
         <div className="flex justify-end gap-4">

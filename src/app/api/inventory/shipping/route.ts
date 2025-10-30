@@ -58,7 +58,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     logger.info('Inventory shipping POST request', { endpoint });
-    const body = await request.json();
+    
+    // Parse request body with error handling (Korean UTF-8 support)
+    let body;
+    try {
+      const text = await request.text();
+      body = JSON.parse(text);
+    } catch (parseError) {
+      logger.error('JSON parse error', parseError as Error, { endpoint });
+      return NextResponse.json({
+        success: false,
+        error: '잘못된 JSON 형식입니다.'
+      }, { status: 400 });
+    }
+
     const {
       transaction_date,
       item_id,
@@ -69,26 +82,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       lot_no,
       expiry_date,
       location,
+      delivery_date,
       notes,
       created_by
     } = body;
 
     // 필수 필드 검증
-    if (!transaction_date || !item_id || !quantity || unit_price === undefined || !created_by) {
+    if (!transaction_date || !item_id || quantity === undefined || unit_price === undefined || !created_by) {
       return NextResponse.json({
         success: false,
         error: '필수 필드가 누락되었습니다. (거래일자, 품목, 수량, 단가, 작성자 필수)'
       }, { status: 400 });
     }
 
-    if (quantity <= 0) {
+    // 경계값 검증 (수량)
+    if (typeof quantity !== 'number' || quantity <= 0) {
       return NextResponse.json({
         success: false,
         error: '수량은 0보다 커야 합니다.'
       }, { status: 400 });
     }
 
-    if (unit_price < 0) {
+    // 경계값 검증 (단가)
+    if (typeof unit_price !== 'number' || unit_price < 0) {
       return NextResponse.json({
         success: false,
         error: '단가는 0 이상이어야 합니다.'
@@ -158,6 +174,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         unit_price,
         total_amount,
         location,
+        delivery_date,
         lot_number: lot_no,
         expiry_date,
         reference_number,
@@ -218,7 +235,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
+    // Parse request body with error handling (Korean UTF-8 support)
+    let body;
+    try {
+      const text = await request.text();
+      body = JSON.parse(text);
+    } catch (parseError) {
+      return NextResponse.json({
+        success: false,
+        error: '잘못된 JSON 형식입니다.'
+      }, { status: 400 });
+    }
     const { id, ...updateData } = body;
 
     if (!id) {

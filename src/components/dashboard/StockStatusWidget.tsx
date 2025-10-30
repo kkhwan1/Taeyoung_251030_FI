@@ -45,7 +45,7 @@ const getStockStatus = (currentStock: number, safetyStock: number): StockStatusI
       status: 'warning',
       color: 'text-amber-900 dark:text-amber-300',
       bgColor: 'bg-amber-50 dark:bg-amber-900/20',
-      icon: ,
+      icon: <XCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />,
       label: '부족'
     };
   } else {

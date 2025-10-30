@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseExcelFile } from '@/lib/excel-utils';
+import { mapExcelHeaders, itemsHeaderMapping } from '@/lib/excel-header-mapper';
 import { ExcelItemData, ValidationError, UploadResult, VALID_ITEM_TYPES, VALID_COATING_STATUSES } from '@/types/upload';
 import formidable from 'formidable';
 import fs from 'fs';
@@ -216,12 +217,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // 한글 헤더를 영문 필드명으로 매핑
+    const mappedData = mapExcelHeaders(rawData, itemsHeaderMapping);
+
     // 데이터 유효성 검증
     const validItems: ExcelItemData[] = [];
     const allErrors: ValidationError[] = [];
 
-    for (let i = 0; i < rawData.length; i++) {
-      const { item, errors } = validateItemData(rawData[i], i);
+    for (let i = 0; i < mappedData.length; i++) {
+      const { item, errors } = validateItemData(mappedData[i], i);
 
       if (errors.length > 0) {
         allErrors.push(...errors);
@@ -237,7 +241,7 @@ export async function POST(request: NextRequest) {
     // 결과 생성
     const result: UploadResult = {
       success: allErrors.length === 0 && duplicates.length === 0,
-      total_rows: rawData.length,
+      total_rows: mappedData.length,
       success_count: 0,
       error_count: allErrors.length + duplicates.length,
       errors: allErrors,

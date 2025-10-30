@@ -10,6 +10,10 @@ import {
   mapTransactionType,
   mapCompanyType
 } from '@/lib/import-map';
+import {
+  mapExcelHeaders,
+  inventoryHeaderMapping
+} from '@/lib/excel-header-mapper';
 
 // Disable body parsing for file upload
 export const dynamic = 'force-dynamic';
@@ -54,10 +58,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Convert Excel data using mapping
+    // 새 헤더 매핑 규칙 적용 (한글 헤더 → 영문 필드명)
+    const mappedData = mapExcelHeaders(rawData as Record<string, any>[], inventoryHeaderMapping);
+
+    // Convert Excel data using mapping (타입 변환 및 기본값 처리)
     let convertedData: Record<string, any>[];
     try {
-      convertedData = convertExcelData(rawData as Record<string, any>[], inventoryMapping);
+      convertedData = convertExcelData(mappedData, inventoryMapping);
     } catch (error: unknown) {
       return NextResponse.json({
         success: false,
@@ -206,7 +213,7 @@ export async function POST(request: NextRequest) {
 // GET method for downloading template
 export async function GET() {
   try {
-    // Create template data with Korean headers
+    // 새 헤더 매핑 규칙 사용 (inventoryHeaderMapping과 일치)
     const templateData = [{
       '거래일자': '2024-01-01',
       '거래유형': '입고',

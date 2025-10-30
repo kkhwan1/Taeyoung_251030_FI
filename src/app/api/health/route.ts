@@ -33,6 +33,7 @@ export async function GET() {
       message: dbHealthy ? 'Turbopack is working perfectly! No more file lock errors!' : 'Database connection failed',
       timestamp: new Date().toISOString(),
       responseTime: responseTime,
+      uptime: process.uptime() * 1000, // 밀리초 단위 (프론트엔드에서 직접 사용)
       checks: {
         database: {
           status: dbHealthy ? 'healthy' : 'unhealthy',
@@ -58,7 +59,8 @@ export async function GET() {
           platform: process.platform,
           architecture: process.arch,
           environment: process.env.NODE_ENV || 'development',
-          pid: process.pid
+          pid: process.pid,
+          uptime: process.uptime() * 1000 // 밀리초 단위로 변환
         }
       },
       version: '1.0.0',

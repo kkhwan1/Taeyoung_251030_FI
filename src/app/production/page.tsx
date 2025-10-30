@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import MainLayout from '@/components/layout/MainLayout';
 import ProductionEntryForm from '@/components/production/ProductionEntryForm';
 import ProductionHistoryTable from '@/components/production/ProductionHistoryTable';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +15,7 @@ export default function ProductionPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">생산 관리</h1>
@@ -61,7 +59,6 @@ export default function ProductionPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </MainLayout>
+    </div>
   );
 }

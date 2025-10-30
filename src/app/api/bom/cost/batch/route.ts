@@ -9,7 +9,9 @@ interface BatchBomCostRequest {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body: BatchBomCostRequest = await request.json();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body: BatchBomCostRequest = JSON.parse(text);
     const { item_ids, price_month } = body;
 
     if (!item_ids || !Array.isArray(item_ids) || item_ids.length === 0) {

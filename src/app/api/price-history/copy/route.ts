@@ -1,118 +1,138 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase';
-import { handleAPIError } from '@/lib/api-utils';
+import { getSupabaseClient } from '@/lib/db-unified';
+import { APIError, handleAPIError } from '@/lib/api-utils';
+import { getCurrentUser } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { metricsCollector } from '@/lib/metrics';
 
 /**
- * 전월 단가 복사 API
  * POST /api/price-history/copy
+ * 단가 이력 복사 (이전 월에서 다음 월로)
  * 
- * Body:
+ * Request body:
  * {
- *   from_month: string; // YYYY-MM-DD 형식
- *   to_month: string;   // YYYY-MM-DD 형식
- *   created_by: string;
+ *   fromMonth: string,  // YYYY-MM 형식
+ *   toMonth: string     // YYYY-MM 형식
  * }
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const startTime = Date.now();
+  const endpoint = '/api/price-history/copy';
+
   try {
-    let body;
-    try {
-      body = await request.json();
-    } catch (jsonError) {
-      return NextResponse.json(
-        { success: false, error: '잘못된 JSON 형식입니다.' },
-        { status: 400 }
-      );
-    }
-
-    const { from_month, to_month, created_by } = body;
-
-    // 입력 검증
-    if (!from_month) {
-      return NextResponse.json(
-        { success: false, error: '복사할 월(from_month)이 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    if (!to_month) {
-      return NextResponse.json(
-        { success: false, error: '복사될 월(to_month)이 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    if (!created_by) {
-      return NextResponse.json(
-        { success: false, error: '작성자가 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
+    // 권한 체크 (관대하게 처리)
+    const user = await getCurrentUser(request).catch(() => null);
+    
+    logger.info('Price history copy POST request', { endpoint });
     const supabase = getSupabaseClient();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body = JSON.parse(text);
 
-    // 1. from_month의 모든 단가 조회
-    const { data: prevPrices, error: fetchError } = await supabase
+    const { fromMonth, toMonth } = body;
+
+    if (!fromMonth || !toMonth) {
+      throw new APIError('fromMonth와 toMonth가 필요합니다.', 400);
+    }
+
+    // 월 형식 검증 및 DATE 형식으로 변환
+    let normalizedFromMonth = fromMonth;
+    let normalizedToMonth = toMonth;
+    
+    if (fromMonth.length > 7) {
+      normalizedFromMonth = fromMonth.substring(0, 7);
+    }
+    if (toMonth.length > 7) {
+      normalizedToMonth = toMonth.substring(0, 7);
+    }
+
+    if (!/^\d{4}-\d{2}$/.test(normalizedFromMonth) || !/^\d{4}-\d{2}$/.test(normalizedToMonth)) {
+      throw new APIError('월은 YYYY-MM 형식이어야 합니다.', 400);
+    }
+
+    const fromMonthDate = `${normalizedFromMonth}-01`;
+    const toMonthDate = `${normalizedToMonth}-01`;
+
+    // 1. 이전 월의 단가 이력 조회
+    const { data: fromHistory, error: fetchError } = await supabase
       .from('item_price_history')
-      .select('*')
-      .eq('price_month', from_month);
+      .select('item_id, unit_price, note')
+      .eq('price_month', fromMonthDate);
 
     if (fetchError) {
-      throw new Error(`이전 월 단가 조회 실패: ${fetchError.message}`);
+      throw new APIError('이전 월의 단가 이력을 조회하지 못했습니다.', 500, fetchError.message);
     }
 
-    if (!prevPrices || prevPrices.length === 0) {
+    if (!fromHistory || fromHistory.length === 0) {
       return NextResponse.json({
         success: true,
-        data: {
-          count: 0,
-          from_month,
-          to_month,
-          created_by
-        },
-        message: `${from_month}에 저장된 단가가 없습니다.`
+        message: '복사할 단가 이력이 없습니다.',
+        data: [],
       });
     }
 
-    // 2. to_month에 복사 (UPSERT)
-    const results = await Promise.all(
-      prevPrices.map(async (price) => {
-        const { data, error } = await supabase
-          .from('item_price_history')
-          .upsert({
-            item_id: price.item_id,
-            price_month: to_month,
-            unit_price: price.unit_price,
-            note: price.note,
-            created_by,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'item_id,price_month'
-          })
-          .select()
-          .single();
+    // 2. 대상 월의 기존 데이터 확인
+    const itemIds = fromHistory.map((h: any) => h.item_id);
+    const { data: existing, error: existingError } = await supabase
+      .from('item_price_history')
+      .select('item_id')
+      .eq('price_month', toMonthDate)
+      .in('item_id', itemIds);
 
-        if (error) {
-          throw new Error(`단가 복사 실패 (item_id: ${price.item_id}): ${error.message}`);
-        }
+    if (existingError) {
+      throw new APIError('기존 단가 이력을 확인하지 못했습니다.', 500, existingError.message);
+    }
 
-        return data;
-      })
-    );
+    const existingItemIds = new Set((existing || []).map((e: any) => e.item_id));
+
+    // 3. 복사할 데이터 준비 (기존 데이터가 없는 것만)
+    const toInsert = fromHistory
+      .filter((h: any) => !existingItemIds.has(h.item_id))
+      .map((h: any) => ({
+        item_id: h.item_id,
+        price_month: toMonthDate,
+        unit_price: h.unit_price,
+        note: h.note,
+        created_by: user?.email || null,
+      }));
+
+    if (toInsert.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: '모든 항목이 이미 존재합니다.',
+        data: [],
+      });
+    }
+
+    // 4. 단가 이력 삽입
+    const { data: inserted, error: insertError } = await supabase
+      .from('item_price_history')
+      .insert(toInsert)
+      .select();
+
+    if (insertError) {
+      throw new APIError('단가 이력을 복사하지 못했습니다.', 500, insertError.message);
+    }
+
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, false);
+    logger.info('Price history copy POST success', { endpoint, duration, fromMonth, toMonth, count: inserted?.length || 0 });
 
     return NextResponse.json({
       success: true,
-      data: {
-        count: results.length,
-        from_month,
-        to_month,
-        created_by
+      message: `${fromMonth}의 단가 이력을 ${toMonth}로 복사했습니다.`,
+      data: inserted || [],
+      stats: {
+        copied: inserted?.length || 0,
+        skipped: existingItemIds.size,
       },
-      message: `${from_month}의 ${results.length}개 품목 단가를 ${to_month}로 복사했습니다.`
     });
-
   } catch (error) {
-    console.error('[price-history/copy] POST error:', error);
+    const duration = Date.now() - startTime;
+    metricsCollector.trackRequest(endpoint, duration, true);
+    logger.error('Price history copy POST error', error as Error, { endpoint, duration });
+
     return handleAPIError(error);
   }
 }
+

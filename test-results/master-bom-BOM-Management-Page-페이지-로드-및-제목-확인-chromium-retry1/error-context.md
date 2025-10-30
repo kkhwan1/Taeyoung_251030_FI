@@ -1,0 +1,416 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - button "Toggle sidebar"
+  - text: TC
+  - heading "태창 ERP" [level=1]
+  - button "Notifications"
+  - button "Settings"
+  - button "Switch to dark mode"
+  - button "로그인"
+- complementary:
+  - navigation:
+    - button "대시보드"
+    - link "메인 대시보드":
+      - /url: /
+    - button "기준정보"
+    - link "품목관리":
+      - /url: /master/items
+    - link "거래처관리":
+      - /url: /master/companies
+    - link "BOM관리":
+      - /url: /master/bom
+    - link "월별 단가 관리":
+      - /url: /price-management
+    - button "재고관리"
+    - link "입고관리":
+      - /url: /inventory?tab=receiving
+    - link "생산관리":
+      - /url: /inventory?tab=production
+    - link "출고관리":
+      - /url: /inventory?tab=shipping
+    - button "재고현황"
+    - link "재고 현황":
+      - /url: /stock
+    - link "재고이력":
+      - /url: /stock/history
+    - link "재고보고서":
+      - /url: /stock/reports
+    - button "회계관리"
+    - link "매출 관리":
+      - /url: /sales
+    - link "매입 관리":
+      - /url: /purchases
+    - link "수금 관리":
+      - /url: /collections
+    - link "지급 관리":
+      - /url: /payments
+    - link "회계 요약":
+      - /url: /accounting/summary
+    - button "시스템 모니터링"
+    - link "모니터링 대시보드":
+      - /url: /monitoring
+    - link "헬스체크":
+      - /url: /monitoring/health
+    - link "사용자 관리":
+      - /url: /admin/users
+    - link "계약 관리":
+      - /url: /contracts
+  - button "설정"
+- main:
+  - heading "BOM 관리" [level=1]
+  - paragraph: 부품 구성표(Bill of Materials)를 관리합니다
+  - checkbox "자동 새로고침"
+  - text: 자동 새로고침
+  - button "새로고침"
+  - button "템플릿 다운로드"
+  - text: 업로드
+  - button "다운로드"
+  - button "인쇄"
+  - button "BOM 등록"
+  - textbox "품번, 품명으로 검색..."
+  - text: 기준 월
+  - textbox: 2025-10
+  - combobox:
+    - option "모든 레벨" [selected]
+    - option "Level 1"
+    - option "Level 2"
+    - option "Level 3"
+    - option "Level 4"
+    - option "Level 5"
+  - combobox:
+    - option "모든 품목" [selected]
+    - option "내부생산"
+    - option "외부구매"
+  - spinbutton
+  - text: ~
+  - spinbutton
+  - combobox:
+    - option "전체 모품목" [selected]
+  - checkbox "활성만 표시" [checked]
+  - text: 활성만 표시
+  - button "초기화"
+  - navigation:
+    - button "BOM 구조"
+    - button "코일 규격"
+    - button "원가 분석"
+  - table:
+    - rowgroup:
+      - row "모품번 모품명 자품번 자품명 소요량 단위 단가 (₩) 재료비 (₩) 비고 상태 작업":
+        - cell "모품번"
+        - cell "모품명"
+        - cell "자품번"
+        - cell "자품명"
+        - cell "소요량"
+        - cell "단위"
+        - cell "단가 (₩)"
+        - cell "재료비 (₩)"
+        - cell "비고"
+        - cell "상태"
+        - cell "작업"
+    - rowgroup:
+      - row "65852-AT000 MEMBER ASSY-RR FLOOR CTR CROSS 65722-A3000 MBR RR FLR SIDE RH 1 EA 28,000 28,000 MEMBER ASSY 조립용 주요 부품 활성":
+        - cell "65852-AT000"
+        - cell "MEMBER ASSY-RR FLOOR CTR CROSS"
+        - cell "65722-A3000"
+        - cell "MBR RR FLR SIDE RH"
+        - cell "1"
+        - cell "EA"
+        - cell "28,000"
+        - cell "28,000"
+        - cell "MEMBER ASSY 조립용 주요 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 13194-08220 CAP NUT M8 2 EA 550 1,100 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "13194-08220"
+        - cell "CAP NUT M8"
+        - cell "2"
+        - cell "EA"
+        - cell "550"
+        - cell "1,100"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 65916-L1000 SUPT F/TANK BAND RR MTG BRK 1 EA 28,000 28,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "65916-L1000"
+        - cell "SUPT F/TANK BAND RR MTG BRK"
+        - cell "1"
+        - cell "EA"
+        - cell "28,000"
+        - cell "28,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 65639-3K000 MTG BOLT M10*60 1 EA 2,000 2,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "65639-3K000"
+        - cell "MTG BOLT M10*60"
+        - cell "1"
+        - cell "EA"
+        - cell "2,000"
+        - cell "2,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 65412-L1000 AREINF ASS’Y RR S/BELT ANCH LH 1 EA 45,000 45,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "65412-L1000"
+        - cell "AREINF ASS’Y RR S/BELT ANCH LH"
+        - cell "1"
+        - cell "EA"
+        - cell "45,000"
+        - cell "45,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 19353-07250 NUT (F/CAP형)7/16-2UNF 1 EA 800 800 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "19353-07250"
+        - cell "NUT (F/CAP형)7/16-2UNF"
+        - cell "1"
+        - cell "EA"
+        - cell "800"
+        - cell "800"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 65422-L1000 AREINF ASS’Y RR S/BELT ANCH RH 1 EA 45,000 45,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "65422-L1000"
+        - cell "AREINF ASS’Y RR S/BELT ANCH RH"
+        - cell "1"
+        - cell "EA"
+        - cell "45,000"
+        - cell "45,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 657N2-L1000 MBR CANISTER MTG LH 1 EA 15,000 15,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "657N2-L1000"
+        - cell "MBR CANISTER MTG LH"
+        - cell "1"
+        - cell "EA"
+        - cell "15,000"
+        - cell "15,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 13911-08001 W/NUT T형 M08*1.25P 1 EA 600 600 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "13911-08001"
+        - cell "W/NUT T형 M08*1.25P"
+        - cell "1"
+        - cell "EA"
+        - cell "600"
+        - cell "600"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 657P2-L1000 MBR CANISTER MTG RH 1 EA 15,000 15,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "657P2-L1000"
+        - cell "MBR CANISTER MTG RH"
+        - cell "1"
+        - cell "EA"
+        - cell "15,000"
+        - cell "15,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 655N6-L1000 BRKT RR STIFFNER BRACE LH 1 EA 18,000 18,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "655N6-L1000"
+        - cell "BRKT RR STIFFNER BRACE LH"
+        - cell "1"
+        - cell "EA"
+        - cell "18,000"
+        - cell "18,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 13917-10120 NUT (사1)M10*1.25P*12H 2 EA 700 1,400 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "13917-10120"
+        - cell "NUT (사1)M10*1.25P*12H"
+        - cell "2"
+        - cell "EA"
+        - cell "700"
+        - cell "1,400"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 655P6-L1000 BRKT RR STIFFNER BRACE RH 1 EA 18,000 18,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "655P6-L1000"
+        - cell "BRKT RR STIFFNER BRACE RH"
+        - cell "1"
+        - cell "EA"
+        - cell "18,000"
+        - cell "18,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 65832-L1000 MBR RR FLR RR CROSS 1 EA 32,000 32,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "65832-L1000"
+        - cell "MBR RR FLR RR CROSS"
+        - cell "1"
+        - cell "EA"
+        - cell "32,000"
+        - cell "32,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2000 PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH 65852-L2000 MBR-RR FLR CTR CROSS 1 EA 35,000 35,000 PNL & MBR ASSY 조립용 구성 부품 활성":
+        - cell "65630-L2000"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 BENCH"
+        - cell "65852-L2000"
+        - cell "MBR-RR FLR CTR CROSS"
+        - cell "1"
+        - cell "EA"
+        - cell "35,000"
+        - cell "35,000"
+        - cell "PNL & MBR ASSY 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2010 PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G 65916-L1000 SUPT F/TANK BAND RR MTG BRK 1 EA 28,000 28,000 PNL & MBR ASSY FOLDING 조립용 구성 부품 활성":
+        - cell "65630-L2010"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G"
+        - cell "65916-L1000"
+        - cell "SUPT F/TANK BAND RR MTG BRK"
+        - cell "1"
+        - cell "EA"
+        - cell "28,000"
+        - cell "28,000"
+        - cell "PNL & MBR ASSY FOLDING 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2010 PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G 65639-3K000 MTG BOLT M10*60 1 EA 2,000 2,000 PNL & MBR ASSY FOLDING 조립용 구성 부품 활성":
+        - cell "65630-L2010"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G"
+        - cell "65639-3K000"
+        - cell "MTG BOLT M10*60"
+        - cell "1"
+        - cell "EA"
+        - cell "2,000"
+        - cell "2,000"
+        - cell "PNL & MBR ASSY FOLDING 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2010 PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G 19353-07250 NUT (F/CAP형)7/16-2UNF 1 EA 800 800 PNL & MBR ASSY FOLDING 조립용 구성 부품 활성":
+        - cell "65630-L2010"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G"
+        - cell "19353-07250"
+        - cell "NUT (F/CAP형)7/16-2UNF"
+        - cell "1"
+        - cell "EA"
+        - cell "800"
+        - cell "800"
+        - cell "PNL & MBR ASSY FOLDING 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2010 PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G 65852-L2000 MBR-RR FLR CTR CROSS 1 EA 35,000 35,000 PNL & MBR ASSY FOLDING 조립용 구성 부품 활성":
+        - cell "65630-L2010"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G"
+        - cell "65852-L2000"
+        - cell "MBR-RR FLR CTR CROSS"
+        - cell "1"
+        - cell "EA"
+        - cell "35,000"
+        - cell "35,000"
+        - cell "PNL & MBR ASSY FOLDING 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+      - row "65630-L2010 PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G 65412-L1000 AREINF ASS’Y RR S/BELT ANCH LH 1 EA 45,000 45,000 PNL & MBR ASSY FOLDING 조립용 구성 부품 활성":
+        - cell "65630-L2010"
+        - cell "PNL & MBR ASS'Y RR FLR COMPLE 일반 FOLD'G"
+        - cell "65412-L1000"
+        - cell "AREINF ASS’Y RR S/BELT ANCH LH"
+        - cell "1"
+        - cell "EA"
+        - cell "45,000"
+        - cell "45,000"
+        - cell "PNL & MBR ASSY FOLDING 조립용 구성 부품"
+        - cell "활성"
+        - cell:
+          - button "BOM 복사"
+          - button "수정"
+          - button "삭제"
+- button "Open Tanstack query devtools":
+  - img
+- alert
+```

@@ -12,8 +12,8 @@
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
 
-// Test configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3009';
+// Test configuration - Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Windows
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 const TEST_TIMEOUT = 10000; // 10 seconds per test
 
 // Helper function to make API requests

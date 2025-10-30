@@ -415,6 +415,9 @@ export default function CompaniesPage() {
                 <th className="w-[200px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   이메일
                 </th>
+                <th className="w-[250px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  주소
+                </th>
                 <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   결제조건
                 </th>
@@ -426,13 +429,13 @@ export default function CompaniesPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-3 sm:p-6">
-                    <TableSkeleton rows={6} columns={8} showHeader={false} />
+                  <td colSpan={9} className="p-3 sm:p-6">
+                    <TableSkeleton rows={6} columns={9} showHeader={false} />
                   </td>
                 </tr>
               ) : filteredCompanies.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     등록된 거래처가 없습니다
                   </td>
                 </tr>
@@ -451,7 +454,7 @@ export default function CompaniesPage() {
                     </td>
                     <td className="px-3 sm:px-6 py-4 overflow-hidden">
                       <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                        {company.business_number || '-'}
+                        {company.business_registration_no || '-'}
                       </div>
                     </td>
                     <td className="px-3 sm:px-6 py-4 overflow-hidden">
@@ -486,6 +489,11 @@ export default function CompaniesPage() {
                       ) : (
                         <span className="text-sm text-gray-400">-</span>
                       )}
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-gray-900 dark:text-white truncate" title={company.address}>
+                        {company.address || '-'}
+                      </div>
                     </td>
                     <td className="px-3 sm:px-6 py-4 overflow-hidden">
                       <div className="text-sm text-gray-900 dark:text-white truncate">

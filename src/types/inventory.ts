@@ -137,16 +137,24 @@ export interface BOMStructure {
 }
 
 // Form data interfaces for each inventory operation
-export interface ReceivingFormData {
-  transaction_date: string;
+export interface ReceivingItem {
   item_id: number;
+  item_code: string;
+  item_name: string;
+  unit: string;
   quantity: number;
   unit_price: number;
-  company_id?: number;
-  reference_no?: string;
   lot_no?: string;
   expiry_date?: string;
   to_location?: string;
+  isMonthlyPriceApplied?: boolean;
+}
+
+export interface ReceivingFormData {
+  transaction_date: string;
+  items: ReceivingItem[];
+  company_id?: number;
+  reference_no?: string;
   notes?: string;
   created_by: number;
 }
@@ -172,6 +180,7 @@ export interface ShippingItem {
   quantity: number;
   total_amount: number;
   sufficient_stock: boolean;
+  isMonthlyPriceApplied?: boolean;
 }
 
 export interface ShippingFormData {

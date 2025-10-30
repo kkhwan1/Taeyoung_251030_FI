@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
-import { mcp__supabase__execute_sql } from '@/lib/supabase-mcp';
+import { getSupabaseClient } from '@/lib/db-unified';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,48 +8,35 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
     const category = searchParams.get('category');
 
-    // Query v_monthly_accounting VIEW
-    const companyQuery = `
-      SELECT
-        month,
-        company_category,
-        company_name,
-        company_code,
-        business_info,
-        sales_amount,
-        purchase_amount,
-        net_amount
-      FROM v_monthly_accounting
-      WHERE month = '${month}'
-      ${category ? `AND company_category = '${category}'` : ''}
-      ORDER BY ABS(net_amount) DESC
-    `;
+    const supabase = getSupabaseClient();
 
-    const companyResult = await mcp__supabase__execute_sql({
-      project_id: process.env.SUPABASE_PROJECT_ID!,
-      query: companyQuery
-    });
+    // Query v_monthly_accounting VIEW using Supabase client
+    let companyQuery = supabase
+      .from('v_monthly_accounting')
+      .select('*')
+      .eq('month', month)
+      .order('net_amount', { ascending: false });
+
+    if (category) {
+      companyQuery = companyQuery.eq('company_category', category);
+    }
+
+    const { data: companyData, error: companyError } = await companyQuery;
+
+    if (companyError) {
+      throw new Error(`Company data query failed: ${companyError.message}`);
+    }
 
     // Query v_category_monthly_summary VIEW for stats
-    const categoryQuery = `
-      SELECT
-        company_category,
-        total_sales,
-        total_purchases,
-        total_companies
-      FROM v_category_monthly_summary
-      WHERE month = '${month}'
-      ORDER BY company_category
-    `;
+    const { data: categoryData, error: categoryError } = await supabase
+      .from('v_category_monthly_summary')
+      .select('*')
+      .eq('month', month)
+      .order('company_category', { ascending: true });
 
-    const categoryResult = await mcp__supabase__execute_sql({
-      project_id: process.env.SUPABASE_PROJECT_ID!,
-      query: categoryQuery
-    });
-
-    // Extract rows from ExecuteSqlResult
-    const companyData = companyResult.rows || [];
-    const categoryData = categoryResult.rows || [];
+    if (categoryError) {
+      throw new Error(`Category data query failed: ${categoryError.message}`);
+    }
 
     // Calculate total statistics
     const totalSales = companyData.reduce((sum: number, row: any) => sum + (row.sales_amount || 0), 0);

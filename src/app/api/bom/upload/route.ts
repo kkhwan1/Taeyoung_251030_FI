@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient, handleSupabaseError, createSuccessResponse } from '@/lib/db-unified';
+import { mapExcelHeaders, bomHeaderMapping } from '@/lib/excel-header-mapper';
 import * as XLSX from 'xlsx';
 
 // ============================================================================
@@ -89,8 +90,11 @@ function parseBOMExcel(buffer: Buffer): ValidationResult {
       };
     }
 
+    // 한글 헤더를 영문 필드명으로 매핑
+    const mappedData = mapExcelHeaders(rawData, bomHeaderMapping);
+
     // Validate each row
-    rawData.forEach((row, index) => {
+    mappedData.forEach((row, index) => {
       const rowNumber = index + 2; // Excel row number (1-indexed + header)
       const rowErrors: ValidationError[] = [];
 
@@ -167,9 +171,9 @@ function parseBOMExcel(buffer: Buffer): ValidationResult {
       data: validData,
       errors,
       stats: {
-        total_rows: rawData.length,
+        total_rows: mappedData.length,
         valid_rows: validData.length,
-        error_rows: errors.length > 0 ? rawData.length - validData.length : 0
+        error_rows: errors.length > 0 ? mappedData.length - validData.length : 0
       }
     };
   } catch (error) {

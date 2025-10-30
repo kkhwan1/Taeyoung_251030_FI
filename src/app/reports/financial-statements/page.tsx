@@ -136,8 +136,7 @@ export default function FinancialStatementsPage() {
               disabled={loading}
               className="px-6"
             >
-              {loading ? <LoadingSpinner size="sm" /> : }
-              조회
+              {loading ? <LoadingSpinner size="sm" /> : '조회'}
             </Button>
           </div>
         </CardContent>

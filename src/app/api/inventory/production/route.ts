@@ -11,39 +11,104 @@ export async function GET(): Promise<NextResponse> {
       .from('inventory_transactions')
       .select(`
         *,
-        items!inner(item_code, item_name, spec, unit, category),
-        users!created_by(username)
+        items!inner(item_code, item_name, spec, unit, category, price),
+        users!created_by(username),
+        companies(company_id, company_name)
       `)
-      .eq('transaction_type', '생산입고')
-      .order('transaction_date', { ascending: false });
+      .in('transaction_type', ['생산입고', '생산출고'])
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Supabase query error:', error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // 각 거래에 대해 BOM 차감 로그 조회하여 부족 정보 계산
+    // 1. 배치로 월별 단가 조회 (N+1 문제 방지)
+    const priceKeys = (transactions || []).map((tx: any) => {
+      const transactionDate = tx.transaction_date || tx.created_at;
+      const priceMonth = transactionDate 
+        ? new Date(transactionDate).toISOString().substring(0, 7) + '-01'
+        : null;
+      
+      return {
+        item_id: tx.item_id,
+        price_month: priceMonth
+      };
+    }).filter(k => k.price_month);
+
+    // 중복 제거 및 배열 추출
+    const uniqueItemIds = [...new Set(priceKeys.map(k => k.item_id))];
+    const uniqueMonths = [...new Set(priceKeys.map(k => k.price_month))];
+
+    // 배치로 월별 단가 조회
+    const { data: monthlyPrices } = await supabase
+      .from('item_price_history')
+      .select('item_id, price_month, unit_price')
+      .in('item_id', uniqueItemIds)
+      .in('price_month', uniqueMonths);
+
+    // Map으로 빠른 조회 (key: 'item_id_price_month', value: unit_price)
+    const priceMap = new Map(
+      (monthlyPrices || []).map(p => [`${p.item_id}_${p.price_month}`, p.unit_price])
+    );
+
+    // 2. 각 거래에 대해 BOM 차감 로그 조회 및 단가 적용
     const transactionsWithShortage = await Promise.all(
       (transactions || []).map(async (tx: any) => {
-        // 해당 생산입고 거래의 BOM 차감 로그 조회
+        // 해당 생산입고 거래의 BOM 차감 로그 조회 (원자재 정보 포함)
         const { data: bomLogs } = await supabase
           .from('bom_deduction_log')
           .select(`
             quantity_required,
-            deducted_quantity
+            deducted_quantity,
+            items!child_item_id(item_code, item_name, unit)
           `)
           .eq('transaction_id', tx.transaction_id);
 
-        // 부족 총계 계산
+        // 부족 총 수량 계산 (전체 자재의 부족 수량 합계)
         const totalShortage = (bomLogs || []).reduce((sum, log) => {
           const required = parseFloat(log.quantity_required || 0);
           const deducted = parseFloat(log.deducted_quantity || 0);
+          // 부족 수량이 있는 경우에만 합산
           return sum + Math.max(0, required - deducted);
         }, 0);
+        
+        // 부족 자재의 단위 정보 추출 (대부분의 부족 자재가 같은 단위를 사용한다고 가정)
+        const shortageUnits = (bomLogs || [])
+          .filter((log: any) => {
+            const required = parseFloat(log.quantity_required || 0);
+            const deducted = parseFloat(log.deducted_quantity || 0);
+            return required > deducted;
+          })
+          .map((log: any) => log.items?.unit || 'EA');
+        const primaryUnit = shortageUnits.length > 0 ? shortageUnits[0] : 'EA';
+
+        // 월별 단가 조회
+        const transactionDate = tx.transaction_date || tx.created_at;
+        const priceMonth = transactionDate 
+          ? new Date(transactionDate).toISOString().substring(0, 7) + '-01'
+          : null;
+        
+        const monthlyPrice = priceMonth ? priceMap.get(`${tx.item_id}_${priceMonth}`) : null;
+
+        // 단가 우선순위: 거래 단가 > 월별 단가 > 품목 기본 단가 > 0
+        const unit_price = (tx.unit_price && tx.unit_price > 0)
+          ? tx.unit_price 
+          : (monthlyPrice || tx.items?.price || 0);
+
+        // 금액 재계산
+        const total_amount = tx.quantity * unit_price;
 
         return {
           ...tx,
-          shortage_total: totalShortage
+          unit_price,
+          total_amount,
+          item_code: tx.items?.item_code || tx.item_code,
+          item_name: tx.items?.item_name || tx.item_name,
+          company_name: tx.companies?.company_name || null,
+          shortage_total: totalShortage,
+          shortage_unit: primaryUnit,
+          bomLogs: bomLogs || []
         };
       })
     );
@@ -70,6 +135,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       item_id,
       quantity,
       unit_price,
+      company_id,
       reference_number,
       notes,
       created_by,
@@ -223,6 +289,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         quantity: parsedQuantity,  // 변환된 정수값
         unit_price: parsedUnitPrice,  // 변환된 숫자값
         total_amount,
+        company_id: company_id || null,
         reference_number: reference_number || null,
         transaction_date,
         notes: notes || null
@@ -410,6 +477,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.total_amount = newQuantity * newUnitPrice;
     }
 
+    // Get user info from request headers (if available)
+    const userId = request.headers.get('x-user-id') || null;
+    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
+    const userAgent = request.headers.get('user-agent') || null;
+
     // Update transaction
     const { data, error } = await supabase
       .from('inventory_transactions')
@@ -431,6 +503,27 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         error: 'Failed to update production transaction',
         details: error.message
       }, { status: 500 });
+    }
+
+    // Create audit log entry
+    try {
+      await supabase
+        .from('audit_log')
+        .insert({
+          user_id: userId ? parseInt(userId) : null,
+          operation: 'UPDATE',
+          table_name: 'inventory_transactions',
+          record_id: parseInt(id),
+          old_values: existingTransaction as any,
+          new_values: data[0] as any,
+          status: 'SUCCESS',
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          created_at: new Date().toISOString()
+        });
+    } catch (auditError) {
+      // Log error but don't fail the update
+      console.error('Failed to create audit log:', auditError);
     }
 
     return NextResponse.json({

@@ -9,7 +9,9 @@ import {
   Plus,
   AlertCircle,
   CheckCircle,
-  Clock
+  Clock,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ReceivingForm from '@/components/ReceivingForm';
@@ -23,6 +25,7 @@ import {
   InventoryTab,
   StockStatus,
   ReceivingFormData,
+  ReceivingItem,
   ProductionFormData,
   ShippingFormData,
   TRANSACTION_TYPES
@@ -45,6 +48,12 @@ function InventoryContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showShortageModal, setShowShortageModal] = useState(false);
   const [selectedTransactionForShortage, setSelectedTransactionForShortage] = useState<any>(null);
+  // 정렬 상태 추가
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // 수정/삭제 관련 상태
+  const [selectedTransaction, setSelectedTransaction] = useState<InventoryTransaction | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [stockLastUpdated, setStockLastUpdated] = useState<Date | null>(null);
 
   const tabs: InventoryTab[] = [
     {
@@ -165,9 +174,84 @@ function InventoryContent() {
 
       if (data.success) {
         setStockInfo(data.data || []);
+        setStockLastUpdated(new Date());
       }
     } catch (error) {
       console.error('Failed to fetch stock info:', error);
+    }
+  };
+
+  // 실시간 자동 업데이트 (5초마다)
+  useEffect(() => {
+    fetchStockInfo(); // 초기 로드
+    
+    const interval = setInterval(() => {
+      fetchStockInfo();
+    }, 5000); // 5초마다 업데이트
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 거래 등록 후 재고 정보 새로고침
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchStockInfo();
+    }
+  }, [refreshKey]);
+
+  const handleEdit = (transaction: InventoryTransaction) => {
+    setSelectedTransaction(transaction);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleDelete = (transaction: InventoryTransaction) => {
+    setSelectedTransaction(transaction);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedTransaction) return;
+
+    try {
+      let url = '';
+      switch (activeTab) {
+        case 'receiving':
+          url = `/api/inventory/receiving?id=${selectedTransaction.transaction_id}`;
+          break;
+        case 'production':
+          url = `/api/inventory/production?id=${selectedTransaction.transaction_id}`;
+          break;
+        case 'shipping':
+          url = `/api/inventory/shipping?id=${selectedTransaction.transaction_id}`;
+          break;
+        default:
+          url = `/api/inventory/transactions?id=${selectedTransaction.transaction_id}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('거래가 삭제되었습니다.');
+        setShowDeleteConfirm(false);
+        setSelectedTransaction(null);
+        setRefreshKey(prev => prev + 1);
+        fetchTransactions();
+        fetchStockInfo();
+      } else {
+        alert(result.error || '삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -186,7 +270,8 @@ function InventoryContent() {
           deducted_quantity,
           items!child_item_id (
             item_code,
-            item_name
+            item_name,
+            unit
           )
         `)
         .eq('transaction_id', transaction.transaction_id);
@@ -217,22 +302,35 @@ function InventoryContent() {
           break;
       }
 
-      // Handle shipping form with multiple items
-      if (activeTab === 'shipping' && 'items' in formData && Array.isArray(formData.items)) {
-        const shippingData = formData as ShippingFormData;
+      // Handle shipping/receiving forms with multiple items
+      if ((activeTab === 'shipping' || activeTab === 'receiving') && 'items' in formData && Array.isArray(formData.items)) {
+        const multiItemData = formData as ShippingFormData | ReceivingFormData;
         
         // Submit each item as a separate transaction
-        const promises = shippingData.items.map(async (item) => {
-          const singleItemData = {
-            transaction_date: shippingData.transaction_date,
-            company_id: shippingData.customer_id,
+        const promises = multiItemData.items.map(async (item) => {
+          const singleItemData = activeTab === 'shipping' ? {
+            transaction_date: multiItemData.transaction_date,
+            company_id: (multiItemData as ShippingFormData).customer_id,
             item_id: item.item_id,
             quantity: item.quantity,
             unit_price: item.unit_price,
-            reference_number: shippingData.reference_no || `SHP-${Date.now()}`,
-            location: shippingData.delivery_address,
-            notes: shippingData.notes,
-            created_by: shippingData.created_by || 1
+            reference_number: multiItemData.reference_no || `SHP-${Date.now()}`,
+            location: (multiItemData as ShippingFormData).delivery_address,
+            delivery_date: (multiItemData as ShippingFormData).delivery_date || null,
+            notes: multiItemData.notes,
+            created_by: multiItemData.created_by || 1
+          } : {
+            transaction_date: multiItemData.transaction_date,
+            company_id: (multiItemData as ReceivingFormData).company_id,
+            item_id: item.item_id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            reference_number: multiItemData.reference_no || `RCV-${Date.now()}`,
+            lot_no: (item as ReceivingItem).lot_no || null,
+            expiry_date: (item as ReceivingItem).expiry_date || null,
+            to_location: (item as ReceivingItem).to_location || null,
+            notes: multiItemData.notes,
+            created_by: multiItemData.created_by || 1
           };
 
           const response = await fetch(url, {
@@ -260,22 +358,29 @@ function InventoryContent() {
         return { success: true };
       } else {
         // Standard submission for receiving and production
+        // Handle PUT (update) vs POST (create)
+        const method = selectedTransaction ? 'PUT' : 'POST';
+        const requestBody = selectedTransaction && activeTab === 'production'
+          ? { id: selectedTransaction.transaction_id, ...formData }
+          : formData;
+
         const response = await fetch(url, {
-          method: 'POST',
+          method,
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(requestBody),
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
           setShowModal(false);
+          setSelectedTransaction(null);
           setRefreshKey(prev => prev + 1);
 
           // Show success notification
-          alert(`${activeTabInfo.label} 처리가 완료되었습니다.`);
+          alert(`${selectedTransaction ? '수정' : '등록'}이 완료되었습니다.`);
           return data; // Return the response data
         } else {
           alert(`오류: ${data.error || '처리에 실패했습니다'}`);
@@ -347,26 +452,67 @@ function InventoryContent() {
   };
 
   const renderForm = () => {
+    const handleCancel = () => {
+      setShowModal(false);
+      setSelectedTransaction(null);
+    };
+
     switch (activeTab) {
       case 'receiving':
         return (
           <ReceivingForm
             onSubmit={handleFormSubmit}
-            onCancel={() => setShowModal(false)}
+            onCancel={handleCancel}
+            initialData={selectedTransaction ? {
+              transaction_date: selectedTransaction.transaction_date || '',
+              item_id: selectedTransaction.item_id || 0,
+              quantity: selectedTransaction.quantity || 0,
+              unit_price: selectedTransaction.unit_price || 0,
+              company_id: (selectedTransaction as any).company_id || undefined,
+              reference_no: selectedTransaction.reference_no || selectedTransaction.reference_number || '',
+              notes: (selectedTransaction as any).notes || '',
+              created_by: (selectedTransaction as any).created_by || 1
+            } : undefined}
+            isEdit={!!selectedTransaction}
           />
         );
       case 'production':
         return (
           <ProductionForm
             onSubmit={handleFormSubmit}
-            onCancel={() => setShowModal(false)}
+            onCancel={handleCancel}
+            initialData={selectedTransaction ? {
+              transaction_date: selectedTransaction.transaction_date || '',
+              product_item_id: selectedTransaction.item_id || 0,
+              quantity: selectedTransaction.quantity || 0,
+              reference_no: selectedTransaction.reference_no || selectedTransaction.reference_number || '',
+              notes: (selectedTransaction as any).notes || '',
+              use_bom: true,
+              scrap_quantity: 0,
+              created_by: (selectedTransaction as any).created_by || 1
+            } : undefined}
+            isEdit={!!selectedTransaction}
           />
         );
       case 'shipping':
         return (
           <ShippingForm
             onSubmit={handleFormSubmit}
-            onCancel={() => setShowModal(false)}
+            onCancel={handleCancel}
+            initialData={selectedTransaction ? {
+              transaction_date: selectedTransaction.transaction_date || '',
+              customer_id: (selectedTransaction as any).company_id || 0,
+              items: [{
+                item_id: selectedTransaction.item_id || 0,
+                quantity: selectedTransaction.quantity || 0,
+                unit_price: selectedTransaction.unit_price || 0
+              }],
+              reference_no: selectedTransaction.reference_no || selectedTransaction.reference_number || '',
+              delivery_address: (selectedTransaction as any).location || '',
+              notes: (selectedTransaction as any).notes || '',
+              created_by: (selectedTransaction as any).created_by || 1
+            } : undefined}
+            isEdit={!!selectedTransaction}
           />
         );
     }
@@ -465,14 +611,42 @@ function InventoryContent() {
         {/* Real-time Stock Display */}
         {stockInfo.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">실시간 재고 현황</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">실시간 재고 현황</h3>
+              {stockLastUpdated && (
+                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    업데이트: {stockLastUpdated.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {stockInfo.slice(0, 8).map((item) => {
+              {stockInfo
+                .sort((a, b) => {
+                  const dateA = (a as any).last_transaction_date 
+                    ? new Date((a as any).last_transaction_date).getTime() 
+                    : 0;
+                  const dateB = (b as any).last_transaction_date 
+                    ? new Date((b as any).last_transaction_date).getTime() 
+                    : 0;
+                  // 최신순 정렬 (날짜가 없으면 맨 아래로)
+                  if (dateA === 0 && dateB === 0) return 0;
+                  if (dateA === 0) return 1;
+                  if (dateB === 0) return -1;
+                  return dateB - dateA; // 내림차순
+                })
+                .slice(0, 8)
+                .map((item) => {
                 const status = getStockStatus(item);
+                const lastTransactionDate = (item as any).last_transaction_date;
+                const lastTransactionType = (item as any).last_transaction_type;
+                
                 return (
                   <div
                     key={item.item_id}
-                    className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
+                    className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
@@ -491,9 +665,25 @@ function InventoryContent() {
                           </span>
                         </div>
                         {item.min_stock_level && (
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-400 mt-0.5">
                             최소: {item.min_stock_level.toLocaleString()} {item.unit}
                           </p>
+                        )}
+                        {/* 최근 거래 정보 */}
+                        {lastTransactionDate && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              최근 거래: {lastTransactionType || '정보 없음'}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              {new Date(lastTransactionDate).toLocaleString('ko-KR', {
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
                         )}
                       </div>
                       <div className="ml-2">
@@ -516,8 +706,16 @@ function InventoryContent() {
             <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    거래일자
+                  <th 
+                    className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  >
+                    <div className="flex items-center gap-1">
+                      거래일시
+                      <span className="ml-1">
+                        {sortOrder === 'desc' ? '↓' : '↑'}
+                      </span>
+                    </div>
                   </th>
                   <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     구분
@@ -540,34 +738,49 @@ function InventoryContent() {
                   <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     참조번호
                   </th>
-                  {activeTab === 'production' && (
-                    <th className="w-[110px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      재고상태
-                    </th>
-                  )}
+                  <th className="w-[80px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    작업
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {loading ? (
                   <tr>
-                    <td colSpan={activeTab === 'production' ? 9 : 8} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                       데이터를 불러오는 중...
                     </td>
                   </tr>
                 ) : transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={activeTab === 'production' ? 9 : 8} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                       거래 내역이 없습니다
                     </td>
                   </tr>
                 ) : (
-                  transactions.slice(0, 10).map((transaction) => {
+                  [...transactions]
+                    .sort((a, b) => {
+                      const dateA = (a as any).created_at ? new Date((a as any).created_at).getTime() : new Date(a.transaction_date || 0).getTime();
+                      const dateB = (b as any).created_at ? new Date((b as any).created_at).getTime() : new Date(b.transaction_date || 0).getTime();
+                      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                    })
+                    .slice(0, 10)
+                    .map((transaction) => {
                     const shortageTotal = (transaction as any).shortage_total || 0;
                     return (
                       <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                          <div className="text-sm text-gray-900 dark:text-white truncate">
-                            {transaction.transaction_date ? new Date(transaction.transaction_date).toLocaleDateString('ko-KR') : '-'}
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            {(() => {
+                              const date = (transaction as any).created_at || transaction.transaction_date;
+                              if (!date) return '-';
+                              const d = new Date(date);
+                              return (
+                                <div className="flex flex-col">
+                                  <span>{d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, '0')}.{String(d.getDate()).padStart(2, '0')}</span>
+                                  <span className="text-xs text-gray-500">{String(d.getHours()).padStart(2, '0')}:{String(d.getMinutes()).padStart(2, '0')}:{String(d.getSeconds()).padStart(2, '0')}</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 overflow-hidden">
@@ -584,8 +797,26 @@ function InventoryContent() {
                           </div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                          <div className="text-sm text-right text-gray-900 dark:text-white truncate">
-                            {(transaction.quantity || 0).toLocaleString()}
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                              {(transaction.quantity || 0).toLocaleString()}
+                            </div>
+                            {activeTab === 'production' && (
+                              <div className="text-xs">
+                                {shortageTotal > 0 ? (
+                                  <button
+                                    onClick={() => handleShowShortageDetail(transaction)}
+                                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline"
+                                  >
+                                    부족 수량: {shortageTotal.toLocaleString()} {(transaction as any).shortage_unit || 'EA'}
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    부족 수량: 0 {(transaction as any).shortage_unit || 'EA'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 overflow-hidden">
@@ -608,20 +839,24 @@ function InventoryContent() {
                             {transaction.reference_no || transaction.reference_number || '-'}
                           </div>
                         </td>
-                        {activeTab === 'production' && (
-                          <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                            {shortageTotal > 0 ? (
-                              <button
-                                onClick={() => handleShowShortageDetail(transaction)}
-                                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline text-sm"
-                              >
-                                부족 {shortageTotal.toLocaleString()}개
-                              </button>
-                            ) : (
-                              <span className="text-green-600 dark:text-green-400 text-sm">정상</span>
-                            )}
-                          </td>
-                        )}
+                        <td className="px-3 sm:px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleEdit(transaction)}
+                              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                              title="수정"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(transaction)}
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                              title="삭제"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })
@@ -635,16 +870,72 @@ function InventoryContent() {
       {/* Modal for Forms */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={handleModalClose}
         title={
-          activeTab === 'receiving' ? '입고 등록' :
-          activeTab === 'production' ? '생산 등록' :
-          '출고 등록'
+          selectedTransaction 
+            ? (activeTab === 'receiving' ? '입고 수정' :
+               activeTab === 'production' ? '생산 수정' :
+               '출고 수정')
+            : (activeTab === 'receiving' ? '입고 등록' :
+               activeTab === 'production' ? '생산 등록' :
+               '출고 등록')
         }
         size="xl"
       >
         {renderForm()}
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                거래 삭제 확인
+              </h3>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                이 거래를 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 관련 재고도 자동으로 조정됩니다.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  거래 정보
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  거래일: {selectedTransaction.transaction_date}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  구분: {selectedTransaction.transaction_type}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  품번: {selectedTransaction.item_code || (selectedTransaction as any).items?.item_code || '-'}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  수량: {selectedTransaction.quantity}
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setSelectedTransaction(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shortage Detail Modal */}
       {showShortageModal && selectedTransactionForShortage && (
@@ -700,13 +991,13 @@ function InventoryContent() {
                             {log.items?.item_code} - {log.items?.item_name}
                           </td>
                           <td className="py-2 px-3 text-sm text-right text-gray-900 dark:text-white">
-                            {required.toLocaleString()}
+                            {required.toLocaleString()} {log.items?.unit || 'EA'}
                           </td>
                           <td className="py-2 px-3 text-sm text-right text-gray-900 dark:text-white">
-                            {deducted.toLocaleString()}
+                            {deducted.toLocaleString()} {log.items?.unit || 'EA'}
                           </td>
                           <td className="py-2 px-3 text-sm text-right text-red-600 dark:text-red-400 font-semibold">
-                            {shortage.toLocaleString()}
+                            {shortage.toLocaleString()} {log.items?.unit || 'EA'}
                           </td>
                         </tr>
                       );

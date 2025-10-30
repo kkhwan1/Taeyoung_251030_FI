@@ -8,6 +8,12 @@ import {
   createTemplate,
   ColumnMapping
 } from '@/lib/import-map';
+import {
+  companiesHeaderMapping,
+  itemsHeaderMapping,
+  bomHeaderMapping,
+  inventoryHeaderMapping
+} from '@/lib/excel-header-mapper';
 
 export async function GET(
   request: NextRequest,
@@ -347,43 +353,51 @@ function getEntityName(entity: string): string {
 // Generate template file
 function generateTemplate(entity: string, mapping: ColumnMapping[]): NextResponse {
   try {
-    // Create template with sample data
-    const templateData = [createTemplate(mapping)];
+    // 새 헤더 매핑 규칙 사용 (excel-header-mapper.ts)
+    let templateData: Record<string, string>[] = [];
+    let headerMapping: Record<string, string> | null = null;
 
-    // Add sample data based on entity type
     switch (entity) {
       case 'items':
-        templateData[0] = {
+        headerMapping = itemsHeaderMapping;
+        templateData = [{
           '품목코드': 'ITEM001',
           '품목명': '샘플 품목',
           '규격': '100x50',
+          '타입': '완제품',
           '단위': 'EA',
-          '품목분류': '완제품',
-          '안전재고': '10',
-          '현재고': '100',
-          '활성여부': 'true'
-        };
+          '도장상태': 'no_coating',
+          '단가': '25000',
+          '최소재고': '10'
+        }];
         break;
       case 'companies':
-        templateData[0] = {
-          '회사코드': 'COMP001',
-          '회사명': '샘플 회사',
-          '회사구분': '고객사',
-          '담당자': '홍길동',
-          '전화번호': '02-1234-5678',
+        headerMapping = companiesHeaderMapping;
+        templateData = [{
+          '거래처명': '샘플 회사',
+          '거래처구분': '고객사',
+          '사업자번호': '123-45-67890',
+          '대표자': '홍길동',
+          '연락처': '02-1234-5678',
           '이메일': 'contact@sample.com',
           '주소': '서울시 강남구',
-          '활성여부': 'true'
-        };
+          '메모': '샘플 데이터'
+        }];
         break;
       case 'bom':
-        templateData[0] = {
-          '상위품목코드': 'PARENT001',
-          '하위품목코드': 'CHILD001',
+        headerMapping = bomHeaderMapping;
+        templateData = [{
+          '모품목코드': 'PARENT001',
+          '자품목코드': 'CHILD001',
           '소요량': '2',
           '단위': 'EA',
+          '레벨': '1',
           '비고': '조립용'
-        };
+        }];
+        break;
+      default:
+        // 기존 로직 사용 (하위 호환성)
+        templateData = [createTemplate(mapping)];
         break;
     }
 
@@ -402,16 +416,40 @@ function generateTemplate(entity: string, mapping: ColumnMapping[]): NextRespons
       ['컬럼명', '설명', '필수여부', '예시값']
     ];
 
-    mapping.forEach(col => {
-      infoData.push([
-        col.korean,
-        col.type === 'date' ? '날짜 형식 (YYYY-MM-DD)' :
-        col.type === 'number' ? '숫자' :
-        col.type === 'boolean' ? 'true/false' : '텍스트',
-        col.required ? '필수' : '선택',
-        col.default !== undefined ? String(col.default) : ''
-      ]);
-    });
+    if (headerMapping && templateData.length > 0) {
+      // 새 헤더 매핑 규칙 사용
+      const sampleRow = templateData[0];
+      Object.keys(sampleRow).forEach(koreanHeader => {
+        const englishField = headerMapping![koreanHeader];
+        const sampleValue = sampleRow[koreanHeader];
+        
+        // 필수 여부는 mapping에서 확인 (기존 mapping 유지)
+        const mappingCol = mapping.find(col => col.korean === koreanHeader || col.english === englishField);
+        const isRequired = mappingCol?.required || false;
+        const fieldType = mappingCol?.type || 'string';
+        
+        infoData.push([
+          koreanHeader,
+          fieldType === 'date' ? '날짜 형식 (YYYY-MM-DD)' :
+          fieldType === 'number' ? '숫자' :
+          fieldType === 'boolean' ? 'true/false' : '텍스트',
+          isRequired ? '필수' : '선택',
+          sampleValue || ''
+        ]);
+      });
+    } else {
+      // 기존 로직 사용 (하위 호환성)
+      mapping.forEach(col => {
+        infoData.push([
+          col.korean,
+          col.type === 'date' ? '날짜 형식 (YYYY-MM-DD)' :
+          col.type === 'number' ? '숫자' :
+          col.type === 'boolean' ? 'true/false' : '텍스트',
+          col.required ? '필수' : '선택',
+          col.default !== undefined ? String(col.default) : ''
+        ]);
+      });
+    }
 
     const infoSheet = XLSX.utils.aoa_to_sheet(infoData);
     infoSheet['!cols'] = [

@@ -133,12 +133,43 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+    const newValue = type === 'number' ? (value ? parseFloat(value) : 0) : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'number' ? (value ? parseFloat(value) : 0) : value
+      [name]: newValue
     }));
+
+    // 예정일이 변경되고 품목이 추가되어 있으면 해당 월의 단가를 자동으로 업데이트
+    if ((name === 'delivery_date' || name === 'transaction_date') && formData.items.length > 0) {
+      const targetDate = name === 'delivery_date' ? value : (name === 'transaction_date' ? value : formData.delivery_date || formData.transaction_date || '');
+      if (targetDate) {
+        // 모든 품목의 단가를 업데이트
+        const updatedItems = await Promise.all(
+          formData.items.map(async (shipItem) => {
+            const monthlyPrice = await fetchMonthlyPrice(shipItem.item_id, targetDate);
+            if (monthlyPrice > 0) {
+              return {
+                ...shipItem,
+                unit_price: monthlyPrice,
+                total_amount: shipItem.quantity * monthlyPrice,
+                isMonthlyPriceApplied: true
+              };
+            }
+            return {
+              ...shipItem,
+              isMonthlyPriceApplied: false
+            };
+          })
+        );
+        setFormData(prev => ({
+          ...prev,
+          items: updatedItems
+        }));
+      }
+    }
 
     // Clear error when field is modified
     if (errors[name]) {
@@ -146,7 +177,29 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
     }
   };
 
-  const handleAddProduct = (item: Item | null) => {
+  // 예정일 기준 월별 단가 조회 함수
+  const fetchMonthlyPrice = async (itemId: number, dateString: string): Promise<number> => {
+    try {
+      // 날짜에서 YYYY-MM 형식 추출
+      const month = dateString ? dateString.substring(0, 7) : new Date().toISOString().substring(0, 7);
+      
+      const response = await fetch(`/api/price-history?month=${month}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const priceItem = result.data.find((p: any) => p.item_id === itemId);
+          if (priceItem && priceItem.unit_price) {
+            return priceItem.unit_price;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('월별 단가 조회 실패:', error);
+    }
+    return 0;
+  };
+
+  const handleAddProduct = async (item: Item | null) => {
     if (!item) return;
 
     // Check if product is already added
@@ -156,16 +209,30 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
       return;
     }
 
+    // 예정일이 있으면 해당 월의 단가를 조회, 없으면 현재 품목 단가 사용
+    const targetDate = formData.delivery_date || formData.transaction_date || '';
+    let unitPrice = item.unit_price || 0;
+    let isMonthly = false;
+    
+    if (targetDate && item.item_id) {
+      const monthlyPrice = await fetchMonthlyPrice(item.item_id, targetDate);
+      if (monthlyPrice > 0) {
+        unitPrice = monthlyPrice;
+        isMonthly = true;
+      }
+    }
+
     const newItem: ShippingItem = {
       item_id: item.item_id,
       item_code: item.item_code,
       item_name: item.item_name,
       unit: item.unit,
-      unit_price: item.unit_price || 0,
+      unit_price: unitPrice,
       current_stock: item.current_stock || 0,
       quantity: 1,
-      total_amount: item.unit_price || 0,
-      sufficient_stock: (item.current_stock || 0) >= 1
+      total_amount: unitPrice,
+      sufficient_stock: (item.current_stock || 0) >= 1,
+      isMonthlyPriceApplied: isMonthly
     };
 
     setFormData(prev => ({
@@ -177,7 +244,13 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
   };
 
   const handleCustomerChange = (customerId: number | null, customer?: Company) => {
-    setFormData(prev => ({ ...prev, customer_id: customerId || undefined }));
+    // 고객사 정보 자동 입력
+    setFormData(prev => ({
+      ...prev,
+      customer_id: customerId || undefined,
+      // 고객사 주소를 배송주소로 자동 입력 (배송주소가 비어있을 때만)
+      delivery_address: customer?.address && !prev.delivery_address ? customer.address : prev.delivery_address
+    }));
 
     // Clear customer error
     if (errors.customer_id) {
@@ -210,7 +283,8 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
           ? {
               ...item,
               unit_price: unitPrice,
-              total_amount: item.quantity * unitPrice
+              total_amount: item.quantity * unitPrice,
+              isMonthlyPriceApplied: false // 수동 변경 시 플래그 해제
             }
           : item
       )
@@ -308,7 +382,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            출고일자 <span className="text-gray-500">*</span>
+            출고 예정일 <span className="text-gray-500">*</span>
           </label>
           <input
             type="date"
@@ -404,6 +478,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
       {/* Product Search and Selection */}
       <div>
         <ItemSelect
+          key={`item-select-${formData.items.length}`}
           onChange={handleAddProduct}
           label="출고 제품 추가"
           placeholder="제품 품번 또는 품명으로 검색하여 추가..."
@@ -496,14 +571,21 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
                         <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                           단가 (₩)
                         </label>
-                        <input
-                          type="number"
-                          value={item.unit_price}
-                          onChange={(e) => handleItemUnitPriceChange(item.item_id, parseFloat(e.target.value) || 0)}
-                          min="0"
-                          step="0.01"
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={item.unit_price}
+                            onChange={(e) => handleItemUnitPriceChange(item.item_id, parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                          {item.isMonthlyPriceApplied && (
+                            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded whitespace-nowrap">
+                              월별
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div>
@@ -547,11 +629,40 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
 
           {/* Total Summary */}
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 총 출고 금액:
               </span>
               <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
+                ₩{calculateTotalAmount().toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 출고 요약 */}
+      {formData.items.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            출고 요약
+          </h4>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">품목 수:</span>
+              <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                {formData.items.length}개
+              </span>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">총 수량:</span>
+              <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                {formData.items.reduce((sum, item) => sum + item.quantity, 0).toLocaleString()}
+              </span>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">총 금액:</span>
+              <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
                 ₩{calculateTotalAmount().toLocaleString()}
               </span>
             </div>

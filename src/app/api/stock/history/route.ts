@@ -7,7 +7,7 @@ export async function GET(): Promise<NextResponse> {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. inventory_transactions 조회
+    // 1. inventory_transactions 조회 (단가 정보 포함)
     const { data: transactions, error } = await supabase
       .from('inventory_transactions')
       .select(`
@@ -15,7 +15,12 @@ export async function GET(): Promise<NextResponse> {
         created_at,
         items (
           item_name,
-          item_code
+          item_code,
+          price,
+          unit
+        ),
+        companies!left (
+          company_name
         )
       `)
       .order('transaction_date', { ascending: false })
@@ -55,6 +60,31 @@ export async function GET(): Promise<NextResponse> {
       // Continue without BOM logs
     }
 
+    // 2.5. 월별 단가 조회 (생산관리와 동일한 로직)
+    const priceKeys = (transactions || []).map((tx: any) => {
+      const transactionDate = tx.transaction_date || tx.created_at;
+      const priceMonth = transactionDate
+        ? new Date(transactionDate).toISOString().substring(0, 7) + '-01'
+        : null;
+      return {
+        item_id: tx.item_id,
+        price_month: priceMonth
+      };
+    }).filter(k => k.price_month);
+
+    const uniqueItemIds = [...new Set(priceKeys.map(k => k.item_id))];
+    const uniqueMonths = [...new Set(priceKeys.map(k => k.price_month))];
+
+    const { data: monthlyPrices } = await supabase
+      .from('item_price_history')
+      .select('item_id, price_month, unit_price')
+      .in('item_id', uniqueItemIds)
+      .in('price_month', uniqueMonths);
+
+    const priceMap = new Map(
+      (monthlyPrices || []).map(p => [`${p.item_id}_${p.price_month}`, p.unit_price])
+    );
+
     // Calculate running balance for each transaction
     let runningBalance = 0;
     const historyWithBalance = (transactions || []).map((transaction: any) => {
@@ -79,6 +109,19 @@ export async function GET(): Promise<NextResponse> {
 
       runningBalance += quantityChange;
 
+      // 월별 단가 조회
+      const transactionDate = transaction.transaction_date || transaction.created_at;
+      const priceMonth = transactionDate
+        ? new Date(transactionDate).toISOString().substring(0, 7) + '-01'
+        : null;
+
+      const monthlyPrice = priceMonth ? priceMap.get(`${transaction.item_id}_${priceMonth}`) : null;
+      const unit_price = (transaction.unit_price && transaction.unit_price > 0)
+        ? transaction.unit_price
+        : (monthlyPrice || transaction.items?.price || 0);
+
+      const total_amount = Math.abs(quantityChange) * unit_price;
+
       return {
         transaction_id: transaction.transaction_id,
         transaction_date: transaction.transaction_date,
@@ -86,10 +129,13 @@ export async function GET(): Promise<NextResponse> {
         transaction_type: transaction.transaction_type,
         item_code: transaction.items?.item_code || transaction.item_code || 'N/A',
         item_name: transaction.items?.item_name || transaction.item_name || 'N/A',
-        quantity: quantityChange, // Changed from quantity_change to quantity for frontend compatibility
+        unit: transaction.items?.unit || 'EA',
+        quantity: quantityChange,
         quantity_change: quantityChange,
         stock_balance: runningBalance,
-        company_name: transaction.company_name || 'N/A',
+        unit_price,
+        total_amount,
+        company_name: transaction.companies?.company_name || transaction.company_name || 'N/A',
         reference_number: transaction.reference_number,
         notes: transaction.notes
       };
@@ -128,7 +174,11 @@ export async function GET(): Promise<NextResponse> {
 
     // 4. 두 데이터 병합 및 정렬
     const allHistory = [...historyWithBalance, ...bomHistory]
-      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      .sort((a, b) => {
+        const dateA = a?.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+        const dateB = b?.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+        return dateB - dateA;
+      });
 
     return NextResponse.json({
       success: true,

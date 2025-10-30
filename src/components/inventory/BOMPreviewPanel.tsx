@@ -145,17 +145,17 @@ export default function BOMPreviewPanel({
                 재고 부족으로 생산 불가능
               </h4>
               <p className="text-sm text-orange-700 dark:text-orange-400">
-                현재 재고로는 <span className="font-bold">{summary.max_producible_quantity}개</span>까지만 생산 가능합니다.
+                현재 재고로는 <span className="font-bold">{summary.max_producible_quantity.toLocaleString('ko-KR')} {product_info.unit}</span>까지만 생산 가능합니다.
               </p>
               <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
-                희망 수량: <span className="font-semibold">{production_quantity}개</span> → 
-                부족 수량: <span className="font-bold text-red-600 dark:text-red-400">{summary.shortage_quantity}개</span>
+                희망 수량: <span className="font-semibold">{production_quantity.toLocaleString('ko-KR')} {product_info.unit}</span> → 
+                부족 수량: <span className="font-bold text-red-600 dark:text-red-400">{summary.shortage_quantity.toLocaleString('ko-KR')} {product_info.unit}</span>
               </p>
               {summary.bottleneck_item && (
                 <p className="text-xs text-orange-600 dark:text-orange-500 mt-2">
                   병목 자재: <span className="font-medium">{summary.bottleneck_item.item_name}</span> 
-                  (현재재고: {summary.bottleneck_item.available_stock}, 
-                  필요량: {summary.bottleneck_item.required_for_requested})
+                  (현재재고: {summary.bottleneck_item.available_stock.toLocaleString('ko-KR')} EA, 
+                  필요량: {summary.bottleneck_item.required_for_requested.toLocaleString('ko-KR')} EA)
                 </p>
               )}
             </div>
@@ -206,7 +206,10 @@ export default function BOMPreviewPanel({
             <span className="text-xs text-blue-700 dark:text-blue-400">희망 생산수량</span>
           </div>
           <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-            {production_quantity}
+            {production_quantity.toLocaleString('ko-KR')}
+          </p>
+          <p className="text-xs text-blue-600 dark:text-blue-500 mt-0.5">
+            {product_info.unit}
           </p>
         </div>
 
@@ -230,7 +233,14 @@ export default function BOMPreviewPanel({
               ? 'text-green-900 dark:text-green-300'
               : 'text-orange-900 dark:text-orange-300'
           }`}>
-            {summary.max_producible_quantity}
+            {summary.max_producible_quantity.toLocaleString('ko-KR')}
+          </p>
+          <p className={`text-xs mt-0.5 ${
+            summary.max_producible_quantity >= production_quantity
+              ? 'text-green-600 dark:text-green-500'
+              : 'text-orange-600 dark:text-orange-500'
+          }`}>
+            {product_info.unit}
           </p>
         </div>
 
@@ -241,7 +251,10 @@ export default function BOMPreviewPanel({
               <span className="text-xs text-red-700 dark:text-red-400">부족 수량</span>
             </div>
             <p className="text-2xl font-bold text-red-900 dark:text-red-300">
-              {summary.shortage_quantity}
+              {summary.shortage_quantity.toLocaleString('ko-KR')}
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">
+              {product_info.unit}
             </p>
           </div>
         )}
@@ -253,28 +266,28 @@ export default function BOMPreviewPanel({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle">
                   품목코드
                 </th>
-                <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-left py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle">
                   품목명
                 </th>
-                <th className="text-center py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-center py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle">
                   소요량(U/S)
                 </th>
-                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle whitespace-nowrap">
                   필요수량
                 </th>
-                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle whitespace-nowrap">
                   현재재고
                 </th>
-                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle whitespace-nowrap">
                   부족량
                 </th>
-                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-right py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle whitespace-nowrap">
                   이 자재로 생산가능
                 </th>
-                <th className="text-center py-2 px-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="text-center py-2 px-3 font-medium text-gray-700 dark:text-gray-300 align-middle">
                   상태
                 </th>
               </tr>
@@ -293,10 +306,10 @@ export default function BOMPreviewPanel({
                     key={item.bom_id}
                     className={`border-b border-gray-100 dark:border-gray-700 last:border-0 ${rowBgClass}`}
                   >
-                    <td className="py-2 px-3 text-gray-900 dark:text-white font-mono text-xs">
+                    <td className="py-2 px-3 text-gray-900 dark:text-white font-mono text-xs align-middle">
                       {item.item_code}
                     </td>
-                    <td className="py-2 px-3 text-gray-900 dark:text-white">
+                    <td className="py-2 px-3 text-gray-900 dark:text-white align-middle">
                       <div className="font-medium">{item.item_name}</div>
                       {item.spec && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -304,16 +317,16 @@ export default function BOMPreviewPanel({
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-center text-gray-700 dark:text-gray-300">
+                    <td className="py-2 px-3 text-center text-gray-700 dark:text-gray-300 align-middle whitespace-nowrap">
                       {(item.required_quantity / production_quantity).toFixed(4)}
                     </td>
-                    <td className="py-2 px-3 text-right text-gray-900 dark:text-white font-medium">
+                    <td className="py-2 px-3 text-right text-gray-900 dark:text-white font-medium whitespace-nowrap">
                       {item.required_quantity.toLocaleString('ko-KR')} {item.unit}
                     </td>
-                    <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300">
+                    <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       {item.available_stock.toLocaleString('ko-KR')} {item.unit}
                     </td>
-                    <td className="py-2 px-3 text-right">
+                    <td className="py-2 px-3 text-right whitespace-nowrap">
                       {item.shortage > 0 ? (
                         <span className="font-medium text-gray-600 dark:text-gray-400">
                           {item.shortage.toLocaleString('ko-KR')} {item.unit}
@@ -322,14 +335,14 @@ export default function BOMPreviewPanel({
                         <span className="text-gray-400 dark:text-gray-600">-</span>
                       )}
                     </td>
-                    <td className={`py-2 px-3 text-right ${
+                    <td className={`py-2 px-3 text-right whitespace-nowrap ${
                       item.max_producible_by_this_item === summary.max_producible_quantity
                         ? 'font-bold text-orange-600 dark:text-orange-400'
                         : 'text-gray-700 dark:text-gray-300'
                     }`}>
                       {item.max_producible_by_this_item.toLocaleString('ko-KR')} {product_info.unit}
                     </td>
-                    <td className="py-2 px-3 text-center">
+                    <td className="py-2 px-3 text-center align-middle">
                       <BOMStatusBadge status={status} />
                     </td>
                   </tr>

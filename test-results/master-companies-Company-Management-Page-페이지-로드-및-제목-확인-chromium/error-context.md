@@ -1,0 +1,116 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - button "Toggle sidebar"
+  - text: TC
+  - heading "태창 ERP" [level=1]
+  - button "Notifications"
+  - button "Settings"
+  - button "Switch to dark mode"
+  - button "로그인"
+- complementary:
+  - navigation:
+    - button "대시보드"
+    - link "메인 대시보드":
+      - /url: /
+    - button "기준정보"
+    - link "품목관리":
+      - /url: /master/items
+    - link "거래처관리":
+      - /url: /master/companies
+    - link "BOM관리":
+      - /url: /master/bom
+    - link "월별 단가 관리":
+      - /url: /price-management
+    - button "재고관리"
+    - link "입고관리":
+      - /url: /inventory?tab=receiving
+    - link "생산관리":
+      - /url: /inventory?tab=production
+    - link "출고관리":
+      - /url: /inventory?tab=shipping
+    - button "재고현황"
+    - link "재고 현황":
+      - /url: /stock
+    - link "재고이력":
+      - /url: /stock/history
+    - link "재고보고서":
+      - /url: /stock/reports
+    - button "회계관리"
+    - link "매출 관리":
+      - /url: /sales
+    - link "매입 관리":
+      - /url: /purchases
+    - link "수금 관리":
+      - /url: /collections
+    - link "지급 관리":
+      - /url: /payments
+    - link "회계 요약":
+      - /url: /accounting/summary
+    - button "시스템 모니터링"
+    - link "모니터링 대시보드":
+      - /url: /monitoring
+    - link "헬스체크":
+      - /url: /monitoring/health
+    - link "사용자 관리":
+      - /url: /admin/users
+    - link "계약 관리":
+      - /url: /contracts
+  - button "설정"
+- main:
+  - heading "거래처 관리" [level=1]
+  - paragraph: 고객사 및 공급사 정보를 관리합니다
+  - button "인쇄"
+  - button "템플릿 다운로드"
+  - button "거래처 목록 Excel 내보내기 (2개)": 거래처 내보내기
+  - button "엑셀 업로드"
+  - button "거래처 등록"
+  - textbox "거래처명, 사업자번호, 담당자로 검색..."
+  - combobox:
+    - option "전체 타입" [selected]
+    - option "고객사"
+    - option "공급사"
+    - option "고객사/공급사"
+  - button "필터"
+  - table:
+    - rowgroup:
+      - row "거래처명 타입 사업자번호 담당자 연락처 이메일 주소 결제조건 작업":
+        - cell "거래처명"
+        - cell "타입"
+        - cell "사업자번호"
+        - cell "담당자"
+        - cell "연락처"
+        - cell "이메일"
+        - cell "주소"
+        - cell "결제조건"
+        - cell "작업"
+    - rowgroup:
+      - row "테스트 고객사 1 고객사 - - - - - -":
+        - cell "테스트 고객사 1"
+        - cell "고객사"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell:
+          - button
+          - button
+      - row "테스트 공급사 1 공급사 - - - - - -":
+        - cell "테스트 공급사 1"
+        - cell "공급사"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell:
+          - button
+          - button
+- button "Open Tanstack query devtools":
+  - img
+- alert
+```

@@ -1,0 +1,75 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - button "Toggle sidebar"
+  - text: TC
+  - heading "태창 ERP" [level=1]
+  - button "Notifications"
+  - button "Settings"
+  - button "Switch to dark mode"
+  - button
+- complementary:
+  - navigation:
+    - button
+    - button
+    - button
+    - button
+    - button
+    - button
+    - link:
+      - /url: /contracts
+  - button
+- main:
+  - heading "거래처 관리" [level=1]
+  - paragraph: 고객사 및 공급사 정보를 관리합니다
+  - button "인쇄"
+  - button "템플릿"
+  - button "거래처 목록 Excel 내보내기 (2개)": 거래처 내보내기
+  - button "업로드"
+  - button "등록"
+  - button "필터"
+  - textbox "거래처명, 사업자번호, 담당자로 검색..."
+  - button "테이블"
+  - button "카드"
+  - table:
+    - rowgroup:
+      - row "거래처명 타입 사업자번호 담당자 연락처 이메일 주소 결제조건 작업":
+        - cell "거래처명"
+        - cell "타입"
+        - cell "사업자번호"
+        - cell "담당자"
+        - cell "연락처"
+        - cell "이메일"
+        - cell "주소"
+        - cell "결제조건"
+        - cell "작업"
+    - rowgroup:
+      - row "테스트 고객사 1 고객사 - - - - - -":
+        - cell "테스트 고객사 1"
+        - cell "고객사"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell:
+          - button
+          - button
+      - row "테스트 공급사 1 공급사 - - - - - -":
+        - cell "테스트 공급사 1"
+        - cell "공급사"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell "-"
+        - cell:
+          - button
+          - button
+- button "Open Tanstack query devtools":
+  - img
+- alert
+```

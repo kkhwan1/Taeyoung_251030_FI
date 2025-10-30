@@ -120,13 +120,6 @@ export default function BOMPage() {
       const data = await response.json();
       if (data.success) {
         setItems(data.data.items || []);
-        console.log('[BOM] Fetched items:', {
-          count: data.data.items?.length || 0,
-          sample: data.data.items?.slice(0, 3).map((item: any) => ({
-            item_code: item.item_code,
-            item_name: item.item_name
-          }))
-        });
       }
     } catch (error) {
       console.error('Failed to fetch items:', error);
@@ -170,11 +163,6 @@ export default function BOMPage() {
 
         setBomData(bomList);
         setCostSummary(data.data.cost_summary);
-        console.log('[BOM] Fetched data:', {
-          count: bomList.length,
-          costSummary: data.data.cost_summary,
-          priceMonth: data.data.price_month
-        });
       } else {
         console.error('API Error:', data.error);
         error('데이터 로딩 실패', data.error || 'BOM 데이터를 불러오는데 실패했습니다.');
@@ -337,8 +325,6 @@ export default function BOMPage() {
         ? { ...apiBody, bom_id: editingBOM.bom_id }
         : apiBody;
 
-      console.log('[BOM API] Sending:', body);
-
       const response = await fetch('/api/bom', {
         method,
         headers: {
@@ -398,6 +384,29 @@ export default function BOMPage() {
     } catch (err) {
       console.error('Save failed:', err);
       error('저장 실패', '코일 규격 저장에 실패했습니다');
+    }
+  };
+
+  const handleTemplateDownload = async () => {
+    try {
+      const response = await fetch('/api/download/template/bom');
+      if (!response.ok) {
+        throw new Error('템플릿 다운로드에 실패했습니다.');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'BOM_템플릿.xlsx';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(url);
+      success('템플릿 다운로드 완료', 'BOM 템플릿 파일이 다운로드되었습니다.');
+    } catch (err) {
+      console.error('Failed to download template:', err);
+      error('다운로드 실패', '템플릿 파일을 다운로드하지 못했습니다.');
     }
   };
 
@@ -940,6 +949,14 @@ export default function BOMPage() {
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               새로고침
+            </button>
+
+            <button
+              onClick={handleTemplateDownload}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
+            >
+              <Download className="w-4 h-4" />
+              템플릿 다운로드
             </button>
 
             <label

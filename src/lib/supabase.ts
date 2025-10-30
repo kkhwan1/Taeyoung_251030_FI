@@ -3,8 +3,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
 
 // Supabase configuration from environment variables
+// Using standard environment variable names for consistency
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.SUPABASE_API || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 // Browser client for client-side operations

@@ -81,7 +81,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     logger.info('Inventory receiving POST request', { endpoint });
-    const body = await request.json();
+    
+    // Parse request body with error handling (Korean UTF-8 support)
+    let body;
+    try {
+      const text = await request.text();
+      body = JSON.parse(text);
+    } catch (parseError) {
+      logger.error('JSON parse error', parseError as Error, { endpoint });
+      return NextResponse.json({
+        success: false,
+        error: '잘못된 JSON 형식입니다.'
+      }, { status: 400 });
+    }
+
     const {
       transaction_date,
       item_id,
@@ -90,14 +103,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       company_id,
       reference_number,
       reference_no,
-      notes
+      notes,
+      arrival_date,
+      lot_no,
+      expiry_date,
+      to_location
     } = body;
 
     // 필수 필드 검증
-    if (!transaction_date || !item_id || !quantity || unit_price === undefined) {
+    if (!transaction_date || !item_id || quantity === undefined || unit_price === undefined) {
       return NextResponse.json({
         success: false,
         error: '필수 필드가 누락되었습니다. (거래일자, 품목, 수량, 단가 필수)'
+      }, { status: 400 });
+    }
+
+    // 경계값 검증 (수량)
+    if (typeof quantity !== 'number' || quantity <= 0) {
+      return NextResponse.json({
+        success: false,
+        error: '수량은 0보다 커야 합니다.'
+      }, { status: 400 });
+    }
+
+    // 경계값 검증 (단가)
+    if (typeof unit_price !== 'number' || unit_price < 0) {
+      return NextResponse.json({
+        success: false,
+        error: '단가는 0 이상이어야 합니다.'
       }, { status: 400 });
     }
 
@@ -108,26 +141,75 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Calculate total amount
     const total_amount = quantity * unit_price;
 
-    // OPTIMIZATION: Use transaction to ensure atomicity and reduce trigger overhead
-    const { data, error } = await supabase.rpc('create_receiving_transaction', {
-      p_item_id: item_id,
-      p_quantity: quantity,
-      p_unit_price: unit_price,
-      p_total_amount: total_amount,
-      p_company_id: company_id,
-      p_reference_number: reference_no || reference_number,
-      p_transaction_date: transaction_date,
-      p_notes: notes
-    });
+    // KOREAN ENCODING FIX: Use direct INSERT instead of RPC to preserve UTF-8
+    // Insert transaction
+    const { data: transactionData, error: transactionError } = await supabase
+      .from('inventory_transactions')
+      .insert({
+        item_id,
+        company_id,
+        transaction_type: '입고',
+        quantity,
+        unit_price,
+        total_amount,
+        reference_number: reference_no || reference_number,
+        transaction_date,
+        arrival_date: arrival_date || null,
+        notes,
+        status: '완료'
+      })
+      .select('transaction_id')
+      .single();
 
-    if (error) {
-      console.error('Supabase transaction error:', error);
+    if (transactionError) {
+      console.error('Supabase transaction error:', transactionError);
       return NextResponse.json({
         success: false,
         error: '입고 등록 중 오류가 발생했습니다.',
-        details: error.message
+        details: transactionError.message
       }, { status: 500 });
     }
+
+    // Update stock
+    const { data: itemData, error: stockError } = await supabase
+      .from('items')
+      .select('current_stock')
+      .eq('item_id', item_id)
+      .single();
+
+    if (stockError) {
+      console.error('Stock query error:', stockError);
+      return NextResponse.json({
+        success: false,
+        error: '재고 조회 중 오류가 발생했습니다.',
+        details: stockError.message
+      }, { status: 500 });
+    }
+
+    const new_stock = (itemData?.current_stock || 0) + quantity;
+
+    const { error: updateError } = await supabase
+      .from('items')
+      .update({ current_stock: new_stock })
+      .eq('item_id', item_id);
+
+    if (updateError) {
+      console.error('Stock update error:', updateError);
+      return NextResponse.json({
+        success: false,
+        error: '재고 업데이트 중 오류가 발생했습니다.',
+        details: updateError.message
+      }, { status: 500 });
+    }
+
+    const data = [{
+      transaction_id: transactionData.transaction_id,
+      item_id,
+      quantity,
+      unit_price,
+      total_amount,
+      current_stock: new_stock
+    }];
 
     const duration = Date.now() - startTime;
     metricsCollector.trackRequest(endpoint, duration, false);
