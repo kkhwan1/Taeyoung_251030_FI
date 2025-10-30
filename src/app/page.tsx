@@ -9,12 +9,6 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // 인증 비활성화 모드인 경우 바로 대시보드 표시
-    if (process.env.NEXT_PUBLIC_DISABLE_AUTH?.trim() === 'true') {
-      setIsAuthenticated(true);
-      return;
-    }
-
     // 인증 상태 확인
     fetch('/api/auth/me')
       .then(res => res.json())

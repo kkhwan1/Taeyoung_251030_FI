@@ -178,12 +178,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const endpoint = '/api/items';
 
   try {
-    // 권한 체크 (DISABLE_AUTH 환경변수로 우회 가능)
-    if (process.env.DISABLE_AUTH?.trim() !== 'true') {
-      const { user, response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'read');
-      if (permissionResponse) return permissionResponse;
-    }
-
+    // 권한 체크
+    const { user, response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'read');
+    if (permissionResponse) return permissionResponse;
+    
     logger.info('Items GET request', { endpoint });
     const supabase = getSupabaseClient();
     const searchParams = request.nextUrl.searchParams;
@@ -355,11 +353,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // 권한 체크 (DISABLE_AUTH 환경변수로 우회 가능)
-    if (process.env.DISABLE_AUTH?.trim() !== 'true') {
-      const { response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'create');
-      if (permissionResponse) return permissionResponse;
-    }
+    // 권한 체크
+    const { response: permissionResponse } = await checkAPIResourcePermission(request, 'items', 'create');
+    if (permissionResponse) return permissionResponse;
     
     // Korean UTF-8 support
     const text = await request.text();

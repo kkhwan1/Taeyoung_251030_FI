@@ -1,0 +1,152 @@
+{
+  "timestamp": "2025-10-30T00:00:00Z",
+  "project": "FITaeYoungERP",
+  "database": {
+    "provider": "Supabase",
+    "url": "https://pybjnkbmtlyaftuiieyq.supabase.co",
+    "status": "Active"
+  },
+  "tables": {
+    "master_data": {
+      "items": {
+        "record_count": 302,
+        "status": "Active",
+        "columns": 31,
+        "categories": {
+          "원자재": 164,
+          "제품": 125,
+          "부자재": 13
+        },
+        "key_fields": [
+          "item_id", "item_code", "item_name", "category", "unit",
+          "current_stock", "safety_stock", "price", "supplier_id",
+          "item_type", "material_type", "yield_rate", "scrap_rate"
+        ],
+        "data_quality": {
+          "pricing": "⚠️ All items have price=0, needs price_master",
+          "categories": "✅ Well populated",
+          "stock": "✅ Complete"
+        }
+      },
+      "companies": {
+        "record_count": 56,
+        "status": "Active",
+        "columns": 18,
+        "types": {
+          "공급사": 43,
+          "협력사": 13
+        },
+        "key_fields": [
+          "company_id", "company_code", "company_name", "company_type",
+          "business_number", "representative", "phone", "email", "address",
+          "company_category", "business_info", "payment_terms"
+        ],
+        "data_quality": {
+          "contact_info": "⚠️ Mostly null/empty",
+          "phase2_fields": "⚠️ Not populated",
+          "basic_info": "✅ Complete"
+        }
+      },
+      "bom": {
+        "record_count": 130,
+        "status": "Active",
+        "columns": 9,
+        "key_fields": [
+          "bom_id", "parent_item_id", "child_item_id",
+          "quantity_required", "level_no"
+        ],
+        "data_quality": "✅ Complete"
+      }
+    },
+    "transactions": {
+      "inventory_transactions": {
+        "record_count": 1788,
+        "status": "Active",
+        "columns": 28,
+        "types": {
+          "입고": 887,
+          "생산입고": 39,
+          "출고": 74
+        },
+        "key_fields": [
+          "transaction_id", "transaction_date", "transaction_type",
+          "item_id", "company_id", "quantity", "unit_price",
+          "total_amount", "tax_amount", "grand_total",
+          "reference_number", "status"
+        ],
+        "data_quality": "✅ Complete and consistent"
+      },
+      "purchase_transactions": {
+        "record_count": 0,
+        "status": "Empty",
+        "purpose": "Purchase order tracking",
+        "note": "Defined but not in use"
+      },
+      "sales_transactions": {
+        "record_count": 0,
+        "status": "Empty",
+        "purpose": "Sales order tracking",
+        "note": "Defined but not in use"
+      },
+      "collections": {
+        "record_count": 0,
+        "status": "Empty",
+        "purpose": "Customer payment receipts",
+        "note": "Defined but not in use"
+      },
+      "payments": {
+        "record_count": 0,
+        "status": "Empty",
+        "purpose": "Supplier payment records",
+        "note": "Defined but not in use"
+      },
+      "price_master": {
+        "record_count": 0,
+        "status": "Empty",
+        "purpose": "Monthly price tracking",
+        "note": "Critical for item pricing"
+      }
+    }
+  },
+  "summary": {
+    "total_records": 2276,
+    "total_tables_queried": 9,
+    "populated_tables": 4,
+    "empty_tables": 5,
+    "data_status": {
+      "fully_populated": 2,
+      "partially_populated": 2,
+      "empty": 5
+    },
+    "categories_coverage": {
+      "items": "✅ 100% (302 items)",
+      "companies": "✅ 100% (56 companies)",
+      "bom": "✅ 100% (130 relationships)",
+      "inventory": "✅ 100% (1,788 transactions)",
+      "pricing": "❌ 0% (empty)",
+      "sales": "❌ 0% (empty)",
+      "purchases": "❌ 0% (empty)"
+    }
+  },
+  "recommendations": {
+    "immediate": [
+      "Populate price_master table with monthly pricing data",
+      "Fill company contact information (phone, email, address)",
+      "Define sales_transactions process and implement",
+      "Define purchase_transactions process and implement"
+    ],
+    "validation": [
+      "Verify items with price=0 should have pricing",
+      "Check company_category field usage",
+      "Validate BOM relationships with manufacturing"
+    ],
+    "next_phase": [
+      "Implement collections (customer payments)",
+      "Implement payments (supplier payments)",
+      "Implement accounting entries and reporting",
+      "Setup real-time dashboard"
+    ]
+  },
+  "query_time": "2025-10-30T06:16:35Z",
+  "connection_status": "✅ Active and responsive"
+}
