@@ -77,7 +77,10 @@
       "Bash(python:*)",
       "Bash(tasklist:*)",
       "Bash(awk:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel --version)",
+      "Bash(npx vercel:*)"
     ],
     "deny": [],
     "ask": []
