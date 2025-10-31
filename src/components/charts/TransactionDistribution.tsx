@@ -98,8 +98,9 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
     }).filter(item => {
       // displayValue가 0보다 크거나, count나 volume이 0보다 큰 경우
       // displayValue가 NaN이 아닌지도 확인
+      // value가 0이어도 count나 volume이 있으면 표시 (금액이 없어도 거래가 있으면 표시)
       const hasValidValue = !isNaN(item.displayValue) && item.displayValue !== null && 
-                            (item.displayValue > 0 || item.count > 0 || item.volume > 0);
+                            (item.displayValue > 0 || item.count > 0 || item.volume > 0 || item.value > 0);
       
       // 디버깅: 필터링된 아이템 로그
       if (process.env.NODE_ENV === 'development' && !hasValidValue) {
