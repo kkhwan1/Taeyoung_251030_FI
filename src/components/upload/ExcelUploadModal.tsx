@@ -125,27 +125,26 @@ export default function ExcelUploadModal({
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(uploadUrl, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(uploadUrl, {
         method: 'POST',
         body: formData,
+      }, {
+        timeout: 120000,
+        maxRetries: 1,
+        retryDelay: 2000
       });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setTimeout(() => {
-            resetModal();
-            onUploadSuccess();
-          }, 500);
-        } else {
-          throw new Error(result.error || '업로드에 실패했습니다.');
-        }
+      if (result.success) {
+        setTimeout(() => {
+          resetModal();
+          onUploadSuccess();
+        }, 500);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '업로드에 실패했습니다.');
+        throw new Error(result.error || '업로드에 실패했습니다.');
       }
     } catch (err: any) {
       setError(err.message || '업로드 중 오류가 발생했습니다.');
@@ -185,7 +184,12 @@ export default function ExcelUploadModal({
   const handleTemplateDownload = async () => {
     try {
       const templateUrl = uploadUrl.replace('/upload/', '/download/template/');
-      const response = await fetch(templateUrl);
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch(templateUrl, {}, {
+        timeout: 30000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (!response.ok) {
         throw new Error('템플릿을 찾을 수 없습니다.');

@@ -579,7 +579,7 @@ export async function calculateBatchScrapRevenue(
 
     // 3. 각 품목별로 스크랩 수익 계산
     for (const { item_id, quantity } of itemQuantities) {
-      const itemData = itemsData.find(i => i.item_id === item_id);
+      const itemData = itemsData.find((i: any) => i.item_id === item_id);
       
       // 3-1. 직선 스크랩 수익
       let directScrapRevenue = 0;
@@ -590,7 +590,7 @@ export async function calculateBatchScrapRevenue(
       }
 
       // 3-2. 하위 품목 스크랩 수익
-      const relevantBomEntries = bomEntries?.filter(b => b.parent_item_id === item_id) || [];
+      const relevantBomEntries = bomEntries?.filter((b: any) => b.parent_item_id === item_id) || [];
       let childScrapRevenue = 0;
 
       for (const entry of relevantBomEntries) {

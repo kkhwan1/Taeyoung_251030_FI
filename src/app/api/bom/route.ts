@@ -232,7 +232,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 2. 중복 BOM 체크 (활성 + 비활성 모두 확인)
     const { data: existing } = await supabase
       .from('bom')
-      .select('bom_id')
+      .select('bom_id, is_active')
       .eq('parent_item_id', parent_item_id)
       .eq('child_item_id', child_item_id)
       .single();
@@ -349,7 +349,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Check for duplicate BOM entry (활성 + 비활성 모두 확인)
     const { data: existingBom } = await supabase
       .from('bom')
-      .select('bom_id')
+      .select('bom_id, is_active')
       .eq('parent_item_id', parent_item_id)
       .eq('child_item_id', child_item_id)
       .maybeSingle();

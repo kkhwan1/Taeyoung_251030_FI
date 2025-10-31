@@ -36,8 +36,12 @@ export default function TopNWidget({ type, count = 10, className = '' }: TopNWid
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/price-analysis/trends?include_forecast=false');
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson('/api/price-analysis/trends?include_forecast=false', {}, {
+        timeout: 10000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success && result.data) {
         // Process and sort data

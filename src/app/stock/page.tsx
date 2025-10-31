@@ -38,6 +38,8 @@ interface StockHistory {
   reference_no?: string;
   company_name?: string;
   notes?: string;
+  created_at?: string;
+  unit?: string;
 }
 
 export default function StockPage() {
@@ -115,18 +117,27 @@ export default function StockPage() {
         }
         // 기존 데이터 유지 (빈 배열로 리셋하지 않음)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('재고 조회 오류:', error);
       
-      // 재시도 로직 (최대 3회, 1초 간격)
-      if (retryCount < MAX_RETRIES && error instanceof TypeError) {
-        console.log(`재고 조회 재시도 ${retryCount + 1}/${MAX_RETRIES}`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // 재시도 로직 개선: 모든 네트워크 오류에 대해 재시도 (TypeError, NetworkError 등)
+      const isNetworkError = error instanceof TypeError || 
+                            error instanceof Error && (
+                              error.message.includes('Failed to fetch') ||
+                              error.message.includes('NetworkError') ||
+                              error.message.includes('network')
+                            );
+      
+      if (retryCount < MAX_RETRIES && isNetworkError) {
+        const retryDelay = Math.min(1000 * (retryCount + 1), 3000); // 1초, 2초, 3초
+        console.log(`재고 조회 재시도 ${retryCount + 1}/${MAX_RETRIES} (${retryDelay}ms 후)`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
         return fetchStockItems(showLoading, retryCount + 1);
       }
 
       // 최종 실패 시 사용자 알림은 showLoading이 true일 때만
       if (showLoading) {
+        console.error('재고 조회 최종 실패:', error);
         alert('재고 조회 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
       }
       // 주기적 업데이트 실패 시에는 기존 데이터 유지
@@ -169,14 +180,19 @@ export default function StockPage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'current') {
-      fetchStockItems();
-    } else if (activeTab === 'history') {
-      fetchStockHistory();
-    } else if (activeTab === 'adjustment') {
-      // 재고 조정 탭이 활성화되면 이력도 로드
-      fetchStockHistory();
-    }
+    // 초기 로딩 지연: 페이지 로드 직후 네트워크 준비 시간 확보 (100ms)
+    const timeoutId = setTimeout(() => {
+      if (activeTab === 'current') {
+        fetchStockItems();
+      } else if (activeTab === 'history') {
+        fetchStockHistory();
+      } else if (activeTab === 'adjustment') {
+        // 재고 조정 탭이 활성화되면 이력도 로드
+        fetchStockHistory();
+      }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [activeTab]);
 
   // 실시간 자동 업데이트 (5초마다) - 백그라운드 업데이트로 화면 깜빡임 방지

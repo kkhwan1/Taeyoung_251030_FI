@@ -65,8 +65,12 @@ export default function UsersPage() {
       if (searchTerm) params.set('search', searchTerm);
       if (selectedRole) params.set('role', selectedRole);
 
-      const response = await fetch(`/api/users?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/users?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setUsers(result.data);
@@ -94,11 +98,14 @@ export default function UsersPage() {
     if (!confirm('정말 이 사용자를 비활성화하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/users/${userId}`, {
         method: 'DELETE'
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         success('사용자가 비활성화되었습니다.');
@@ -117,15 +124,18 @@ export default function UsersPage() {
       const url = isEdit ? `/api/users/${editingUser.user_id}` : '/api/users';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
         method,
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         success(isEdit ? '사용자 정보가 수정되었습니다.' : '사용자가 생성되었습니다.');
@@ -319,14 +329,14 @@ function UserFormModal({ user, onClose, onSave }: {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 수정 시 비밀번호가 비어있으면 제외
-    const submitData = { ...formData };
-    if (user && !submitData.password) {
-      delete submitData.password;
-    }
 
-    onSave(submitData);
+    // 수정 시 비밀번호가 비어있으면 제외
+    if (user && !formData.password) {
+      const { password, ...submitData } = formData;
+      onSave(submitData);
+    } else {
+      onSave(formData);
+    }
   };
 
   return (

@@ -400,6 +400,16 @@ export interface ProductionResponse {
   data: {
     transaction: InventoryTransaction;
     auto_deductions: AutoDeduction[];
+    stock_warning?: {
+      max_producible: number;
+      shortage_quantity: number;
+      bottleneck_materials?: Array<{
+        item_name: string;
+        item_code: string;
+        required: number;
+        available: number;
+      }>;
+    };
   };
 }
 

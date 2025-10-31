@@ -8,14 +8,15 @@ import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error } = await checkPermission('user');
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const contractId = parseInt(params.id);
+  const { id } = await params;
+  const contractId = parseInt(id);
   const supabase = getSupabaseClient();
 
   const { data, error: dbError } = await supabase
@@ -41,14 +42,15 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error, user } = await checkPermission('manager');
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const contractId = parseInt(params.id);
+  const { id } = await params;
+  const contractId = parseInt(id);
 
   // 한글 처리 패턴
   const text = await request.text();
@@ -130,14 +132,15 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error } = await checkPermission('admin');
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const contractId = parseInt(params.id);
+  const { id } = await params;
+  const contractId = parseInt(id);
   const supabase = getSupabaseClient();
 
   // 소프트 삭제

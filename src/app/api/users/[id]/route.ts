@@ -7,14 +7,15 @@ import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error, user } = await checkPermission('user', request);
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const userId = parseInt(params.id);
+  const { id } = await params;
+  const userId = parseInt(id);
 
   // 본인 또는 manager 이상만 조회 가능
   if (userId !== user!.user_id && !['manager', 'admin'].includes(user!.role)) {
@@ -44,14 +45,15 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error, user } = await checkPermission('user', request);
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const userId = parseInt(params.id);
+  const { id } = await params;
+  const userId = parseInt(id);
 
   // 한글 처리 패턴
   const text = await request.text();
@@ -114,14 +116,15 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error, user } = await checkPermission('admin', request);
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const userId = parseInt(params.id);
+  const { id } = await params;
+  const userId = parseInt(id);
 
   // 자기 자신은 삭제 불가
   if (userId === user!.user_id) {

@@ -106,8 +106,12 @@ export default function ContractsPage() {
       if (searchTerm) params.set('search', searchTerm);
       if (selectedType) params.set('contract_type', selectedType);
 
-      const response = await fetch(`/api/contracts?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/contracts?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setContracts(result.data);
@@ -143,8 +147,12 @@ export default function ContractsPage() {
   const fetchDocuments = async (contractId: number) => {
     setDocumentsLoading(true);
     try {
-      const response = await fetch(`/api/contracts/${contractId}/documents`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/contracts/${contractId}/documents`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setDocuments(result.data || []);
@@ -174,12 +182,16 @@ export default function ContractsPage() {
     if (!confirm('이 문서를 삭제하시겠습니까?')) return;
     
     try {
-      const response = await fetch(
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(
         `/api/contracts/${selectedContract.contract_id}/documents?doc_id=${docId}`,
-        { method: 'DELETE' }
+        { method: 'DELETE' },
+        {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        }
       );
-      
-      const result = await response.json();
       
       if (result.success) {
         success('문서가 삭제되었습니다.');
@@ -217,15 +229,18 @@ export default function ContractsPage() {
 
     setSubmitting(true);
     try {
-      const response = await fetch('/api/contracts', {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson('/api/contracts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         const contractId = result.data.contract_id;

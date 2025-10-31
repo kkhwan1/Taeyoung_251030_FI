@@ -39,8 +39,12 @@ export function ItemImageGallery({
     setError(null);
 
     try {
-      const response = await fetch(`/api/items/${itemId}/images`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/items/${itemId}/images`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (!result.success) {
         throw new Error(result.error || '이미지 목록 로드 실패');
@@ -65,11 +69,14 @@ export function ItemImageGallery({
     setDeletingId(imageId);
 
     try {
-      const response = await fetch(`/api/items/${itemId}/images/${imageId}`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/items/${itemId}/images/${imageId}`, {
         method: 'DELETE'
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (!result.success) {
         throw new Error(result.error || '이미지 삭제 실패');
@@ -89,11 +96,14 @@ export function ItemImageGallery({
     setSettingPrimaryId(imageId);
 
     try {
-      const response = await fetch(`/api/items/${itemId}/images/${imageId}/primary`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/items/${itemId}/images/${imageId}/primary`, {
         method: 'PUT'
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (!result.success) {
         throw new Error(result.error || '대표 이미지 설정 실패');

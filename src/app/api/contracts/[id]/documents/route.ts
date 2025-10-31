@@ -8,14 +8,15 @@ import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error } = await checkPermission('user', request);
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const contractId = parseInt(params.id);
+  const { id } = await params;
+  const contractId = parseInt(id);
   const supabase = getSupabaseClient();
 
   const { data, error: dbError } = await supabase
@@ -37,14 +38,15 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error, user } = await checkPermission('manager', request);
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
 
-  const contractId = parseInt(params.id);
+  const { id } = await params;
+  const contractId = parseInt(id);
   
   try {
     const formData = await request.formData();
@@ -69,12 +71,18 @@ export async function POST(
       file
     });
 
+    // 파일 타입 추출 (확장자 기반)
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'other';
+    const documentType = ['pdf', 'doc', 'docx'].includes(fileExt) ? 'contract' : 'attachment';
+
     // DB에 메타데이터 저장
     const supabase = getSupabaseClient();
     const { data, error: dbError } = await supabase
       .from('contract_documents')
       .insert({
         contract_id: contractId,
+        document_type: documentType,
+        document_url: uploadResult.url,
         file_path: uploadResult.path,
         file_name: file.name,
         original_filename: file.name,
@@ -109,12 +117,14 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { allowed, error, user } = await checkPermission('manager', request);
   if (!allowed) {
     return Response.json({ success: false, error }, { status: 403 });
   }
+
+  await params; // Consume params even if not directly used
 
   const { searchParams } = new URL(request.url);
   const docId = searchParams.get('doc_id');
@@ -152,7 +162,9 @@ export async function DELETE(
 
   // Storage에서 파일 삭제
   try {
-    await deleteDocument('contract-documents', doc.file_path);
+    if (doc.file_path) {
+      await deleteDocument('contract-documents', doc.file_path);
+    }
   } catch (err) {
     console.error('Storage 파일 삭제 오류:', err);
   }

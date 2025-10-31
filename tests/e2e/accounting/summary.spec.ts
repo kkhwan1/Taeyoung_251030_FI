@@ -351,12 +351,14 @@ test.describe('Accounting Summary - Company Detail Table', () => {
   });
 
   test('거래처별 상세 테이블 표시', async ({ page }) => {
+    await page.waitForTimeout(1500);
+
     // Look for company detail section
     const companyDetail = page.locator('h2:has-text("거래처별 상세")');
     await expect(companyDetail).toBeVisible();
 
-    // Verify table exists
-    const table = page.locator('table').nth(1);
+    // Verify table exists within company detail section (not using .nth(1) due to conditional category table)
+    const table = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
     await expect(table).toBeVisible();
   });
 
@@ -384,8 +386,9 @@ test.describe('Accounting Summary - Company Detail Table', () => {
   test('거래처 데이터 표시', async ({ page }) => {
     await page.waitForTimeout(1500);
 
-    // Get company table (second table on page)
-    const companyRows = page.locator('table').nth(1).locator('tbody tr, [data-testid="table-row"]');
+    // Get company table within section (not using .nth(1) due to conditional category table)
+    const companyTable = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
+    const companyRows = companyTable.locator('tbody tr, [data-testid="table-row"]');
     const rowCount = await companyRows.count();
 
     // Should have at least 0 companies (may be empty)
@@ -405,7 +408,8 @@ test.describe('Accounting Summary - Company Detail Table', () => {
   test('거래처 코드 자동 생성 확인 (CUS/SUP prefix)', async ({ page }) => {
     await page.waitForTimeout(1500);
 
-    const companyRows = page.locator('table').nth(1).locator('tbody tr');
+    const companyTable = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
+    const companyRows = companyTable.locator('tbody tr');
     const rowCount = await companyRows.count();
 
     if (rowCount > 0) {
@@ -427,7 +431,8 @@ test.describe('Accounting Summary - Company Detail Table', () => {
   test('JSONB business_info 필드 표시 (업태)', async ({ page }) => {
     await page.waitForTimeout(1500);
 
-    const companyRows = page.locator('table').nth(1).locator('tbody tr');
+    const companyTable = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
+    const companyRows = companyTable.locator('tbody tr');
     const rowCount = await companyRows.count();
 
     if (rowCount > 0) {
@@ -457,7 +462,8 @@ test.describe('Accounting Summary - Company Detail Table', () => {
       await page.waitForTimeout(800);
 
       // Results should be filtered
-      const companyRows = page.locator('table').nth(1).locator('tbody tr');
+      const companyTable = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
+      const companyRows = companyTable.locator('tbody tr');
       const rowCount = await companyRows.count();
       expect(rowCount).toBeGreaterThanOrEqual(0);
     }
@@ -485,7 +491,8 @@ test.describe('Accounting Summary - Company Detail Table', () => {
     await page.waitForTimeout(2000);
 
     // Check if virtual scrolling is active
-    const companyRows = page.locator('table').nth(1).locator('tbody tr, [data-testid="table-row"]');
+    const companyTable = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
+    const companyRows = companyTable.locator('tbody tr, [data-testid="table-row"]');
     const visibleRowCount = await companyRows.count();
 
     if (visibleRowCount > 50) {
@@ -518,7 +525,8 @@ test.describe('Accounting Summary - Company Detail Table', () => {
         await page.waitForTimeout(1000);
 
         // Verify page changed
-        const companyRows = page.locator('table').nth(1).locator('tbody tr');
+        const companyTable = page.locator('h2:has-text("거래처별 상세")').locator('..').locator('table').first();
+        const companyRows = companyTable.locator('tbody tr');
         const rowCount = await companyRows.count();
         expect(rowCount).toBeGreaterThanOrEqual(0);
       }

@@ -279,7 +279,19 @@ export function createValidatedRoute<TBody = any, TQuery = any, TParams = any>(
         if (authResult instanceof NextResponse) {
           return authResult; // Auth failed
         }
-        validatedRequest.user = authResult.user;
+        // Convert lib/auth User to types/auth User format
+        const libUser = authResult.user;
+        validatedRequest.user = {
+          id: libUser.user_id,
+          username: libUser.username,
+          name: libUser.name,
+          email: libUser.email,
+          department: libUser.department,
+          role: libUser.role as UserRole,
+          is_active: libUser.is_active,
+          created_at: libUser.created_at || new Date().toISOString(),
+          updated_at: libUser.updated_at || new Date().toISOString()
+        };
 
         // Apply role-based authorization if specified
         if (options.roles) {

@@ -128,7 +128,7 @@ export function handleSupabaseError(
   operation: string,
   table: string,
   error: PostgrestError | Error | any
-): SupabaseResponse<never> {
+): Response {
   const errorMessage = error?.message || String(error);
   console.error(`[Supabase] ${table}.${operation} failed:`, {
     message: errorMessage,
@@ -137,10 +137,10 @@ export function handleSupabaseError(
     hint: error?.hint,
   });
 
-  return {
+  return Response.json({
     success: false,
     error: errorMessage,
-  };
+  }, { status: 500 });
 }
 
 /**
@@ -148,23 +148,25 @@ export function handleSupabaseError(
  */
 export function createSuccessResponse<T>(
   data: T,
-  count?: number
-): SupabaseResponse<T> {
-  return {
+  count?: number,
+  status?: number
+): Response {
+  return Response.json({
     success: true,
     data,
     ...(count !== undefined && { count }),
-  };
+  }, { status: status || 200 });
 }
 
 /**
  * Exception handler wrapper for consistency
  * Converts unknown errors to standard response format
  */
-export function handleException<T = never>(
+export function handleException(
   operation: string,
-  error: unknown
-): SupabaseResponse<T> {
+  error: unknown,
+  status?: number
+): Response {
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
   console.error(`[Exception ${operation}]`, {
@@ -173,10 +175,10 @@ export function handleException<T = never>(
     timestamp: new Date().toISOString()
   });
 
-  return {
+  return Response.json({
     success: false,
     error: errorMessage
-  };
+  }, { status: status || 500 });
 }
 
 /**
@@ -185,8 +187,8 @@ export function handleException<T = never>(
  */
 export async function tryCatchWrapper<T>(
   operation: string,
-  asyncFn: () => Promise<SupabaseResponse<T>>
-): Promise<SupabaseResponse<T>> {
+  asyncFn: () => Promise<Response>
+): Promise<Response> {
   try {
     return await asyncFn();
   } catch (error) {
@@ -204,18 +206,14 @@ export function toDbResponse<T>(
     error: PostgrestError | null;
     count?: number | null;
   }
-): SupabaseResponse<T> {
+): Response {
   const { data, error, count } = queryResult;
 
   if (error) {
     return handleSupabaseError(operation, 'unknown', error);
   }
 
-  return {
-    success: true,
-    data: data === null ? undefined : data,
-    count: count ?? undefined
-  };
+  return createSuccessResponse(data === null ? undefined : data, count ?? undefined);
 }
 
 /**
@@ -227,18 +225,14 @@ export function toDbResponseSingle<T>(
     data: T | null;
     error: PostgrestError | null;
   }
-): SupabaseResponse<T[]> {
+): Response {
   const { data, error } = queryResult;
 
   if (error) {
     return handleSupabaseError(operation, 'unknown', error);
   }
 
-  return {
-    success: true,
-    data: data ? [data] : [],
-    error: undefined
-  };
+  return createSuccessResponse(data ? [data] : []);
 }
 
 /**
@@ -250,17 +244,14 @@ export function toDbResponseMutation<T>(
     data: T | null;
     error: PostgrestError | null;
   }
-): SupabaseResponse<T> {
+): Response {
   const { data, error } = mutationResult;
 
   if (error) {
     return handleSupabaseError(operation, 'unknown', error);
   }
 
-  return {
-    success: true,
-    data: data ?? undefined
-  };
+  return createSuccessResponse(data ?? undefined);
 }
 
 // ============================================================================
@@ -281,7 +272,7 @@ export class SupabaseQueryBuilder {
   async select<T>(
     table: string,
     options: QueryOptions = {}
-  ): Promise<SupabaseResponse<T[]>> {
+  ): Promise<Response> {
     try {
       let query = this.client
         .from(table as any)
@@ -343,7 +334,7 @@ export class SupabaseQueryBuilder {
   async insert<T>(
     table: string,
     values: any | any[]
-  ): Promise<SupabaseResponse<T>> {
+  ): Promise<Response> {
     try {
       const { data, error } = await this.client
         .from(table as any)
@@ -355,7 +346,7 @@ export class SupabaseQueryBuilder {
         return handleSupabaseError('insert', table, error);
       }
 
-      return createSuccessResponse(data as T);
+      return createSuccessResponse(data as T, undefined, 201);
     } catch (error) {
       return handleSupabaseError('insert', table, error);
     }
@@ -369,7 +360,7 @@ export class SupabaseQueryBuilder {
     id: number,
     values: any,
     idColumn: string = 'id'
-  ): Promise<SupabaseResponse<T>> {
+  ): Promise<Response> {
     try {
       const { data, error } = await this.client
         .from(table as any)
@@ -396,7 +387,7 @@ export class SupabaseQueryBuilder {
     id: number,
     idColumn: string = 'id',
     softDelete: boolean = true
-  ): Promise<SupabaseResponse<any>> {
+  ): Promise<Response> {
     try {
       if (softDelete) {
         // Soft delete: set is_active = false
@@ -638,10 +629,13 @@ export const db = {
         limit: 1
       });
 
+      // Parse the Response object to get the count
+      const jsonData = await result.json();
+
       return {
-        success: result.success,
-        data: result.count || 0,
-        error: result.error
+        success: jsonData.success,
+        data: jsonData.count || 0,
+        error: jsonData.error
       };
     }
   },

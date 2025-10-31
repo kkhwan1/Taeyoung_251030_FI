@@ -4,7 +4,9 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body = JSON.parse(text);
     const { username, password } = body;
 
     if (!username || !password) {

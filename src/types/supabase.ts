@@ -2675,3 +2675,11 @@ export const Constants = {
     },
   },
 } as const
+
+// Export commonly used types for convenience
+export type ItemRow = Database['public']['Tables']['items']['Row']
+export type ItemInsert = Database['public']['Tables']['items']['Insert']
+export type ItemUpdate = Database['public']['Tables']['items']['Update']
+export type ItemCategory = Database['public']['Enums']['item_category']
+export type ItemTypeCode = string | null // item_type field
+export type MaterialTypeCode = string | null // material_type field

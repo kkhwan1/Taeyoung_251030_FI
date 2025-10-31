@@ -149,7 +149,7 @@ export default function ItemSelect({
           'RAW_MATERIAL': '원자재',
           'SUBSIDIARY': '부자재'
         };
-        const category = categoryMap[itemType] || itemType;
+        const category = categoryMap[itemType as string] || (itemType as string);
         url += `&category=${encodeURIComponent(category)}`;
       }
 

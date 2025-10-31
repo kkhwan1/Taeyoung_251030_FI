@@ -68,13 +68,15 @@ export function withPermission(resource: string, action: string) {
   return async (request: NextRequest, user: User): Promise<NextResponse | null> => {
     try {
       // 간단한 역할 기반 권한 체크
-      // admin은 모든 권한, manager는 대부분, user는 읽기/쓰기, viewer는 읽기만
+      // ceo는 모든 권한, admin은 거의 모든 권한, manager는 대부분, user는 읽기/쓰기, viewer는 읽기만
       const roleHierarchy: Record<UserRole, number> = {
         viewer: 1,
         operator: 2,
         user: 3,
-        manager: 4,
-        admin: 5
+        accountant: 4,
+        manager: 5,
+        admin: 6,
+        ceo: 7
       };
 
       const userLevel = roleHierarchy[user.role];

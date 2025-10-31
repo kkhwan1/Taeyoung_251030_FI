@@ -1,35 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { protectRoute } from '@/lib/middleware';
+import { NextResponse } from 'next/server';
 
 /**
- * GET /api/auth/me
- * 현재 로그인한 사용자 정보 조회
+ * Temporary authentication endpoint
+ * TODO: Implement proper authentication system
  */
-export const GET = protectRoute(
-  async (request: NextRequest, user) => {
-    try {
-      return NextResponse.json({
-        success: true,
-        user: {
-          user_id: user.user_id,
-          username: user.username,
-          name: user.name,
-          email: user.email,
-          department: user.department,
-          role: user.role,
-          is_active: user.is_active
-        }
-      });
-
-    } catch (error) {
-      console.error('Get current user error:', error);
-      return NextResponse.json(
-        {
-          success: false,
-          error: '사용자 정보 조회 중 오류가 발생했습니다.'
-        },
-        { status: 500 }
-      );
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    user: {
+      id: 'temp-user-1',
+      name: '관리자',
+      email: 'admin@taechang.com',
+      role: 'admin'
     }
-  }
-);
+  });
+}

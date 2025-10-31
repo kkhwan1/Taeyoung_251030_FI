@@ -91,8 +91,12 @@ export default function PaymentsPage() {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const response = await fetch(`/api/payments?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/payments?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setPayments(result.data);
@@ -115,8 +119,12 @@ export default function PaymentsPage() {
   // 요약 계산
   const calculateSummary = async () => {
     try {
-      const response = await fetch('/api/payments/summary');
-      const data = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson('/api/payments/summary', {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
       if (data.success) {
         setSummary(data.data);
       }
@@ -149,10 +157,14 @@ export default function PaymentsPage() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`/api/payments?id=${payment.payment_id}`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/payments?id=${payment.payment_id}`, {
         method: 'DELETE',
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-      const result = await response.json();
 
       if (result.success) {
         showToast('지급 내역이 삭제되었습니다', 'success');
@@ -175,13 +187,16 @@ export default function PaymentsPage() {
 
       const method = selectedPayment ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         showToast(
@@ -208,7 +223,12 @@ export default function PaymentsPage() {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const response = await fetch(`/api/export/payments?${params}`);
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch(`/api/export/payments?${params}`, {}, {
+        timeout: 60000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (!response.ok) {
         throw new Error('다운로드 실패');

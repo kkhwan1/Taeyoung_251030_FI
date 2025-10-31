@@ -138,6 +138,22 @@ export const getTransactionTypeColor = (type: string, isDark: boolean = false) =
 };
 
 /**
+ * Get color based on stock level relative to minimum
+ * Returns danger color if below minimum, warning if near minimum, success if above
+ */
+export const getStockLevelColor = (current: number, minimum: number, isDark: boolean = false): string => {
+  const theme = isDark ? colorSchemes.dark : colorSchemes.light;
+
+  if (current < minimum) {
+    return theme.danger; // Below minimum - red/danger
+  } else if (current < minimum * 1.5) {
+    return theme.warning; // Near minimum - yellow/warning
+  } else {
+    return theme.secondary; // Above minimum - green/success
+  }
+};
+
+/**
  * Chart.js default options with Korean settings
  */
 export const defaultChartOptions: ChartOptions<any> = {
@@ -168,7 +184,7 @@ export const defaultChartOptions: ChartOptions<any> = {
         family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
       },
       callbacks: {
-        label: function(context) {
+        label: function(context: any) {
           let label = context.dataset.label || '';
           if (label) {
             label += ': ';
@@ -203,7 +219,7 @@ export const defaultChartOptions: ChartOptions<any> = {
           size: 11,
           family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", Arial, sans-serif'
         },
-        callback: function(value) {
+        callback: function(value: any) {
           return formatKoreanNumber(value as number);
         }
       }

@@ -46,8 +46,37 @@ interface TopItemData {
   rank: number;
 }
 
+// Alternative data format that might come from StockChartDatum
+interface StockChartDatum {
+  item_id?: string;
+  item_name?: string;
+  item_code?: string;
+  category?: string;
+  current_stock?: number;
+  currentStock?: number;
+  현재고?: number;
+  현재재고?: number;
+  safety_stock?: number;
+  안전재고?: number;
+  최소재고?: number;
+  unitPrice?: number;
+  price?: number;
+  단가?: number;
+  monthlyVolume?: number;
+  월간거래량?: number;
+  turnoverRate?: number;
+  회전율?: number;
+  lastTransactionDate?: string | Date;
+  supplier?: string | null;
+  rank?: number;
+  code?: string;
+  name?: string;
+  카테고리?: string;
+  totalValue?: number;
+}
+
 interface TopItemsByValueProps {
-  data: TopItemData[] | null;
+  data: (TopItemData | StockChartDatum)[] | null;
   loading: boolean;
   error: string | null;
   isDark?: boolean;
@@ -84,49 +113,87 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
   // Get available categories
   const categories = useMemo(() => {
     if (!data || !Array.isArray(data)) return [];
-    return [...new Set(data.map(item => item.category || item.카테고리).filter(Boolean))].sort();
+    return [...new Set(data.map(item => {
+      // Type guard to check if item has Korean properties
+      const stockDatum = item as StockChartDatum;
+      return item.category || stockDatum.카테고리 || '';
+    }).filter(Boolean))].sort();
   }, [data]);
 
   // Process and filter data
   const processedData = useMemo(() => {
-    if (!data || !Array.isArray(data)) return [];
+    if (!data || !Array.isArray(data) || data.length === 0) return [];
 
     // Normalize data format (handle both TopItemData and StockChartDatum formats)
-    const normalizedData = data.map(item => {
-      // If already in TopItemData format, use as-is
-      if (item.item_id && item.totalValue !== undefined) {
-        return item as TopItemData;
+    const normalizedData = data.map((item, index) => {
+      // API에서 totalValue가 있는 경우도 변환이 필요할 수 있음
+      // 모든 필드가 TopItemData 형식인지 확인
+      const hasAllTopItemFields = 'totalValue' in item && 
+                                  'item_id' in item && 
+                                  'item_name' in item &&
+                                  'currentStock' in item &&
+                                  'unitPrice' in item;
+
+      // If already in complete TopItemData format, use as-is
+      if (hasAllTopItemFields) {
+        return {
+          ...item,
+          item_id: String(item.item_id || item.code || item.item_code || ''),
+          rank: item.rank || (index + 1)
+        } as TopItemData;
       }
-      
-      // Otherwise, convert from StockChartDatum format
-      const currentStock = item.current_stock ?? item.현재고 ?? item.현재재고 ?? 0;
-      const safetyStock = item.safety_stock ?? item.안전재고 ?? item.최소재고 ?? 0;
-      const unitPrice = item.unitPrice ?? item.price ?? item.단가 ?? 0;
-      
+
+      // Otherwise, convert from StockChartDatum or partial format
+      const stockDatum = item as any;
+      const currentStock = stockDatum.currentStock ?? stockDatum.current_stock ?? stockDatum.현재고 ?? stockDatum.현재재고 ?? 0;
+      const safetyStock = stockDatum.safety_stock ?? stockDatum.안전재고 ?? stockDatum.최소재고 ?? 0;
+      const unitPrice = stockDatum.unitPrice ?? stockDatum.price ?? stockDatum.단가 ?? 0;
+      const totalValue = stockDatum.totalValue ?? (currentStock * unitPrice);
+
       return {
-        item_id: item.item_id || item.code || item.item_code || '',
-        item_name: item.item_name || item.name || '',
-        item_code: item.item_code || item.code || '',
-        category: item.category || item.카테고리 || '',
+        item_id: String(stockDatum.item_id || stockDatum.code || stockDatum.item_code || ''),
+        item_name: stockDatum.item_name || stockDatum.name || stockDatum.code || '',
+        item_code: stockDatum.item_code || stockDatum.code || '',
+        category: stockDatum.category || stockDatum.카테고리 || '기타',
         currentStock,
         unitPrice,
-        totalValue: currentStock * unitPrice,
-        monthlyVolume: item.monthlyVolume || item.월간거래량 || 0,
-        turnoverRate: item.turnoverRate || item.회전율 || 0,
-        lastTransactionDate: item.lastTransactionDate ? new Date(item.lastTransactionDate) : null,
-        stockStatus: currentStock < safetyStock * 0.5 ? 'low' 
+        totalValue,
+        monthlyVolume: stockDatum.monthlyVolume || stockDatum.월간거래량 || 0,
+        turnoverRate: stockDatum.turnoverRate || stockDatum.회전율 || 0,
+        lastTransactionDate: stockDatum.lastTransactionDate ? new Date(stockDatum.lastTransactionDate) : null,
+        supplier: stockDatum.supplier || null,
+        stockStatus: currentStock < safetyStock * 0.5 ? 'low'
                     : currentStock < safetyStock ? 'normal'
                     : currentStock > safetyStock * 2 ? 'overstock'
                     : 'high' as 'low' | 'normal' | 'high' | 'overstock',
-        rank: item.rank || 0
+        rank: stockDatum.rank || (index + 1)
       } as TopItemData;
     });
 
-    let filtered = normalizedData.filter(item => 
-      item && 
-      (item.item_id || item.item_code) &&
-      (item.item_name || item.item_code)
-    );
+    // 필터링: 필수 필드가 있는지 확인
+    let filtered = normalizedData.filter(item => {
+      if (!item) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[TopItemsByValue] Filtered out: item is falsy');
+        }
+        return false;
+      }
+      // item_id 또는 item_code가 있어야 함 (숫자 또는 문자열 모두 허용)
+      const hasId = (item.item_id && String(item.item_id)) || item.item_code;
+      // item_name 또는 item_code가 있어야 함
+      const hasName = item.item_name || item.item_code;
+      // totalValue가 있어야 차트에 표시 가능 (0도 유효한 값)
+      const hasValue = item.totalValue !== undefined && item.totalValue !== null && !isNaN(item.totalValue);
+      
+      const isValid = hasId && hasName && hasValue;
+      
+      // 디버깅: 필터링된 아이템 로그
+      if (process.env.NODE_ENV === 'development' && !isValid) {
+        console.log('[TopItemsByValue] Filtered out item:', { item, hasId, hasName, hasValue });
+      }
+      
+      return isValid;
+    });
 
     // Apply category filter
     if (categoryFilter !== 'all') {
@@ -153,18 +220,99 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
     const topItems = filtered.slice(0, topCount);
 
     // Add display value and colors
-    return topItems.map((item, index) => ({
-      ...item,
-      displayName: (item.item_name && item.item_name.length > 15)
-        ? `${item.item_name.substring(0, 12)}...`
-        : (item.item_name || item.item_code || '알 수 없음'),
-      displayValue: sortMetric === 'value' ? item.totalValue
-                   : sortMetric === 'volume' ? item.monthlyVolume
-                   : sortMetric === 'turnover' ? item.turnoverRate
-                   : item.currentStock,
-      color: getStatusColor(item.stockStatus),
-      rank: index + 1
-    }));
+    // TransactionDistribution과 완전히 동일한 패턴 사용: 필요한 필드만 포함
+    const result = topItems.map((item, index) => {
+      const displayValue = sortMetric === 'value' ? (item.totalValue || 0)
+                   : sortMetric === 'volume' ? (item.monthlyVolume || 0)
+                   : sortMetric === 'turnover' ? (item.turnoverRate || 0)
+                   : (item.currentStock || 0);
+      
+      // displayName을 안정적으로 생성 (YAxis category로 사용)
+      // TransactionDistribution의 "type" 필드와 동일한 역할
+      const fullName = item.item_name || item.item_code || '알 수 없음';
+      const displayName = fullName.length > 15
+        ? `${fullName.substring(0, 12)}...`
+        : fullName;
+      
+      // TransactionDistribution과 완전히 동일한 패턴 사용
+      // 중요: TransactionDistribution은 원본 데이터의 "type" 필드를 사용하므로,
+      // TopItemsByValue도 원본 데이터에 "type" 필드가 있으면 그대로 사용
+      // 없으면 displayName을 "type" 필드로도 추가
+      const processedItem = {
+        ...item,
+        // YAxis category로 사용할 필드 (TransactionDistribution의 "type"과 동일한 역할)
+        // "type" 필드로도 추가하여 TransactionDistribution과 완전히 동일하게
+        type: String(displayName).trim(),
+        displayName: String(displayName).trim(),
+        // Bar dataKey로 사용할 값 (TransactionDistribution의 "displayValue"와 동일)
+        displayValue: Number(displayValue) || 0,
+        // TransactionDistribution과 동일한 필드 구조
+        color: getStatusColor(item.stockStatus),
+        // 고유 식별자 (TransactionDistribution의 "id"와 동일)
+        id: `${item.item_id || index}`
+      };
+      
+      // displayName 검증
+      if (!processedItem.displayName || processedItem.displayName.length === 0) {
+        processedItem.displayName = `Item-${index}`;
+      }
+      
+      // 디버깅: 데이터 구조 확인
+      if (process.env.NODE_ENV === 'development' && index === 0) {
+        console.log('[TopItemsByValue] First processed item (simplified):', {
+          displayName: processedItem.displayName,
+          displayValue: processedItem.displayValue,
+          type: processedItem.type,
+          typeType: typeof processedItem.type,
+          valueType: typeof processedItem.displayValue,
+          hasDisplayName: 'displayName' in processedItem,
+          hasDisplayValue: 'displayValue' in processedItem,
+          hasType: 'type' in processedItem,
+          keys: Object.keys(processedItem)
+        });
+      }
+      
+      return processedItem;
+    });
+    
+    // 디버깅: 개발 환경에서만 로그 출력
+    if (process.env.NODE_ENV === 'development') {
+      // type 필드 값 및 중복 검사
+      const typeValues = result.map(r => r.type);
+      const typeCounts = {};
+      typeValues.forEach(type => {
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+      });
+      const duplicates = Object.entries(typeCounts).filter(([type, count]) => count > 1);
+      
+      console.log('[TopItemsByValue] Processed data:', {
+        inputDataLength: data?.length || 0,
+        normalizedCount: normalizedData.length,
+        filteredCount: filtered.length,
+        topItemsCount: topItems.length,
+        resultCount: result.length,
+        firstItem: result[0],
+        displayValues: result.map(r => r.displayValue),
+        typeValues: typeValues,
+        typeCounts: typeCounts,
+        duplicates: duplicates,
+        hasDuplicates: duplicates.length > 0,
+        isEmpty: result.length === 0,
+        willRenderChart: result.length > 0
+      });
+      
+      // 실제 렌더링 조건 확인
+      if (result.length > 0) {
+        console.log('[TopItemsByValue] Will render chart with:', result.length, 'items');
+        if (duplicates.length > 0) {
+          console.warn('[TopItemsByValue] WARNING: Duplicate type values found:', duplicates);
+        }
+      } else {
+        console.warn('[TopItemsByValue] Will NOT render chart - empty data');
+      }
+    }
+    
+    return result;
   }, [data, sortMetric, topCount, categoryFilter]);
 
   // Get stock status color
@@ -427,7 +575,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
           </div>
-        ) : !processedData.length ? (
+        ) : !processedData || !Array.isArray(processedData) || processedData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
               
@@ -435,6 +583,11 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
               {categoryFilter !== 'all' && (
                 <p className="text-sm text-gray-400 mt-1">
                   선택한 카테고리: {categoryFilter}
+                </p>
+              )}
+              {process.env.NODE_ENV === 'development' && (
+                <p className="text-xs mt-2">
+                  Debug: processedData = {processedData ? 'exists' : 'null'}, length = {Array.isArray(processedData) ? processedData.length : 'N/A'}
                 </p>
               )}
             </div>
@@ -445,6 +598,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
               data={processedData}
               layout="horizontal"
               margin={{ top: 10, right: 20, left: 110, bottom: 10 }}
+              syncId="topItemsChart"
             >
               <CartesianGrid strokeDasharray="3 3" stroke={theme.cartesianGrid.stroke} />
               <XAxis
@@ -458,10 +612,11 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
                 }
                 tick={theme.xAxis.tick}
                 axisLine={theme.xAxis.axisLine}
+                domain={[0, 'dataMax']}
               />
               <YAxis
                 type="category"
-                dataKey="displayName"
+                dataKey="type"
                 tick={{ ...theme.yAxis.tick, fontSize: 11 }}
                 axisLine={theme.yAxis.axisLine}
                 width={90}
@@ -474,10 +629,11 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
                 onClick={handleBarClick}
                 cursor="pointer"
                 radius={[0, 2, 2, 0]}
+                isAnimationActive={false}
               >
                 {processedData.map((entry, index) => (
                   <Cell
-                    key={`cell-${index}`}
+                    key={`cell-${entry.id || entry.item_id || index}`}
                     fill={selectedItems.has(entry.item_id)
                       ? theme.colors[6]
                       : showStockStatus

@@ -97,10 +97,14 @@ export default function PriceManagementPage() {
         // 1. 모든 item_id 추출
         const itemIds = items.map((item: PriceHistoryItem) => item.item_id);
         
-        // 2. 배치 BOM 원가 조회 (단일 요청)
+        // 2. 배치 BOM 원가 조회 (타임아웃 및 에러 처리 개선)
         let bomCostMap: { [key: number]: any } = {};
         if (itemIds.length > 0) {
           try {
+            // 타임아웃 설정: 30초
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
             const bomResponse = await fetch('/api/bom/cost/batch', {
               method: 'POST',
               headers: {
@@ -109,20 +113,31 @@ export default function PriceManagementPage() {
               body: JSON.stringify({
                 item_ids: itemIds,
                 price_month: selectedMonth
-              })
+              }),
+              signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (bomResponse.ok) {
               const bomResult = await bomResponse.json();
               bomCostMap = bomResult.data || {};
               console.log(`Batch BOM cost loaded: ${Object.keys(bomCostMap).length} items`);
+            } else {
+              console.warn('BOM cost API 응답 오류:', bomResponse.status, bomResponse.statusText);
             }
-          } catch (err) {
-            console.warn('Failed to fetch batch BOM cost:', err);
+          } catch (err: any) {
+            // 타임아웃 또는 네트워크 오류 처리
+            if (err.name === 'AbortError') {
+              console.warn('BOM cost 조회 타임아웃 (30초 초과). 기본 데이터만 표시합니다.');
+            } else {
+              console.warn('Failed to fetch batch BOM cost:', err);
+            }
+            // BOM cost 조회 실패해도 기본 데이터는 표시
           }
         }
         
-        // 3. 결과 매핑
+        // 3. 결과 매핑 (BOM cost가 없어도 기본 데이터 표시)
         const dataWithBomCost = items.map((item: PriceHistoryItem) => {
           const bomData = bomCostMap[item.item_id];
           return {

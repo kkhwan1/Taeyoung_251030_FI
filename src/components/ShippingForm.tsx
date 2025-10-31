@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Save,
   Loader2,
@@ -8,7 +8,8 @@ import {
   Building2,
   Plus,
   X,
-  CheckCircle
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import {
   CompanyForComponent,
@@ -21,6 +22,8 @@ import {
 import { Database } from '@/types/supabase';
 import ItemSelect from '@/components/ItemSelect';
 import CompanySelect from '@/components/CompanySelect';
+import { useDebounce } from '@/lib/hooks/useDebounce';
+import { useToastNotification } from '@/hooks/useToast';
 
 // Company type from unified Supabase layer
 type Company = Database['public']['Tables']['companies']['Row'];
@@ -45,93 +48,150 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockCheckComplete, setStockCheckComplete] = useState(false);
+  const [stockChecking, setStockChecking] = useState(false);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const toast = useToastNotification();
+
+  // 재고 확인을 위한 debounce 타이머
+  const stockCheckTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchInitialData();
   }, []);
 
+  // 최신 items를 참조하기 위한 ref
+  const itemsRef = useRef(formData.items);
   useEffect(() => {
-    if (formData.items.length > 0) {
-      checkStockAvailability();
-    } else {
-      setStockCheckComplete(false);
-    }
+    itemsRef.current = formData.items;
   }, [formData.items]);
 
-  const fetchInitialData = async () => {
-    try {
-      // Fetch customers (companies with type CUSTOMER or BOTH)
-      const customersResponse = await fetch('/api/companies?type=CUSTOMER');
-      const customersData = await customersResponse.json();
-      if (customersData.success) {
-        setCustomers(customersData.data);
-      }
-
-      // Fetch products only
-      const productsResponse = await fetch('/api/items?type=PRODUCT');
-      const productsData = await productsResponse.json();
-      if (productsData.success) {
-        // Get current stock for each product
-        const stockResponse = await fetch('/api/stock');
-        const stockData = await stockResponse.json();
-        if (stockData.success) {
-          const stockMap = new Map(stockData.data.map((item: Record<string, any>) => [item.item_id, item.current_stock]));
-
-          const productsWithStock = Array.isArray(productsData.data)
-            ? productsData.data
-                .filter((item: Product) => item.category === '제품')
-                .map((item: Product) => ({
-                  ...item,
-                  current_stock: stockMap.get(item.id) || 0
-                }))
-            : [];
-
-          setProducts(productsWithStock);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch initial data:', error);
+  // 재고 확인 함수를 메모이제이션하여 불필요한 재생성 방지
+  const checkStockAvailability = useCallback(async () => {
+    const currentItems = itemsRef.current;
+    if (currentItems.length === 0) {
+      setStockCheckComplete(false);
+      return;
     }
-  };
 
-  const checkStockAvailability = async () => {
+    setStockChecking(true);
     try {
-      const response = await fetch('/api/inventory/shipping/stock-check', {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const response = await safeFetchJson('/api/inventory/shipping/stock-check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
         },
         body: JSON.stringify({
-          items: formData.items.map(item => ({
+          items: currentItems.map(item => ({
             item_id: item.item_id,
             quantity: item.quantity
           }))
         }),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
 
-      const data = await response.json();
-      if (data.success && data.data && data.data.stock_check_results) {
-        const stockCheckResults = data.data.stock_check_results;
-        const updatedItems = formData.items.map(item => {
+      if (response.success && response.data && response.data.stock_check_results) {
+        const stockCheckResults = response.data.stock_check_results;
+        
+        // 최신 items 다시 가져오기 (동시 업데이트 방지)
+        const latestItems = itemsRef.current;
+        const updatedItems = latestItems.map(item => {
           const stockInfo = stockCheckResults.find((s: any) => s.item_id === item.item_id);
+          if (stockInfo?.error) {
+            // 에러가 있는 항목은 사용자에게 알림
+            toast.warning('재고 확인 실패', `${item.item_name || item.item_code}: ${stockInfo.error}`);
+          }
           return {
             ...item,
-            current_stock: stockInfo?.current_stock || 0,
-            sufficient_stock: stockInfo ? stockInfo.sufficient : false
+            current_stock: stockInfo?.current_stock ?? item.current_stock,
+            sufficient_stock: stockInfo ? stockInfo.sufficient : item.sufficient_stock ?? false
           };
         });
 
         setFormData(prev => ({ ...prev, items: updatedItems }));
         setStockCheckComplete(true);
       } else {
-        console.error('Invalid stock check response:', data);
+        const errorMsg = response.error || '재고 확인에 실패했습니다.';
+        toast.error('재고 확인 오류', errorMsg);
         setStockCheckComplete(false);
       }
     } catch (error) {
-      console.error('Failed to check stock availability:', error);
+      const errorMessage = error instanceof Error ? error.message : '재고 확인 중 오류가 발생했습니다.';
+      toast.error('재고 확인 오류', errorMessage);
       setStockCheckComplete(false);
+    } finally {
+      setStockChecking(false);
+    }
+  }, [toast]);
+
+  // Debounce된 재고 확인 함수
+  const debouncedCheckStock = useDebounce(checkStockAvailability, 500);
+
+  // items의 길이와 각 item의 핵심 정보를 추적하여 재고 확인
+  const itemsKey = formData.items.map(item => `${item.item_id}:${item.quantity}`).join(',');
+  
+  // items가 변경될 때 debounced 재고 확인 실행
+  useEffect(() => {
+    if (formData.items.length > 0) {
+      // Debounce된 재고 확인 실행
+      debouncedCheckStock();
+    } else {
+      setStockCheckComplete(false);
+      setStockChecking(false);
+    }
+  }, [itemsKey, debouncedCheckStock]);
+
+  const fetchInitialData = async () => {
+    try {
+      // Import safeFetchAllJson utility
+      const { safeFetchAllJson } = await import('@/lib/fetch-utils');
+
+      // Fetch customers, products, and stock in parallel with timeout and retry
+      const [customersData, productsData, stockData] = await safeFetchAllJson([
+        { url: '/api/companies?type=CUSTOMER' },
+        { url: '/api/items?type=PRODUCT' },
+        { url: '/api/stock' }
+      ], {
+        timeout: 15000, // 15초 타임아웃
+        maxRetries: 2,  // 최대 2회 재시도
+        retryDelay: 1000 // 1초 간격
+      });
+
+      // Process customers data
+      if (customersData.success) {
+        setCustomers(customersData.data);
+      } else {
+        toast.warning('고객사 목록 불러오기 실패', customersData.error || '고객사 목록을 불러올 수 없습니다.');
+      }
+
+      // Process products and stock data
+      if (productsData.success && stockData.success) {
+        const stockMap = new Map(stockData.data.map((item: Record<string, any>) => [item.item_id, item.current_stock]));
+
+        const productsWithStock = Array.isArray(productsData.data)
+          ? productsData.data
+              .filter((item: Product) => item.category === '제품')
+              .map((item: Product) => ({
+                ...item,
+                current_stock: stockMap.get(item.id) || 0
+              }))
+          : [];
+
+        setProducts(productsWithStock);
+      } else {
+        const errorMsg = !productsData.success ? productsData.error : 
+                         !stockData.success ? stockData.error : '제품 목록을 불러올 수 없습니다.';
+        toast.warning('제품 목록 불러오기 실패', errorMsg);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '초기 데이터를 불러오는 중 오류가 발생했습니다.';
+      toast.error('데이터 로딩 오류', errorMessage);
     }
   };
+
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -177,70 +237,99 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
     }
   };
 
-  // 예정일 기준 월별 단가 조회 함수
+  // 예정일 기준 월별 단가 조회 함수 (에러 발생 시 폴백 처리)
   const fetchMonthlyPrice = async (itemId: number, dateString: string): Promise<number> => {
     try {
       // 날짜에서 YYYY-MM 형식 추출
       const month = dateString ? dateString.substring(0, 7) : new Date().toISOString().substring(0, 7);
       
-      const response = await fetch(`/api/price-history?month=${month}`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          const priceItem = result.data.find((p: any) => p.item_id === itemId);
-          if (priceItem && priceItem.unit_price) {
-            return priceItem.unit_price;
-          }
+      // Import safeFetchJson utility
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/price-history?month=${month}`, {}, {
+        timeout: 10000, // 10초 타임아웃
+        maxRetries: 2,  // 최대 2회 재시도
+        retryDelay: 1000 // 1초 간격
+      });
+
+      if (result.success && result.data) {
+        const priceItem = result.data.find((p: any) => p.item_id === itemId);
+        if (priceItem && priceItem.unit_price) {
+          return priceItem.unit_price;
         }
       }
     } catch (error) {
-      console.warn('월별 단가 조회 실패:', error);
+      // 월별 단가 조회 실패는 심각한 오류가 아니므로 조용히 처리 (폴백)
+      // 기본 단가를 사용하도록 0 반환
     }
-    return 0;
+    return 0; // 0 반환 시 기본 단가 사용
   };
 
   const handleAddProduct = async (item: Item | null) => {
-    if (!item) return;
+    if (!item) {
+      toast.warning('제품 선택 오류', '유효하지 않은 제품입니다.');
+      return;
+    }
+
+    // item_id 유효성 검사
+    if (!item.item_id) {
+      toast.error('제품 추가 오류', '제품 ID가 없습니다.');
+      return;
+    }
 
     // Check if product is already added
     const existingItem = formData.items.find(shipItem => shipItem.item_id === item.item_id);
     if (existingItem) {
-      alert('이미 추가된 제품입니다.');
+      toast.warning('제품 중복', '이미 추가된 제품입니다.');
       return;
     }
 
-    // 예정일이 있으면 해당 월의 단가를 조회, 없으면 현재 품목 단가 사용
-    const targetDate = formData.delivery_date || formData.transaction_date || '';
-    let unitPrice = item.unit_price || 0;
-    let isMonthly = false;
-    
-    if (targetDate && item.item_id) {
-      const monthlyPrice = await fetchMonthlyPrice(item.item_id, targetDate);
-      if (monthlyPrice > 0) {
-        unitPrice = monthlyPrice;
-        isMonthly = true;
+    setAddingProduct(true);
+    try {
+      // 예정일이 있으면 해당 월의 단가를 조회, 없으면 현재 품목 단가 사용
+      const targetDate = formData.delivery_date || formData.transaction_date || '';
+      let unitPrice = item.unit_price || 0;
+      let isMonthly = false;
+      
+      if (targetDate && item.item_id) {
+        try {
+          const monthlyPrice = await fetchMonthlyPrice(item.item_id, targetDate);
+          if (monthlyPrice > 0) {
+            unitPrice = monthlyPrice;
+            isMonthly = true;
+          }
+        } catch (error) {
+          // 월별 단가 조회 실패는 조용히 처리하고 기본 단가 사용
+          console.warn('월별 단가 조회 실패, 기본 단가 사용:', error);
+        }
       }
+
+      const newItem: ShippingItem = {
+        item_id: item.item_id,
+        item_code: item.item_code || '',
+        item_name: item.item_name || '',
+        unit: item.unit || 'EA',
+        unit_price: unitPrice,
+        current_stock: item.current_stock || 0,
+        quantity: 1,
+        total_amount: unitPrice,
+        sufficient_stock: (item.current_stock || 0) >= 1,
+        isMonthlyPriceApplied: isMonthly
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        items: [...prev.items, newItem]
+      }));
+
+      setStockCheckComplete(false);
+      
+      // 제품 추가 성공 알림은 제품 목록에 표시되므로 생략
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '제품을 추가하는 중 오류가 발생했습니다.';
+      toast.error('제품 추가 오류', errorMessage);
+    } finally {
+      setAddingProduct(false);
     }
-
-    const newItem: ShippingItem = {
-      item_id: item.item_id,
-      item_code: item.item_code,
-      item_name: item.item_name,
-      unit: item.unit,
-      unit_price: unitPrice,
-      current_stock: item.current_stock || 0,
-      quantity: 1,
-      total_amount: unitPrice,
-      sufficient_stock: (item.current_stock || 0) >= 1,
-      isMonthlyPriceApplied: isMonthly
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      items: [...prev.items, newItem]
-    }));
-
-    setStockCheckComplete(false);
   };
 
   const handleCustomerChange = (customerId: number | null, customer?: Company) => {
@@ -259,6 +348,11 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
   };
 
   const handleItemQuantityChange = (itemId: number, quantity: number) => {
+    if (quantity < 0) {
+      toast.warning('수량 오류', '수량은 0 이상이어야 합니다.');
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       items: prev.items.map(item =>
@@ -272,6 +366,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
           : item
       )
     }));
+    // 수량 변경 시 재고 확인은 debounce된 함수가 자동으로 처리
     setStockCheckComplete(false);
   };
 
@@ -331,7 +426,23 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      // 유효성 검사 실패 시 에러 메시지 표시
+      if (errors.items) {
+        toast.warning('입력 오류', errors.items);
+      } else if (errors.stock) {
+        toast.warning('재고 확인', errors.stock);
+      } else if (errors.quantity) {
+        toast.warning('수량 오류', errors.quantity);
+      }
+      return;
+    }
+
+    // 최종 재고 확인이 완료되지 않았다면 한 번 더 확인
+    if (!stockCheckComplete && formData.items.length > 0) {
+      toast.warning('재고 확인 필요', '제출 전에 재고 확인을 완료해주세요.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -349,6 +460,9 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
       });
 
       await onSubmit(submissionData);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '출고 등록 중 오류가 발생했습니다.';
+      toast.error('출고 등록 실패', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -477,17 +591,32 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
 
       {/* Product Search and Selection */}
       <div>
-        <ItemSelect
-          key={`item-select-${formData.items.length}`}
-          onChange={handleAddProduct}
-          label="출고 제품 추가"
-          placeholder="제품 품번 또는 품명으로 검색하여 추가..."
-          required={true}
-          showPrice={true}
-          itemType="PRODUCT"
-          className=""
-          error={errors.items}
-        />
+        <div className="flex items-center gap-2 mb-2">
+          <ItemSelect
+            key={`item-select-${formData.items.length}`}
+            onChange={handleAddProduct}
+            label="출고 제품 추가"
+            placeholder="제품 품번 또는 품명으로 검색하여 추가..."
+            required={true}
+            showPrice={true}
+            itemType="PRODUCT"
+            className="flex-1"
+            error={errors.items}
+            disabled={addingProduct}
+          />
+          {addingProduct && (
+            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>추가 중...</span>
+            </div>
+          )}
+        </div>
+        {errors.items && (
+          <div className="mt-1 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <AlertCircle className="w-4 h-4" />
+            <span>{errors.items}</span>
+          </div>
+        )}
       </div>
 
       {/* Selected Items */}
@@ -497,15 +626,29 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
             <h4 className="text-lg font-medium text-gray-900 dark:text-white">
               출고 제품 목록
             </h4>
-            {!stockCheckComplete && (
-              <button
-                type="button"
-                onClick={checkStockAvailability}
-                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-              >
-                재고 확인
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {stockChecking && (
+                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>재고 확인 중...</span>
+                </div>
+              )}
+              {!stockCheckComplete && !stockChecking && (
+                <button
+                  type="button"
+                  onClick={checkStockAvailability}
+                  className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                >
+                  재고 확인
+                </button>
+              )}
+              {stockCheckComplete && (
+                <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>재고 확인 완료</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {hasInsufficientStock() && stockCheckComplete && (

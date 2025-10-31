@@ -16,6 +16,10 @@ type StockChartDatum = {
   현재고: number;
   안전재고: number;
   code: string;
+  item_id?: number;
+  category?: string;
+  price?: number;
+  totalValue?: number;
 };
 
 type DailyAggregate = {
@@ -85,20 +89,66 @@ export async function GET() {
 
     const safeStockItems = (stockItems ?? []) as ItemRow[];
 
-    const filteredStockItems = safeStockItems
-      .filter((item) => {
-        const safetyStock = item.safety_stock ?? 0;
-        const currentStock = item.current_stock ?? 0;
-        return currentStock < safetyStock * 2 || safetyStock > 0;
-      })
-      .map((item) => {
-        const safetyStock = item.safety_stock ?? 0;
-        const currentStock = item.current_stock ?? 0;
-        const ratio = safetyStock > 0 ? currentStock / safetyStock : Number.POSITIVE_INFINITY;
-        return { ...item, ratio };
-      })
-      .sort((a, b) => a.ratio - b.ratio)
+    // Fetch prices for all items to calculate stock value
+    // 실제 items 테이블 스키마에 맞게 컬럼 선택 (min_stock_level, max_stock_level 제거)
+    const { data: itemsWithPrices, error: itemsPriceError } = await supabaseAdmin
+      .from('items')
+      .select('item_id, item_code, item_name, current_stock, safety_stock, category, price')
+      .eq('is_active', true);
+
+    if (itemsPriceError) {
+      console.error('[Dashboard Charts] Failed to fetch items with prices:', itemsPriceError);
+      console.error('[Dashboard Charts] Error details:', {
+        message: itemsPriceError.message,
+        code: itemsPriceError.code,
+        details: itemsPriceError.details,
+        hint: itemsPriceError.hint
+      });
+      // Continue with empty array if error but log it
+      // 에러가 발생했지만 빈 배열로 처리
+    } else {
+      console.log('[Dashboard Charts] Successfully fetched items with prices:', itemsWithPrices?.length || 0);
+    }
+
+    const safeItemsWithPrices = itemsWithPrices || [];
+    
+    // 디버깅: itemsWithPrices 데이터 확인
+    console.log('[Dashboard Charts] itemsWithPrices count:', safeItemsWithPrices.length);
+    if (safeItemsWithPrices.length > 0) {
+      console.log('[Dashboard Charts] Sample item:', {
+        item_id: safeItemsWithPrices[0]?.item_id,
+        item_code: safeItemsWithPrices[0]?.item_code,
+        category: safeItemsWithPrices[0]?.category,
+        current_stock: safeItemsWithPrices[0]?.current_stock,
+        price: safeItemsWithPrices[0]?.price || 0
+      });
+    }
+
+    // Calculate top items by stock value (재고 가치 기준 상위 20개)
+    const itemsWithValue = safeItemsWithPrices.map((item: any) => {
+      const currentStock = item.current_stock || 0;
+      const price = item.price || 0; // unit_price 제거
+      const totalValue = currentStock * price;
+      return {
+        ...item,
+        totalValue,
+        current_stock: currentStock,
+        safety_stock: item.safety_stock || 0
+      };
+    });
+
+    // Sort by total value (descending) and take top 20
+    const topItemsByValue = itemsWithValue
+      .sort((a, b) => b.totalValue - a.totalValue)
       .slice(0, 20);
+    
+    console.log('[Dashboard Charts] topItemsByValue count:', topItemsByValue.length);
+    if (topItemsByValue.length > 0) {
+      console.log('[Dashboard Charts] Top item sample:', {
+        item_code: topItemsByValue[0]?.item_code,
+        totalValue: topItemsByValue[0]?.totalValue
+      });
+    }
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -120,7 +170,7 @@ export async function GET() {
 
     const { data: monthlyTransactionsData, error: monthlyError } = await supabaseAdmin
       .from('inventory_transactions')
-      .select('transaction_date, transaction_type, quantity, item_id, company_id')
+      .select('transaction_date, transaction_type, quantity, item_id, company_id, unit_price, total_amount')
       .gte('transaction_date', twelveMonthsAgoISO)
       .order('transaction_date', { ascending: false });
 
@@ -131,11 +181,33 @@ export async function GET() {
     const dailyTransactions = (dailyTransactionsData ?? []) as InventoryTransactionRow[];
     const monthlyTransactions = (monthlyTransactionsData ?? []) as InventoryTransactionRow[];
 
-    const stocks: StockChartDatum[] = filteredStockItems.map((item) => ({
-      name: item.item_name ?? item.item_code ?? '미상',
+    // Create stocks array with top items by value
+    // TopItemsByValue 컴포넌트가 기대하는 TopItemData 형식으로 변환
+    const stocks = topItemsByValue.map((item: any, index: number) => ({
+      // 기본 필수 필드들
+      item_id: String(item.item_id || ''),
+      item_name: item.item_name ?? item.item_code ?? '미상',
+      item_code: item.item_code ?? '',
+      category: item.category || '기타',
+      // 재고 및 가격 정보
+      currentStock: item.current_stock ?? 0,
+      unitPrice: item.price || 0,
+      totalValue: item.totalValue || 0,
+      // 추가 필드들
+      safetyStock: item.safety_stock ?? 0,
+      // 호환성을 위한 한글 필드 (선택)
       현재고: item.current_stock ?? 0,
       안전재고: item.safety_stock ?? 0,
-      code: item.item_code ?? ''
+      code: item.item_code ?? '',
+      name: item.item_name ?? item.item_code ?? '미상',
+      price: item.price || 0,
+      // 컴포넌트에서 사용할 수 있는 추가 필드
+      monthlyVolume: 0, // 추후 거래량 계산 가능
+      turnoverRate: 0, // 추후 회전율 계산 가능
+      lastTransactionDate: null,
+      supplier: null,
+      stockStatus: 'normal' as 'low' | 'normal' | 'high' | 'overstock',
+      rank: index + 1
     }));
 
     const transactionsByDate = dailyTransactions.reduce<Record<string, DailyAggregate>>((acc, transaction) => {
@@ -205,7 +277,7 @@ export async function GET() {
     // Fetch stock items with prices for calculating total stock value and quantity
     const { data: allStockItems } = await supabaseAdmin
       .from('items')
-      .select('item_id, current_stock, price, unit_price')
+      .select('item_id, current_stock, price')
       .eq('is_active', true);
 
     // Calculate 월별 총재고량, 재고가치, 회전율
@@ -224,7 +296,7 @@ export async function GET() {
       // 재고가치 계산 (현재고 × 평균 단가)
       const totalStockValue = (allStockItems || []).reduce((sum, item) => {
         const stock = item.current_stock || 0;
-        const price = item.price || item.unit_price || 0;
+        const price = item.price || 0;
         return sum + (stock * price);
       }, 0);
 
@@ -244,12 +316,7 @@ export async function GET() {
       };
     });
 
-    // Calculate category stocks
-    const { data: categoryItems } = await supabaseAdmin
-      .from('items')
-      .select('item_id, category, current_stock, safety_stock, min_stock_level, max_stock_level, price, unit_price')
-      .eq('is_active', true);
-
+    // Calculate category stocks - use itemsWithPrices that we already fetched
     const categoryMap = new Map<string, {
       현재고: number;
       최소재고: number;
@@ -262,8 +329,12 @@ export async function GET() {
       거래량: number[];
     }>();
 
-    (categoryItems || []).forEach((item: any) => {
-      const category = item.category || '기타';
+    // Use itemsWithPrices for category aggregation
+    console.log('[Dashboard Charts] Processing category stocks, items count:', safeItemsWithPrices.length);
+    
+    safeItemsWithPrices.forEach((item: any) => {
+      // 카테고리가 NULL이거나 빈 값이면 '기타'로 처리
+      const category = (item.category && item.category.trim()) ? item.category.trim() : '기타';
       const existing = categoryMap.get(category) || {
         현재고: 0,
         최소재고: 0,
@@ -277,10 +348,11 @@ export async function GET() {
       };
 
       const stock = item.current_stock || 0;
-      const price = item.price || item.unit_price || 0;
+      const price = item.price || 0;
       const safety = item.safety_stock || 0;
-      const min = item.min_stock_level || 0;
-      const max = item.max_stock_level || 0;
+      // min_stock_level, max_stock_level 컬럼이 없으므로 0으로 처리
+      const min = 0;
+      const max = 0;
 
       existing.현재고 += stock;
       existing.최소재고 += min;
@@ -288,24 +360,49 @@ export async function GET() {
       existing.최대재고 += max;
       existing.품목수 += 1;
       existing.재고가치 += stock * price;
-      if (stock < safety) existing.부족품목수 += 1;
-      if (stock > (max || safety * 2)) existing.과재고품목수 += 1;
+      if (safety > 0 && stock < safety) existing.부족품목수 += 1;
+      if (max > 0 && stock > max) {
+        existing.과재고품목수 += 1;
+      } else if (safety > 0 && stock > safety * 2) {
+        existing.과재고품목수 += 1;
+      }
 
       categoryMap.set(category, existing);
     });
 
-    const categoryStocks = Array.from(categoryMap.entries()).map(([category, data]) => ({
-      category,
-      현재고: data.현재고,
-      최소재고: data.최소재고,
-      안전재고: data.안전재고,
-      최대재고: data.최대재고,
-      품목수: data.품목수,
-      재고가치: data.재고가치,
-      회전율: data.현재고 > 0 ? data.현재고 / (data.안전재고 || 1) : 0,
-      부족품목수: data.부족품목수,
-      과재고품목수: data.과재고품목수
-    }));
+    // Sort categories by 재고가치 (descending) - include all categories including '기타'
+    console.log('[Dashboard Charts] categoryMap size:', categoryMap.size);
+    if (categoryMap.size > 0) {
+      console.log('[Dashboard Charts] Categories:', Array.from(categoryMap.keys()));
+      // 카테고리 맵의 첫 번째 항목 확인
+      const firstEntry = Array.from(categoryMap.entries())[0];
+      if (firstEntry) {
+        console.log('[Dashboard Charts] First category data:', {
+          category: firstEntry[0],
+          품목수: firstEntry[1].품목수,
+          재고가치: firstEntry[1].재고가치
+        });
+      }
+    }
+    
+    // 카테고리 필터링 제거 - 모든 카테고리 포함 (기타 포함)
+    const categoryStocks = Array.from(categoryMap.entries())
+      .map(([category, data]) => ({
+        category: category || '기타', // 카테고리가 없으면 '기타'
+        현재고: data.현재고,
+        최소재고: data.최소재고,
+        안전재고: data.안전재고,
+        최대재고: data.최대재고,
+        품목수: data.품목수,
+        재고가치: data.재고가치,
+        회전율: data.안전재고 > 0 ? data.현재고 / data.안전재고 : 0,
+        부족품목수: data.부족품목수,
+        과재고품목수: data.과재고품목수
+      }))
+      .filter((item) => item.category && item.category.trim() !== '') // 빈 카테고리만 제외
+      .sort((a, b) => b.재고가치 - a.재고가치); // 재고 가치 기준 내림차순 정렬
+    
+    console.log('[Dashboard Charts] Final categoryStocks count:', categoryStocks.length);
 
     // Calculate transaction distribution
     const transactionTypes = monthlyTransactions.reduce<Record<string, {
@@ -318,10 +415,11 @@ export async function GET() {
         acc[type] = { count: 0, volume: 0, value: 0 };
       }
       const qty = Number(tx.quantity || 0);
+      // total_amount가 있으면 사용, 없으면 unit_price * quantity로 계산
+      const txValue = (tx as any).total_amount || ((tx as any).unit_price || 0) * qty;
       acc[type].count += 1;
       acc[type].volume += qty;
-      // value는 단가 정보가 없어서 0으로 설정
-      acc[type].value += 0;
+      acc[type].value += Math.abs(txValue); // 절댓값 사용 (입고/출고 모두 양수로 합산)
       return acc;
     }, {});
 
@@ -359,10 +457,31 @@ export async function GET() {
       categoryStocks,
       transactionDistribution
     };
+    
+    console.log('[Dashboard Charts] Final chart data:', {
+      stocksCount: stocks.length,
+      categoryStocksCount: categoryStocks.length,
+      transactionsCount: transactions.length,
+      monthlyTrendsCount: monthlyTrends.length,
+      transactionDistributionCount: transactionDistribution.length
+    });
+
+    // 디버깅 정보 포함 (개발 환경에서만)
+    const debugInfo = process.env.NODE_ENV === 'development' ? {
+      itemsWithPricesCount: safeItemsWithPrices.length,
+      topItemsByValueCount: topItemsByValue.length,
+      categoryMapSize: categoryMap.size,
+      hasItemsError: !!itemsPriceError,
+      itemsError: itemsPriceError ? {
+        message: itemsPriceError.message,
+        code: itemsPriceError.code
+      } : null
+    } : undefined;
 
     return NextResponse.json({
       success: true,
       data: chartData,
+      ...(debugInfo && { debug: debugInfo })
     });
   } catch (error) {
     console.error('Dashboard charts API error:', error);

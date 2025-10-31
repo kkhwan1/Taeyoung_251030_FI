@@ -20,6 +20,12 @@ const eslintConfig = [
       "next-env.d.ts",
       "scripts/**", // Utility/migration scripts with CommonJS require()
       "coverage/**", // Test coverage reports
+      ".backup-20251017/**", // Legacy backup folder
+      ".claudeCode/**", // Claude Code skills
+      "chrome-devtools-mcp/**", // External MCP server
+      "playwright-report/**", // Playwright test reports
+      "docs/manual/**", // Manual documentation scripts
+      "analyze_excel*.js", // Root-level analysis scripts
     ],
   },
 ];

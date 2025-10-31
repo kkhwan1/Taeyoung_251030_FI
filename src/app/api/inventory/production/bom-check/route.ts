@@ -181,7 +181,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body = JSON.parse(text);
     const { product_item_id, quantity } = body;
 
     if (!product_item_id || !quantity) {

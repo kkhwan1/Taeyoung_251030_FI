@@ -156,7 +156,13 @@ export const ItemsExportButton: React.FC<ItemsExportButtonProps> = ({
   const handleExport = async () => {
     try {
       // Use the server-side API endpoint for better Korean character support
-      const response = await fetch('/api/export/items');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/export/items', {}, {
+        timeout: 60000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+      
       if (!response.ok) {
         throw new Error('Export failed');
       }
@@ -202,7 +208,13 @@ export const CompaniesExportButton: React.FC<CompaniesExportButtonProps> = ({
   const handleExport = async () => {
     try {
       // Use the server-side API endpoint for better Korean character support
-      const response = await fetch('/api/export/companies');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/export/companies', {}, {
+        timeout: 60000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+      
       if (!response.ok) {
         throw new Error('Export failed');
       }
@@ -276,7 +288,13 @@ export const TransactionsExportButton: React.FC<TransactionsExportButtonProps> =
   const handleExport = async () => {
     try {
       // Use the server-side API endpoint for better Korean character support
-      const response = await fetch('/api/export/inventory');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/export/inventory', {}, {
+        timeout: 60000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+      
       if (!response.ok) {
         throw new Error('Export failed');
       }
@@ -320,7 +338,13 @@ export const StockExportButton: React.FC<StockExportButtonProps> = ({
   const handleExport = async () => {
     try {
       // Use the server-side API endpoint for better Korean character support
-      const response = await fetch('/api/export/stock');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/export/stock', {}, {
+        timeout: 60000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+      
       if (!response.ok) {
         throw new Error('Export failed');
       }

@@ -93,16 +93,18 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
       try {
         setLoadingSales(true);
 
-        // Fetch PENDING and PARTIAL transactions separately and combine
-        const [pendingResponse, partialResponse] = await Promise.all([
-          fetch('/api/sales-transactions?payment_status=PENDING&limit=100'),
-          fetch('/api/sales-transactions?payment_status=PARTIAL&limit=100')
-        ]);
+        // Import safeFetchAllJson utility
+        const { safeFetchAllJson } = await import('@/lib/fetch-utils');
 
-        const [pendingResult, partialResult] = await Promise.all([
-          pendingResponse.json(),
-          partialResponse.json()
-        ]);
+        // Fetch PENDING and PARTIAL transactions in parallel with timeout and retry
+        const [pendingResult, partialResult] = await safeFetchAllJson([
+          { url: '/api/sales-transactions?payment_status=PENDING&limit=100' },
+          { url: '/api/sales-transactions?payment_status=PARTIAL&limit=100' }
+        ], {
+          timeout: 15000, // 15초 타임아웃
+          maxRetries: 2,  // 최대 2회 재시도
+          retryDelay: 1000 // 1초 간격
+        });
 
         const allTransactions: any[] = [];
 
@@ -130,9 +132,13 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         if (formData.sales_transaction_id) {
           const found = transactions.find(t => t.transaction_id === formData.sales_transaction_id);
           if (!found) {
-            // Fetch the specific transaction
-            const response = await fetch(`/api/sales/${formData.sales_transaction_id}`);
-            const result = await response.json();
+            // Fetch the specific transaction with safeFetchJson
+            const { safeFetchJson } = await import('@/lib/fetch-utils');
+            const result = await safeFetchJson(`/api/sales/${formData.sales_transaction_id}`, {}, {
+              timeout: 10000,
+              maxRetries: 2,
+              retryDelay: 1000
+            });
             if (result.success && result.data) {
               const tx = result.data;
               const singleTransaction = {

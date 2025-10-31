@@ -7,6 +7,7 @@ export type UserRole = 'ceo' | 'admin' | 'manager' | 'user' | 'viewer' | 'operat
 
 export interface User {
   user_id: number;
+  id?: number; // Alias for user_id for compatibility with types/auth.ts
   username: string;
   name: string;
   email?: string;

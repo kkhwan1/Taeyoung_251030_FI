@@ -23,12 +23,15 @@ export default function FileUploadZone({ contractId, onUploadComplete }: FileUpl
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`/api/contracts/${contractId}/documents`, {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const result = await safeFetchJson(`/api/contracts/${contractId}/documents`, {
           method: 'POST',
           body: formData
+        }, {
+          timeout: 120000,
+          maxRetries: 1,
+          retryDelay: 2000
         });
-
-        const result = await response.json();
 
         if (!result.success) {
           throw new Error(result.error || '업로드 실패');

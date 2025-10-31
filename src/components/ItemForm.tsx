@@ -54,13 +54,13 @@ const ITEM_CATEGORIES: { value: ItemCategory; label: string }[] = [
   { value: '상품' as ItemCategory, label: '상품' }
 ];
 
-const ITEM_TYPES: { value: ItemTypeCode; label: string }[] = [
+const ITEM_TYPES: { value: string; label: string }[] = [
   { value: 'RAW', label: '원자재 (RAW)' },
   { value: 'SUB', label: '부자재 (SUB)' },
   { value: 'FINISHED', label: '완제품 (FINISHED)' }
 ];
 
-const MATERIAL_TYPES: { value: MaterialTypeCode; label: string }[] = [
+const MATERIAL_TYPES: { value: string; label: string }[] = [
   { value: 'COIL', label: 'COIL' },
   { value: 'SHEET', label: 'SHEET' },
   { value: 'OTHER', label: '기타 (OTHER)' }
@@ -722,7 +722,7 @@ function FormSelect({ label, name, value, onChange, options, placeholder, error,
       </label>
       <select
         name={name}
-        value={value}
+        value={value ?? ''}
         onChange={onChange}
         className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       >

@@ -70,7 +70,8 @@ export default function AccountingSummaryPage() {
 
   // Fetch data from API
   useEffect(() => {
-    async function fetchData() {
+    // 초기 로딩 지연: 페이지 로드 직후 네트워크 준비 시간 확보 (100ms)
+    const timeoutId = setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
@@ -79,10 +80,16 @@ export default function AccountingSummaryPage() {
           ...(selectedCategory && { category: selectedCategory })
         });
 
-        const response = await fetch(
-          `/api/accounting/monthly-summary?${queryParams}`
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const result = await safeFetchJson(
+          `/api/accounting/monthly-summary?${queryParams}`,
+          {},
+          {
+            timeout: 30000, // 30초 타임아웃 (대량 데이터 처리)
+            maxRetries: 3,
+            retryDelay: 1000
+          }
         );
-        const result = await response.json();
 
         if (result.success) {
           setData(result.data);
@@ -99,9 +106,9 @@ export default function AccountingSummaryPage() {
       } finally {
         setLoading(false);
       }
-    }
-
-    fetchData();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [selectedMonth, selectedCategory, showToast]);
 
   // Handle Excel export

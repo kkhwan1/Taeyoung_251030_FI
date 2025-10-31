@@ -8,7 +8,8 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  XCircle
+  XCircle,
+  Package
 } from 'lucide-react';
 import { CategoryFilter, FilterOption } from './CategoryFilter';
 

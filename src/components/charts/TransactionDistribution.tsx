@@ -80,20 +80,58 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
 
   // Process data for display
   const processedData = useMemo(() => {
-    if (!data || data.length === 0) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       return [];
     }
 
-    const processed = data.map((item, index) => ({
-      ...item,
-      displayValue: selectedMetric === 'count' ? item.count
-                   : selectedMetric === 'volume' ? item.volume
-                   : item.value,
-      color: getTransactionTypeColor(item.type, isDark),
-      id: `${item.type}-${index}`
-    })).filter(item => item.displayValue > 0); // 0 값 필터링
+    const processed = data.map((item, index) => {
+      const displayValue = selectedMetric === 'count' ? (item.count || 0)
+                   : selectedMetric === 'volume' ? (item.volume || 0)
+                   : (item.value || 0);
+      
+      return {
+        ...item,
+        displayValue: Number(displayValue) || 0, // 숫자로 변환하고 NaN 방지
+        color: getTransactionTypeColor(item.type, isDark),
+        id: `${item.type}-${index}`
+      };
+    }).filter(item => {
+      // displayValue가 0보다 크거나, count나 volume이 0보다 큰 경우
+      // displayValue가 NaN이 아닌지도 확인
+      const hasValidValue = !isNaN(item.displayValue) && item.displayValue !== null && 
+                            (item.displayValue > 0 || item.count > 0 || item.volume > 0);
+      
+      // 디버깅: 필터링된 아이템 로그
+      if (process.env.NODE_ENV === 'development' && !hasValidValue) {
+        console.log('[TransactionDistribution] Filtered out item:', item);
+      }
+      
+      return hasValidValue;
+    });
 
-    return processed.sort((a, b) => b.displayValue - a.displayValue);
+    const sorted = processed.sort((a, b) => b.displayValue - a.displayValue);
+    
+    // 디버깅: 개발 환경에서만 로그 출력
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[TransactionDistribution] Processed data:', {
+        inputDataLength: data?.length || 0,
+        processedCount: processed.length,
+        sortedCount: sorted.length,
+        firstItem: sorted[0],
+        displayValues: sorted.map(r => r.displayValue),
+        isEmpty: sorted.length === 0,
+        willRenderChart: sorted.length > 0
+      });
+      
+      // 실제 렌더링 조건 확인
+      if (sorted.length > 0) {
+        console.log('[TransactionDistribution] Will render chart with:', sorted.length, 'items');
+      } else {
+        console.warn('[TransactionDistribution] Will NOT render chart - empty data');
+      }
+    }
+    
+    return sorted;
   }, [data, selectedMetric, isDark]);
 
   // Calculate total and percentages
@@ -315,11 +353,16 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
           </div>
-        ) : !processedData.length ? (
+        ) : !processedData || !Array.isArray(processedData) || processedData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
               <PieChartIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>표시할 거래 데이터가 없습니다</p>
+              {process.env.NODE_ENV === 'development' && (
+                <p className="text-xs mt-2">
+                  Debug: processedData = {processedData ? 'exists' : 'null'}, length = {Array.isArray(processedData) ? processedData.length : 'N/A'}
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -335,10 +378,13 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
                 tickFormatter={(value) =>
                   selectedMetric === 'value'
                     ? `₩${formatKoreanNumber(value)}`
+                    : selectedMetric === 'volume'
+                    ? formatKoreanNumber(value)
                     : formatKoreanNumber(value)
                 }
                 tick={theme.xAxis.tick}
                 axisLine={theme.xAxis.axisLine}
+                domain={[0, 'dataMax']}
               />
               <YAxis
                 type="category"
@@ -355,6 +401,7 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
                 onClick={handleSectorClick}
                 cursor="pointer"
                 radius={[0, 2, 2, 0]}
+                isAnimationActive={false}
               >
                 {processedData.map((entry, index) => (
                   <Cell

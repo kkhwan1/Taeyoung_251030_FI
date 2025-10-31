@@ -89,8 +89,12 @@ const StockStatusWidget: React.FC<StockStatusProps> = ({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/stock/current?limit=${limit}&offset=0`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/stock/current?limit=${limit}&offset=0`, {}, {
+        timeout: 10000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setStockItems(result.data.items || []);

@@ -1,0 +1,27 @@
+# Backup and archive directories
+.backup-20251017/
+backups/
+
+# Generated files and reports
+playwright-report/
+test-results/
+coverage/
+
+# Documentation
+docs/manual/
+
+# MCP servers (external)
+chrome-devtools-mcp/
+
+# Build output
+.next/
+out/
+dist/
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local

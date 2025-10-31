@@ -140,8 +140,12 @@ const RecentActivityWidget: React.FC<RecentActivityProps> = ({
         endDate: endDate.toISOString().split('T')[0]
       });
 
-      const response = await fetch(`/api/inventory?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/inventory?${params}`, {}, {
+        timeout: 10000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         // Handle both direct array and paginated response formats

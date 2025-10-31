@@ -115,8 +115,8 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedItemType, setSelectedItemType] = useState('');
-  const [selectedMaterialType, setSelectedMaterialType] = useState('');
+  const [selectedItemType, setSelectedItemType] = useState<string>('');
+  const [selectedMaterialType, setSelectedMaterialType] = useState<string>('');
   const [vehicleFilter, setVehicleFilter] = useState('');
   const [selectedCoatingStatus, setSelectedCoatingStatus] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -185,10 +185,14 @@ export default function ItemsPage() {
         params.append('limit', '20');
       }
 
-      const response = await fetch(`/api/items?${params.toString()}`);
-      const data = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson(`/api/items?${params.toString()}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '품목 정보를 불러오지 못했습니다.');
       }
 
@@ -208,14 +212,18 @@ export default function ItemsPage() {
     const deleteAction = async () => {
       setDeletingItemId(item.item_id);
       try {
-        const response = await fetch('/api/items', {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const data = await safeFetchJson('/api/items', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
           body: JSON.stringify({ item_id: item.item_id })
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
         });
 
-        if (!response.ok) {
-          const data = await response.json();
+        if (!data.success) {
           throw new Error(data.error || '품목 삭제에 실패했습니다.');
         }
 
@@ -239,17 +247,20 @@ export default function ItemsPage() {
       const method = editingItem ? 'PUT' : 'POST';
       const body = editingItem ? { ...payload, item_id: editingItem.item_id } : payload;
 
-      const response = await fetch('/api/items', {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson('/api/items', {
         method,
         headers: {
           'Content-Type': 'application/json; charset=utf-8'
         },
         body: JSON.stringify(body)
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '품목 저장 요청에 실패했습니다.');
       }
 
@@ -283,7 +294,12 @@ export default function ItemsPage() {
 
   const handleTemplateDownload = async () => {
     try {
-      const response = await fetch('/api/download/template/items');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/download/template/items', {}, {
+        timeout: 30000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
       if (!response.ok) {
         throw new Error('템플릿 다운로드에 실패했습니다.');
       }
@@ -450,7 +466,7 @@ export default function ItemsPage() {
             >
               <option value="">전체 타입</option>
               {ITEM_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.value ?? ''} value={option.value ?? ''}>
                   {option.label}
                 </option>
               ))}
@@ -462,7 +478,7 @@ export default function ItemsPage() {
             >
               <option value="">전체 소재</option>
               {MATERIAL_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.value ?? ''} value={option.value ?? ''}>
                   {option.label}
                 </option>
               ))}

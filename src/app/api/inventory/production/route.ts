@@ -237,9 +237,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         let bottleneckItem: any = null;
         
         for (const bomItem of bomData) {
-          const childItem = bomItem.child_item;
+          const childItem = Array.isArray(bomItem.child_item) ? bomItem.child_item[0] : bomItem.child_item;
           if (!childItem) continue;
-          
+
           const requiredQuantity = (bomItem.quantity_required || 0) * parsedQuantity;
           const currentStock = childItem.current_stock || 0;
           const bomQuantityPerUnit = bomItem.quantity_required || 0;

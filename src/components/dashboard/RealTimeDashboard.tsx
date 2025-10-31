@@ -117,7 +117,7 @@ export const RealTimeDashboard: React.FC<RealTimeDashboardProps> = ({
             <TransactionDistribution
               className="h-full"
               onRefresh={refresh}
-              data={data?.charts.transactionDistribution || null}
+              data={data?.charts.transactionDistribution || data?.charts.transactions || null}
               loading={loading}
               error={error}
             />
@@ -204,7 +204,7 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
     const lowStockItems = data.alerts.lowStockItems || [];
     const monthlyTrends = data.charts.monthlyTrends || [];
     const stocks = data.charts.stocks || [];
-    const transactionDist = data.charts.transactionDistribution || [];
+    const transactionDist = data.charts.transactions || [];
 
     // Calculate total categories
     const totalCategories = categoryStocks.length;

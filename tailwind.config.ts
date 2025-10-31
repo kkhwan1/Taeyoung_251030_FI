@@ -178,7 +178,7 @@ const config: Config = {
   },
   plugins: [
     // Custom plugin for component variants
-    function({ addComponents }) {
+    function({ addComponents }: any) {
       addComponents({
         // Button Variants (SAP Style)
         '.btn-primary': {

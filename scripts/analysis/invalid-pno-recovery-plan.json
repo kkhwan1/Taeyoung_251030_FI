@@ -1,0 +1,221 @@
+{
+  "executionPlan": {
+    "timestamp": "2025-01-30",
+    "totalInvalidPNO": 37,
+    "recoverableRecords": 31,
+    "unrecoverableRecords": 6,
+    "uniqueItemCodes": 27
+  },
+  "itemsToAdd": [
+    {
+      "item_code": "50007315",
+      "item_name": "M5 INSERT BOLT",
+      "category": "FASTENER"
+    },
+    {
+      "item_code": "50007752",
+      "item_name": "M5*16.7 BOLT",
+      "category": "FASTENER"
+    },
+    {
+      "item_code": "50008457",
+      "item_name": "FRONT B/K LH",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50008458",
+      "item_name": "FRONT B/K RH",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50008630",
+      "item_name": "2ND ROOM",
+      "category": "INTERIOR"
+    },
+    {
+      "item_code": "50009745",
+      "item_name": "B/K H/ LINER RR",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50009770",
+      "item_name": "BRACKET SIDE LH",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50009772",
+      "item_name": "BRACKET SIDE RH",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50009877",
+      "item_name": "B/K ROLLO LH",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50009878",
+      "item_name": "B/K ROLLO RH",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50010027",
+      "item_name": "B/K FOR CONNECTOR",
+      "category": "CONNECTOR"
+    },
+    {
+      "item_code": "50010086",
+      "item_name": "B/K FOR TUBE",
+      "category": "TUBE"
+    },
+    {
+      "item_code": "50010567",
+      "item_name": "BRKT ROLLO LH",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50010569",
+      "item_name": "BRKT ROLLO RH",
+      "category": "BRACKET"
+    },
+    {
+      "item_code": "50010988",
+      "item_name": "FRT SIDE REINF LH",
+      "category": "REINFORCEMENT"
+    },
+    {
+      "item_code": "50010989",
+      "item_name": "FRT SIDE REINF RH",
+      "category": "REINFORCEMENT"
+    },
+    {
+      "item_code": "50010990",
+      "item_name": "REAR SIDE REINF LH",
+      "category": "REINFORCEMENT"
+    },
+    {
+      "item_code": "50010991",
+      "item_name": "REAR SIDE REINF RH",
+      "category": "REINFORCEMENT"
+    },
+    {
+      "item_code": "50010992",
+      "item_name": "B/K ROLLO CASSETTE LH",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50010993",
+      "item_name": "B/K ROLLO CASSETTE RH",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50011308",
+      "item_name": "ROLLO CASSETTE",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50011384",
+      "item_name": "CENTER CROSS MEMBER LOWER",
+      "category": "CROSS_MEMBER"
+    },
+    {
+      "item_code": "50011385",
+      "item_name": "CENTER CROSS MEMBER UPPER",
+      "category": "CROSS_MEMBER"
+    },
+    {
+      "item_code": "50011800",
+      "item_name": "B/K ROLLO-LH",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50011801",
+      "item_name": "B/K ROLLO-RH",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50011833",
+      "item_name": "ROLLO BRACKER L/R",
+      "category": "ROLLO"
+    },
+    {
+      "item_code": "50012234",
+      "item_name": "REAR BEAM",
+      "category": "BEAM"
+    }
+  ],
+  "categoryDistribution": {
+    "ROLLO": 7,
+    "BRACKET": 6,
+    "REINFORCEMENT": 4,
+    "CROSS_MEMBER": 2,
+    "FASTENER": 2,
+    "INTERIOR": 1,
+    "CONNECTOR": 1,
+    "TUBE": 1,
+    "BEAM": 1,
+    "LINER": 1
+  },
+  "executionSteps": [
+    {
+      "step": 1,
+      "name": "품목 추가",
+      "command": "npm run tsx scripts/migration/add-missing-items.ts",
+      "expectedDuration": "30 seconds",
+      "expectedResult": "27개 품목 추가 완료"
+    },
+    {
+      "step": 2,
+      "name": "입고 거래 재임포트",
+      "command": "npm run tsx scripts/migration/reimport-numeric-pno.ts",
+      "expectedDuration": "30 seconds",
+      "expectedResult": "31건 입고 거래 복구 완료"
+    },
+    {
+      "step": 3,
+      "name": "검증",
+      "command": "npm run tsx scripts/verification/verify-invalid-pno-recovery.ts",
+      "expectedDuration": "15 seconds",
+      "expectedResult": "데이터 품질 100% PASS"
+    }
+  ],
+  "expectedImpact": {
+    "itemsAdded": 27,
+    "transactionsRecovered": 31,
+    "importRateImprovement": "+13.4%",
+    "beforeImportRate": "35.1%",
+    "afterImportRate": "48.5%"
+  },
+  "knownIssues": {
+    "nullRecords": {
+      "count": 6,
+      "status": "unrecoverable",
+      "reason": "P/NO, Part Name, Company 모두 null"
+    },
+    "missingCompany": {
+      "count": "대부분",
+      "status": "non-blocking",
+      "note": "에이오에스 1건만 확인됨, 나머지 company: null"
+    }
+  },
+  "generatedFiles": {
+    "analysis": [
+      "scripts/analysis/analyze-invalid-pno.js",
+      "scripts/analysis/invalid-pno-analysis.json",
+      "INVALID_PNO_ANALYSIS_REPORT.md"
+    ],
+    "scripts": [
+      "scripts/migration/add-missing-items.ts",
+      "scripts/migration/reimport-numeric-pno.ts",
+      "scripts/verification/verify-invalid-pno-recovery.ts"
+    ],
+    "documentation": [
+      "MISSING_ITEM_RESOLUTION_GUIDE.md",
+      "scripts/analysis/invalid-pno-recovery-plan.json"
+    ],
+    "logsToBeGenerated": [
+      "scripts/migration/add-missing-items-log.json",
+      "scripts/migration/reimport-numeric-pno-log.json",
+      "scripts/verification/invalid-pno-recovery-report.json"
+    ]
+  }
+}

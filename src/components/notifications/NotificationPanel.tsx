@@ -47,8 +47,12 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
       params.append('page', currentPage.toString());
       params.append('limit', itemsPerPage.toString());
 
-      const response = await fetch(`/api/notifications?${params.toString()}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/notifications?${params.toString()}`, {}, {
+        timeout: 10000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setNotifications(result.data || []);
@@ -73,8 +77,13 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
 
   const handleMarkAsRead = async (id: number) => {
     try {
-      const response = await fetch(`/api/notifications/${id}/read`, {
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch(`/api/notifications/${id}/read`, {
         method: 'PUT'
+      }, {
+        timeout: 10000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
 
       if (response.ok) {
@@ -93,8 +102,13 @@ export default function NotificationPanel({ className = '', onSettingsClick }: N
     if (!confirm('이 알림을 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`/api/notifications/${id}`, {
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch(`/api/notifications/${id}`, {
         method: 'DELETE'
+      }, {
+        timeout: 10000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
 
       if (response.ok) {

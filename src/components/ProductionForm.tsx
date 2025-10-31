@@ -139,15 +139,15 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         String(selectedProduct?.price || selectedProduct?.unit_price || 0)
       ); // 명시적 변환 및 기본값 보장
       
-      const submissionData = {
+      const submissionData: ProductionFormData = {
         transaction_date: formData.transaction_date,
-        item_id: itemId, // product_item_id -> item_id
-        quantity: parsedQuantity, // 변환된 정수값
-        unit_price: parsedUnitPrice, // 변환된 숫자값
-        reference_number: formData.reference_no,
+        product_item_id: itemId,
+        quantity: parsedQuantity,
+        reference_no: formData.reference_no,
         notes: formData.notes,
-        created_by: 1, // Default user ID
-        transaction_type: '생산입고' // BOM 사용 시 생산입고
+        use_bom: formData.use_bom,
+        scrap_quantity: formData.scrap_quantity,
+        created_by: 1 // Default user ID
       };
 
       // Remove empty optional fields

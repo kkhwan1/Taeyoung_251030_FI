@@ -27,23 +27,24 @@ export default function FinancialReportsPage() {
   const loadFinancialData = async () => {
     setLoading(true);
     try {
-      // Load balance sheet
-      const balanceSheetResponse = await fetch(
-        `/api/reports/balance-sheet?start_date=${startDate}&end_date=${endDate}`
-      );
-      const balanceSheetResult = await balanceSheetResponse.json();
+      // Import safeFetchAllJson utility
+      const { safeFetchAllJson } = await import('@/lib/fetch-utils');
+
+      // Load balance sheet and cash flow in parallel with timeout and retry
+      const [balanceSheetResult, cashFlowResult] = await safeFetchAllJson([
+        { url: `/api/reports/balance-sheet?start_date=${startDate}&end_date=${endDate}` },
+        { url: `/api/reports/cash-flow?start_date=${startDate}&end_date=${endDate}` }
+      ], {
+        timeout: 30000, // 30초 타임아웃 (대량 데이터)
+        maxRetries: 2,  // 최대 2회 재시도
+        retryDelay: 1000 // 1초 간격
+      });
 
       if (balanceSheetResult.success) {
         setBalanceSheetData(balanceSheetResult.data);
       } else {
         toast.error('재무상태표 로드 실패');
       }
-
-      // Load cash flow
-      const cashFlowResponse = await fetch(
-        `/api/reports/cash-flow?start_date=${startDate}&end_date=${endDate}`
-      );
-      const cashFlowResult = await cashFlowResponse.json();
 
       if (cashFlowResult.success) {
         setCashFlowData(cashFlowResult.data);
@@ -65,8 +66,15 @@ export default function FinancialReportsPage() {
   // Export to Excel
   const exportToExcel = async (reportType: 'balance-sheet' | 'cash-flow') => {
     try {
-      const response = await fetch(
-        `/api/export/${reportType}?start_date=${startDate}&end_date=${endDate}`
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch(
+        `/api/export/${reportType}?start_date=${startDate}&end_date=${endDate}`,
+        {},
+        {
+          timeout: 60000,
+          maxRetries: 2,
+          retryDelay: 1000
+        }
       );
 
       if (!response.ok) {

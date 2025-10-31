@@ -112,54 +112,42 @@ export default function ItemDetailPage() {
     try {
       console.log('Loading item details for ID:', itemId);
       
-      // 품목 기본 정보
-      console.log('Fetching item data...');
-      const itemRes = await fetch(`/api/items/${itemId}`);
-      if (!itemRes.ok) {
-        throw new Error(`Item API failed: ${itemRes.status} ${itemRes.statusText}`);
-      }
-      const itemData = await itemRes.json();
-      console.log('Item data received:', itemData);
-      setItem(itemData.data);
+      // 모든 데이터를 병렬로 가져오기 (타임아웃 및 재시도 포함)
+      const { safeFetchAllJson } = await import('@/lib/fetch-utils');
+      
+      const [itemData, bomUsageData, bomStructureData, historyData] = await safeFetchAllJson([
+        { url: `/api/items/${itemId}` },
+        { url: `/api/items/${itemId}/bom-usage` },
+        { url: `/api/items/${itemId}/bom-structure` },
+        { url: `/api/items/${itemId}/stock-history?days=30` }
+      ], {
+        timeout: 15000, // 15초 타임아웃
+        maxRetries: 2,  // 최대 2회 재시도
+        retryDelay: 1000 // 1초 간격
+      });
 
-      // BOM 사용 현황
-      console.log('Fetching BOM usage...');
-      const bomRes = await fetch(`/api/items/${itemId}/bom-usage`);
-      if (!bomRes.ok) {
-        throw new Error(`BOM usage API failed: ${bomRes.status} ${bomRes.statusText}`);
+      // 응답 검증 및 상태 업데이트
+      if (itemData?.success && itemData.data) {
+        setItem(itemData.data);
       }
-      const bomData = await bomRes.json();
-      console.log('BOM usage data received:', bomData);
-      setBomUsage(bomData.data);
-
-      // BOM 구조 데이터
-      console.log('Fetching BOM structure...');
-      const bomStructureRes = await fetch(`/api/items/${itemId}/bom-structure`);
-      if (!bomStructureRes.ok) {
-        throw new Error(`BOM structure API failed: ${bomStructureRes.status} ${bomStructureRes.statusText}`);
+      
+      if (bomUsageData?.success && bomUsageData.data) {
+        setBomUsage(bomUsageData.data);
       }
-      const bomStructureData = await bomStructureRes.json();
-      console.log('BOM structure data received:', bomStructureData);
-      setBomData(bomStructureData.data);
-
-      // 재고 이력 (최근 30일)
-      console.log('Fetching stock history...');
-      const historyRes = await fetch(`/api/items/${itemId}/stock-history?days=30`);
-      if (!historyRes.ok) {
-        throw new Error(`Stock history API failed: ${historyRes.status} ${historyRes.statusText}`);
+      
+      if (bomStructureData?.success && bomStructureData.data) {
+        setBomData(bomStructureData.data);
       }
-      const historyData = await historyRes.json();
-      console.log('Stock history data received:', historyData);
-      setStockHistory(historyData.data);
+      
+      if (historyData?.success && historyData.data) {
+        setStockHistory(historyData.data);
+      }
       
       console.log('All data loaded successfully');
     } catch (error) {
       console.error('Failed to load item details:', error);
-      // 에러 상태를 표시하기 위해 빈 데이터로 설정
-      setItem(null);
-      setBomUsage(null);
-      setBomData(null);
-      setStockHistory([]);
+      // 부분 실패 시에도 표시 가능한 데이터는 유지
+      // 전체 실패 시에만 빈 데이터로 설정
     } finally {
       setLoading(false);
     }

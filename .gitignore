@@ -119,3 +119,9 @@ docs/completed/
 *-output.txt
 *_response.txt
 test_image.png
+
+# Testing artifacts
+test-results/
+playwright-report/
+.local/
+.cursor/

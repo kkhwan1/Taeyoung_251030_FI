@@ -49,6 +49,7 @@ type SalesTransaction = {
     item_id: number;
     item_name: string;
     item_code: string;
+    spec?: string;
   };
 };
 
@@ -83,8 +84,12 @@ export default function SalesPage() {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const response = await fetch(`/api/sales-transactions?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/sales-transactions?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         // Phase 6A API structure: { data: { transactions, pagination, summary } }
@@ -128,10 +133,14 @@ export default function SalesPage() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`/api/sales?id=${transaction.transaction_id}`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/sales?id=${transaction.transaction_id}`, {
         method: 'DELETE',
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-      const result = await response.json();
 
       if (result.success) {
         showToast('매출 거래가 삭제되었습니다', 'success');
@@ -154,13 +163,16 @@ export default function SalesPage() {
 
       const method = selectedTransaction ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         showToast(

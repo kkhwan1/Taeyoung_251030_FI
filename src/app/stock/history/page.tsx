@@ -63,8 +63,12 @@ export default function StockHistoryPage() {
   useEffect(() => {
     const fetchStockItems = async () => {
       try {
-        const response = await fetch('/api/stock/items');
-        const result = await response.json();
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const result = await safeFetchJson('/api/stock/items', {}, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        });
 
         if (result.success) {
           setStockItems(result.data || []);
@@ -86,8 +90,12 @@ export default function StockHistoryPage() {
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
 
-      const response = await fetch(`/api/stock/history?${params.toString()}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/stock/history?${params.toString()}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setStockHistory(result.data.history || []);
@@ -354,7 +362,7 @@ export default function StockHistoryPage() {
           {/* Refresh Button */}
           <div className="flex items-end">
             <button
-              onClick={fetchStockHistory}
+              onClick={() => fetchStockHistory()}
               disabled={loading}
               className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

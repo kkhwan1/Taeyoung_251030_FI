@@ -29,8 +29,7 @@ export async function optimizeImage(
 
   // 메타데이터 제거 및 자동 회전
   const image = sharp(buffer)
-    .rotate() // EXIF 기반 자동 회전
-    .withMetadata(false); // 메타데이터 제거
+    .rotate(); // EXIF 기반 자동 회전 (메타데이터는 자동으로 제거됨)
 
   // 썸네일 (정사각형)
   const thumbnail = await image

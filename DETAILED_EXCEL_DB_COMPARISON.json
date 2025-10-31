@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025. 10. 31. 오전 8:39:17",
+  "items": {
+    "total_sampled": 0,
+    "found_in_db": 0,
+    "not_found_in_db": 0,
+    "encoding_issues": 0,
+    "name_mismatch": 0,
+    "details": []
+  },
+  "bom": {
+    "total_sampled": 0,
+    "found_in_db": 0,
+    "not_found_in_db": 0,
+    "quantity_mismatch": 0,
+    "details": []
+  },
+  "price": {
+    "total_sampled": 10,
+    "found_in_db": 0,
+    "not_found_in_db": 0,
+    "price_mismatch": 0,
+    "details": []
+  },
+  "inbound": {
+    "excel_count": 532,
+    "db_count": 0,
+    "missing": 532
+  }
+}

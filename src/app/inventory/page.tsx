@@ -11,7 +11,10 @@ import {
   CheckCircle,
   Clock,
   Edit2,
-  Trash2
+  Trash2,
+  Package,
+  Factory,
+  Truck
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ReceivingForm from '@/components/ReceivingForm';
@@ -59,6 +62,7 @@ function InventoryContent() {
     {
       id: 'receiving',
       label: '입고 관리',
+      icon: Package,
       description: '자재 및 제품 입고 처리',
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-50 dark:bg-gray-900/20'
@@ -66,6 +70,7 @@ function InventoryContent() {
     {
       id: 'production',
       label: '생산 관리',
+      icon: Factory,
       description: 'BOM 기반 생산 처리',
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-50 dark:bg-gray-900/20'
@@ -73,6 +78,7 @@ function InventoryContent() {
     {
       id: 'shipping',
       label: '출고 관리',
+      icon: Truck,
       description: '제품 출고 및 배송',
       color: 'text-gray-600 dark:text-gray-400',
       bgColor: 'bg-gray-50 dark:bg-gray-900/20'
@@ -120,7 +126,12 @@ function InventoryContent() {
   };
 
   useEffect(() => {
-    fetchData();
+    // 초기 로딩 지연: 페이지 로드 직후 네트워크 준비 시간 확보 (100ms)
+    const timeoutId = setTimeout(() => {
+      fetchData();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [activeTab, refreshKey]);
 
   const fetchData = async () => {
@@ -154,8 +165,12 @@ function InventoryContent() {
           break;
       }
 
-      const response = await fetch(`${url}?${params}`);
-      const data = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson(`${url}?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 3,
+        retryDelay: 1000
+      });
 
       if (data.success) {
         // Handle paginated response structure
@@ -169,8 +184,12 @@ function InventoryContent() {
 
   const fetchStockInfo = async () => {
     try {
-      const response = await fetch('/api/stock');
-      const data = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson('/api/stock', {}, {
+        timeout: 15000,
+        maxRetries: 3,
+        retryDelay: 1000
+      });
 
       if (data.success) {
         setStockInfo(data.data || []);
@@ -233,11 +252,14 @@ function InventoryContent() {
           url = `/api/inventory/transactions?id=${selectedTransaction.transaction_id}`;
       }
 
-      const response = await fetch(url, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
         method: 'DELETE',
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         alert('거래가 삭제되었습니다.');
@@ -333,17 +355,20 @@ function InventoryContent() {
             created_by: multiItemData.created_by || 1
           };
 
-          const response = await fetch(url, {
+          const { safeFetchJson } = await import('@/lib/fetch-utils');
+          const data = await safeFetchJson(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
             },
             body: JSON.stringify(singleItemData),
+          }, {
+            timeout: 15000,
+            maxRetries: 2,
+            retryDelay: 1000
           });
-
-          const data = await response.json();
           
-          if (!response.ok || !data.success) {
+          if (!data.success) {
             throw new Error(data.error || '처리에 실패했습니다');
           }
           
@@ -364,17 +389,20 @@ function InventoryContent() {
           ? { id: selectedTransaction.transaction_id, ...formData }
           : formData;
 
-        const response = await fetch(url, {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const data = await safeFetchJson(url, {
           method,
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
           },
           body: JSON.stringify(requestBody),
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
         });
 
-        const data = await response.json();
-
-        if (response.ok && data.success) {
+        if (data.success) {
           setShowModal(false);
           setSelectedTransaction(null);
           setRefreshKey(prev => prev + 1);
@@ -465,11 +493,16 @@ function InventoryContent() {
             onCancel={handleCancel}
             initialData={selectedTransaction ? {
               transaction_date: selectedTransaction.transaction_date || '',
-              item_id: selectedTransaction.item_id || 0,
-              quantity: selectedTransaction.quantity || 0,
-              unit_price: selectedTransaction.unit_price || 0,
+              items: [{
+                item_id: selectedTransaction.item_id || 0,
+                item_code: (selectedTransaction as any).item_code || '',
+                item_name: (selectedTransaction as any).item_name || '',
+                unit: (selectedTransaction as any).unit || 'EA',
+                quantity: selectedTransaction.quantity || 0,
+                unit_price: selectedTransaction.unit_price || 0
+              }],
               company_id: (selectedTransaction as any).company_id || undefined,
-              reference_no: selectedTransaction.reference_no || selectedTransaction.reference_number || '',
+              reference_no: selectedTransaction.reference_no || '',
               notes: (selectedTransaction as any).notes || '',
               created_by: (selectedTransaction as any).created_by || 1
             } : undefined}
@@ -485,7 +518,7 @@ function InventoryContent() {
               transaction_date: selectedTransaction.transaction_date || '',
               product_item_id: selectedTransaction.item_id || 0,
               quantity: selectedTransaction.quantity || 0,
-              reference_no: selectedTransaction.reference_no || selectedTransaction.reference_number || '',
+              reference_no: selectedTransaction.reference_no || '',
               notes: (selectedTransaction as any).notes || '',
               use_bom: true,
               scrap_quantity: 0,
@@ -504,10 +537,16 @@ function InventoryContent() {
               customer_id: (selectedTransaction as any).company_id || 0,
               items: [{
                 item_id: selectedTransaction.item_id || 0,
+                item_code: (selectedTransaction as any).item_code || '',
+                item_name: (selectedTransaction as any).item_name || '',
+                unit: (selectedTransaction as any).unit || 'EA',
+                unit_price: selectedTransaction.unit_price || 0,
+                current_stock: (selectedTransaction as any).current_stock || 0,
                 quantity: selectedTransaction.quantity || 0,
-                unit_price: selectedTransaction.unit_price || 0
+                total_amount: (selectedTransaction.quantity || 0) * (selectedTransaction.unit_price || 0),
+                sufficient_stock: true
               }],
-              reference_no: selectedTransaction.reference_no || selectedTransaction.reference_number || '',
+              reference_no: selectedTransaction.reference_no || '',
               delivery_address: (selectedTransaction as any).location || '',
               notes: (selectedTransaction as any).notes || '',
               created_by: (selectedTransaction as any).created_by || 1
@@ -835,8 +874,8 @@ function InventoryContent() {
                           </div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                          <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={transaction.reference_no || transaction.reference_number || '-'}>
-                            {transaction.reference_no || transaction.reference_number || '-'}
+                          <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={transaction.reference_no || '-'}>
+                            {transaction.reference_no || '-'}
                           </div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 text-center">

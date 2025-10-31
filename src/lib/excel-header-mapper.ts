@@ -69,7 +69,7 @@ export const itemsHeaderMapping: HeaderMapping = {
   'car_model': 'car_model',
   'spec': 'spec',
   'item_type': 'item_type',
-  'category': 'category',
+  // 'category': 'category', // Already defined above on line 58
   'unit': 'unit',
   'coating_status': 'coating_status',
   'unit_price': 'unit_price',
@@ -100,11 +100,11 @@ export const bomHeaderMapping: HeaderMapping = {
   'parent_item_code': 'parent_item_code',
   'child_item_code': 'child_item_code',
   'quantity_required': 'quantity_required',
-  'quantity': 'quantity_required',
+  // 'quantity': 'quantity_required', // Already defined above on line 94
   'unit': 'unit',
-  'level_no': 'level_no',
-  'notes': 'notes',
-  'remarks': 'notes'
+  'level_no': 'level_no'
+  // 'notes': 'notes', // Already defined above on line 97
+  // 'remarks': 'notes' // Already defined above on line 98
 };
 
 /**

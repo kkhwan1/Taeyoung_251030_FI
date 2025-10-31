@@ -77,14 +77,18 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
       // 날짜에서 YYYY-MM 형식 추출
       const month = dateString ? dateString.substring(0, 7) : new Date().toISOString().substring(0, 7);
       
-      const response = await fetch(`/api/price-history?month=${month}`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          const priceItem = result.data.find((p: any) => p.item_id === itemId);
-          if (priceItem && priceItem.unit_price) {
-            return priceItem.unit_price;
-          }
+      // Import safeFetchJson utility
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/price-history?month=${month}`, {}, {
+        timeout: 10000, // 10초 타임아웃
+        maxRetries: 2,  // 최대 2회 재시도
+        retryDelay: 1000 // 1초 간격
+      });
+
+      if (result.success && result.data) {
+        const priceItem = result.data.find((p: any) => p.item_id === itemId);
+        if (priceItem && priceItem.unit_price) {
+          return priceItem.unit_price;
         }
       }
     } catch (error) {

@@ -116,8 +116,13 @@ export default function BOMPage() {
   // Fetch items
   const fetchItems = useCallback(async () => {
     try {
-      const response = await fetch('/api/items?limit=1000'); // 모든 품목 가져오기
-      const data = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson('/api/items?limit=1000', {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+      
       if (data.success) {
         setItems(data.data.items || []);
       }
@@ -134,8 +139,12 @@ export default function BOMPage() {
       if (selectedParentItem) params.append('parent_item_id', selectedParentItem);
       params.append('price_month', priceMonth + '-01'); // 기준 월 추가
 
-      const response = await fetch(`/api/bom?${params}`);
-      const data = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson(`/api/bom?${params}`, {}, {
+        timeout: 30000, // 30초 타임아웃 (대량 데이터 처리)
+        maxRetries: 3,
+        retryDelay: 1000
+      });
 
       if (data.success) {
         // API returns bom_entries (snake_case), not bomEntries (camelCase)
@@ -199,12 +208,15 @@ export default function BOMPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/bom/upload', {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson('/api/bom/upload', {
         method: 'POST',
         body: formData
+      }, {
+        timeout: 120000,
+        maxRetries: 1,
+        retryDelay: 2000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         success('업로드 완료', `${result.stats?.valid_rows || 0}개 항목이 성공적으로 업로드되었습니다`);
@@ -285,12 +297,16 @@ export default function BOMPage() {
     const deleteAction = async () => {
       setDeletingBomId(bom.bom_id);
       try {
-        const response = await fetch(`/api/bom?id=${bom.bom_id}`, {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const data = await safeFetchJson(`/api/bom?id=${bom.bom_id}`, {
           method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
         });
 
-        if (!response.ok) {
-          const data = await response.json();
+        if (!data.success) {
           throw new Error(data.error || 'BOM 삭제에 실패했습니다.');
         }
 
@@ -325,23 +341,27 @@ export default function BOMPage() {
         ? { ...apiBody, bom_id: editingBOM.bom_id }
         : apiBody;
 
-      const response = await fetch('/api/bom', {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson('/api/bom', {
         method,
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
         },
         body: JSON.stringify(body),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
 
-      if (response.ok) {
+      if (result.success) {
         const successMessage = editingBOM ? 'BOM이 성공적으로 수정되었습니다.' : 'BOM이 성공적으로 등록되었습니다.';
         success(editingBOM ? 'BOM 수정 완료' : 'BOM 등록 완료', successMessage);
         setShowAddModal(false);
         setEditingBOM(null);
         fetchBOMData();
       } else {
-        const errorData = await response.json();
-        error('저장 실패', errorData.error || '저장에 실패했습니다.');
+        error('저장 실패', result.error || '저장에 실패했습니다.');
       }
     } catch (err) {
       console.error('Failed to save BOM:', err);
@@ -366,13 +386,16 @@ export default function BOMPage() {
       const url = specs.coil_spec_id ? `/api/coil-specs/${specs.coil_spec_id}` : '/api/coil-specs';
       const method = specs.coil_spec_id ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(specs)
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         await fetchBOMData();
@@ -389,7 +412,12 @@ export default function BOMPage() {
 
   const handleTemplateDownload = async () => {
     try {
-      const response = await fetch('/api/download/template/bom');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/download/template/bom', {}, {
+        timeout: 30000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
       if (!response.ok) {
         throw new Error('템플릿 다운로드에 실패했습니다.');
       }

@@ -19,7 +19,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
 const PurchaseForm = dynamic(() => import('@/components/forms/PurchaseForm'), { ssr: false });
 
-type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';
+type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETED';
 
 type PurchaseTransaction = {
   transaction_id: number;
@@ -50,13 +50,14 @@ type PurchaseTransaction = {
     item_id: number;
     item_name: string;
     item_code: string;
+    spec?: string;
   };
 };
 
 const PAYMENT_STATUS_OPTIONS = [
   { value: 'PENDING', label: '대기', color: 'text-gray-600 dark:text-gray-400' },
   { value: 'PARTIAL', label: '부분', color: 'text-gray-600 dark:text-gray-400' },
-  { value: 'COMPLETE', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
+  { value: 'COMPLETED', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
 ];
 
 export default function PurchasesPage() {
@@ -84,8 +85,12 @@ export default function PurchasesPage() {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const response = await fetch(`/api/purchases?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/purchases?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         // Phase 6A API structure: { data: [...] } or { data: { transactions, pagination } }
@@ -129,10 +134,14 @@ export default function PurchasesPage() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`/api/purchases?id=${transaction.transaction_id}`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/purchases?id=${transaction.transaction_id}`, {
         method: 'DELETE',
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-      const result = await response.json();
 
       if (result.success) {
         showToast('매입 거래가 삭제되고 재고가 조정되었습니다', 'success');
@@ -155,13 +164,16 @@ export default function PurchasesPage() {
 
       const method = selectedTransaction ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-
-      const result = await response.json();
 
       if (result.success) {
         showToast(

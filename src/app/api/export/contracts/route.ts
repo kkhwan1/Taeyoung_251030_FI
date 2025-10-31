@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       '계약번호': row.contract_no || '',
       '거래처코드': row.company?.company_code || '',
       '거래처명': row.company?.company_name || '',
-      '계약일': new Date(row.contract_date).toLocaleDateString('ko-KR'),
+      '계약일': row.contract_date ? new Date(row.contract_date).toLocaleDateString('ko-KR') : '-',
       '시작일': new Date(row.start_date).toLocaleDateString('ko-KR'),
       '종료일': new Date(row.end_date).toLocaleDateString('ko-KR'),
       '계약금액': row.total_amount || 0,

@@ -48,12 +48,15 @@ export function ImageUploadZone({
         formData.append('file', file);
 
         // Upload
-        const response = await fetch(`/api/items/${itemId}/images`, {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const result = await safeFetchJson(`/api/items/${itemId}/images`, {
           method: 'POST',
           body: formData
+        }, {
+          timeout: 120000,
+          maxRetries: 1,
+          retryDelay: 2000
         });
-
-        const result = await response.json();
 
         if (!result.success) {
           throw new Error(result.error || '업로드 실패');

@@ -96,7 +96,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const body = await request.json();
+    // Korean UTF-8 support
+    const text = await request.text();
+    const body = JSON.parse(text);
     const { document_number } = body;
 
     if (!document_number) {

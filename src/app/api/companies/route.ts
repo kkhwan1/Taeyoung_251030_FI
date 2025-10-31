@@ -168,6 +168,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       business_number, // Also accept business_number from frontend
       contact_person,
       phone,
+      fax,
       mobile,
       email,
       address,
@@ -245,6 +246,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       business_number: business_number || business_registration_no,  // Accept both field names
       representative: contact_person,  // Map API parameter to correct DB column
       phone,
+      fax,
       // mobile column removed - does not exist in database (only phone and fax columns exist)
       email,
       address,
@@ -277,7 +279,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       success: true,
       message: '거래처가 성공적으로 등록되었습니다.',
       data: company
-    });
+    }, { status: 201 });
   } catch (error) {
     const duration = Date.now() - startTime;
     metricsCollector.trackRequest(endpoint, duration, true);
@@ -352,6 +354,14 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
     if (dbUpdateData.notes !== undefined) {
       delete dbUpdateData.notes;
+    }
+    // Allow fax passthrough (column exists)
+    if (updateData.fax !== undefined) {
+      dbUpdateData.fax = updateData.fax;
+    }
+    // business_info: accept object as-is; do not merge server-side without read
+    if (updateData.business_info !== undefined) {
+      dbUpdateData.business_info = updateData.business_info;
     }
     // payment_terms is now a valid DB column, so keep it
 

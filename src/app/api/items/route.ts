@@ -107,7 +107,7 @@ function mapRow(row: ItemRow): ItemRow & { unit_price?: number } {
     daily_requirement: row.daily_requirement === null ? null : Number(row.daily_requirement),
     blank_size: row.blank_size === null ? null : Number(row.blank_size),
     price: price,
-    unit_price: price, // Add unit_price for backward compatibility
+    unit_price: price === null ? undefined : price, // Add unit_price for backward compatibility
     safety_stock: row.safety_stock === null ? null : Number(row.safety_stock),
     current_stock: row.current_stock === null ? null : Number(row.current_stock),
   };
@@ -427,8 +427,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
+  // ✅ CRITICAL FIX: Add permission check before processing request
+  const { response: permissionResponse } = await checkAPIResourcePermission(
+    request,
+    'items',
+    'update'
+  );
+  if (permissionResponse) return permissionResponse;
+
   try {
-    const body = await request.json();
+    // CRITICAL: Korean encoding - Use request.text() + JSON.parse()
+    const text = await request.text();
+    const body = JSON.parse(text);
     const itemId = normalizeInteger(body.item_id ?? body.id);
 
     if (!itemId) {
@@ -512,13 +522,27 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       message: '품목 정보가 수정되었습니다.',
     });
   } catch (error) {
+    // ✅ HIGH FIX: Handle JSON parse errors with 400 status
+    if (error instanceof SyntaxError) {
+      throw new APIError('잘못된 JSON 형식입니다.', 400);
+    }
     return handleError(error, '품목 수정 중 오류가 발생했습니다.');
   }
 }
 
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  // ✅ CRITICAL FIX: Add permission check before processing request
+  const { response: permissionResponse } = await checkAPIResourcePermission(
+    request,
+    'items',
+    'delete'
+  );
+  if (permissionResponse) return permissionResponse;
+
   try {
-    const body = await request.json();
+    // ✅ FIX: Use consistent Korean encoding pattern
+    const text = await request.text();
+    const body = JSON.parse(text);
     const itemId = normalizeInteger(body.item_id ?? body.id);
 
     if (!itemId) {
@@ -551,6 +575,10 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       message: '품목이 비활성화되었습니다.',
     });
   } catch (error) {
+    // ✅ HIGH FIX: Handle JSON parse errors with 400 status
+    if (error instanceof SyntaxError) {
+      throw new APIError('잘못된 JSON 형식입니다.', 400);
+    }
     return handleError(error, '품목 삭제 중 오류가 발생했습니다.');
   }
 }

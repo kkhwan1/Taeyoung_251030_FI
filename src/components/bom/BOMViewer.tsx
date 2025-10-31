@@ -128,8 +128,12 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
         params.append('parent_item_id', parentItemId.toString());
       }
 
-      const response = await fetch(`/api/bom?${params}`);
-      const result = await response.json();
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/bom?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (result.success) {
         setBOMData(result.data.bomEntries || []);
@@ -317,7 +321,12 @@ export const BOMViewer: React.FC<BOMViewerProps> = ({
       }
       params.append('include_cost_analysis', 'true');
 
-      const response = await fetch(`/api/bom/export?${params}`);
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch(`/api/bom/export?${params}`, {}, {
+        timeout: 60000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
 
       if (!response.ok) {
         throw new Error('Export failed');

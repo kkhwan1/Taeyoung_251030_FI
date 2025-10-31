@@ -5,6 +5,7 @@ import {
   X,
   CheckCircle,
   XCircle,
+  AlertTriangle,
   Info,
   Undo2,
   ExternalLink

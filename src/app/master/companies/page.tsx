@@ -107,6 +107,7 @@ export default function CompaniesPage() {
     { key: 'business_number', label: '사업자번호', align: 'left' as const, width: '15%' },
     { key: 'contact_person', label: '담당자', align: 'left' as const, width: '15%' },
     { key: 'phone', label: '전화번호', align: 'left' as const, width: '15%' },
+    { key: 'fax', label: '팩스', align: 'left' as const, width: '12%' },
     { key: 'address', label: '주소', align: 'left' as const, width: '20%' }
   ];
 
@@ -121,10 +122,14 @@ export default function CompaniesPage() {
       if (selectedType) params.append('type', selectedType);
       if (bustCache) params.append('_t', Date.now().toString()); // Cache busting
 
-      const response = await fetch(`/api/companies?${params}`, {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const data = await safeFetchJson(`/api/companies?${params}`, {
         cache: bustCache ? 'no-store' : 'default'
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
-      const data = await response.json();
 
       console.log('[DEBUG] fetchCompanies response:', data);
 
@@ -148,12 +153,16 @@ export default function CompaniesPage() {
     const deleteAction = async () => {
       setDeletingCompanyId(company.company_id);
       try {
-        const response = await fetch(`/api/companies?id=${company.company_id}`, {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const data = await safeFetchJson(`/api/companies?id=${company.company_id}`, {
           method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
         });
 
-        if (!response.ok) {
-          const data = await response.json();
+        if (!data.success) {
           throw new Error(data.error || '거래처 삭제에 실패했습니다.');
         }
 
@@ -183,16 +192,20 @@ export default function CompaniesPage() {
 
       console.log('[DEBUG] Saving company:', method, body);
 
-      const response = await fetch('/api/companies', {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const responseData = await safeFetchJson('/api/companies', {
         method,
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
         },
         body: JSON.stringify(body),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
       });
 
-      if (response.ok) {
-        const responseData = await response.json();
+      if (responseData.success) {
         console.log('[DEBUG] Save response:', responseData);
         
         const successMessage = editingCompany ? '거래처가 성공적으로 수정되었습니다.' : '거래처가 성공적으로 등록되었습니다.';
@@ -206,9 +219,8 @@ export default function CompaniesPage() {
         await fetchCompanies(true); // Force cache refresh
         console.log('[DEBUG] fetchCompanies completed');
       } else {
-        const errorData = await response.json();
-        console.error('[DEBUG] Save failed:', errorData);
-        error('저장 실패', errorData.error || '저장에 실패했습니다.');
+        console.error('[DEBUG] Save failed:', responseData);
+        error('저장 실패', responseData.error || '저장에 실패했습니다.');
       }
     } catch (err) {
       console.error('Failed to save company:', err);
@@ -229,7 +241,12 @@ export default function CompaniesPage() {
 
   const handleTemplateDownload = async () => {
     try {
-      const response = await fetch('/api/download/template/companies');
+      const { safeFetch } = await import('@/lib/fetch-utils');
+      const response = await safeFetch('/api/download/template/companies', {}, {
+        timeout: 30000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -412,6 +429,9 @@ export default function CompaniesPage() {
                 <th className="w-[140px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   연락처
                 </th>
+                <th className="w-[120px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  팩스
+                </th>
                 <th className="w-[200px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   이메일
                 </th>
@@ -429,13 +449,13 @@ export default function CompaniesPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="p-3 sm:p-6">
-                    <TableSkeleton rows={6} columns={9} showHeader={false} />
+                  <td colSpan={11} className="p-3 sm:p-6">
+                    <TableSkeleton rows={6} columns={11} showHeader={false} />
                   </td>
                 </tr>
               ) : filteredCompanies.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={11} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     등록된 거래처가 없습니다
                   </td>
                 </tr>
@@ -478,6 +498,11 @@ export default function CompaniesPage() {
                         {!company.phone && !company.mobile && (
                           <span className="text-sm text-gray-400">-</span>
                         )}
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                        {(company as any).fax || '-'}
                       </div>
                     </td>
                     <td className="px-3 sm:px-6 py-4 overflow-hidden">

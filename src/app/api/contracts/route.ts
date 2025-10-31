@@ -108,11 +108,12 @@ export async function POST(request: NextRequest) {
     }, { status: 400 });
   }
 
-  // 계약 생성 (contract_no는 트리거로 자동 생성)
+  // 계약 생성 (contract_no는 트리거로 자동 생성되지만 TypeScript를 위해 임시값 제공)
   const { data, error: dbError } = await supabase
     .from('contracts')
     .insert({
       company_id: body.company_id,
+      contract_no: `TEMP-${Date.now()}`, // 트리거가 실제 값으로 대체
       contract_name: body.contract_name,
       contract_type: body.contract_type,
       contract_date: body.contract_date || new Date().toISOString().split('T')[0],

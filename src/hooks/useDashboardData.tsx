@@ -154,38 +154,45 @@ export const useDashboardData = (
       }
       setError(null);
 
-      // Fetch data from multiple endpoints for complete dashboard
-      const [statsRes, chartsRes, alertsRes] = await Promise.all([
-        fetch('/api/dashboard/stats', {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
+      // Fetch data from multiple endpoints for complete dashboard (타임아웃 및 재시도 포함)
+      const { safeFetchAllJson } = await import('@/lib/fetch-utils');
+      
+      const [statsResult, chartsResult, alertsResult] = await safeFetchAllJson([
+        {
+          url: '/api/dashboard/stats',
+          options: {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
           }
-        }),
-        fetch('/api/dashboard/charts', {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
+        },
+        {
+          url: '/api/dashboard/charts',
+          options: {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
           }
-        }),
-        fetch('/api/dashboard/alerts', {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
+        },
+        {
+          url: '/api/dashboard/alerts',
+          options: {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
           }
-        })
-      ]);
-
-      if (!statsRes.ok || !chartsRes.ok || !alertsRes.ok) {
-        throw new Error(`HTTP error! status: ${statsRes.status}, ${chartsRes.status}, ${alertsRes.status}`);
-      }
-
-      const statsResult = await statsRes.json();
-      const chartsResult = await chartsRes.json();
-      const alertsResult = await alertsRes.json();
+        }
+      ], {
+        timeout: 15000, // 15초 타임아웃
+        maxRetries: 2,  // 최대 2회 재시도
+        retryDelay: 1000 // 1초 간격
+      });
 
       // Validate responses
       if (!statsResult.success) {

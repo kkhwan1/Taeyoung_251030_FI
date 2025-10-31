@@ -10,6 +10,7 @@ interface Company {
   business_number?: string;
   contact_person?: string;
   phone?: string;
+  fax?: string;
   mobile?: string;
   email?: string;
   address?: string;
@@ -21,6 +22,36 @@ interface Company {
     business_type?: string;
     business_item?: string;
     main_products?: string;
+    mobile?: string;
+    website?: string;
+    tax_email?: string;
+    billing_email?: string;
+    bank_account?: {
+      bank_name?: string;
+      account_no?: string;
+      holder?: string;
+    };
+    credit_limit?: number;
+    billing_cycle?: 'monthly' | 'biweekly' | 'weekly';
+    payment_method?: 'cash' | 'transfer' | 'card' | 'mixed';
+    currency?: string;
+    vat_rate?: number;
+    delivery_terms?: string;
+    address_details?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      postal_code?: string;
+      country?: string;
+    };
+    contacts?: Array<{
+      name?: string;
+      role?: string;
+      phone?: string;
+      email?: string;
+    }>;
+    notes?: string;
   };
 }
 
@@ -37,6 +68,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
     business_number: '',
     contact_person: '',
     phone: '',
+    fax: '',
     mobile: '',
     email: '',
     address: '',
@@ -47,7 +79,27 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
     business_info: {
       business_type: '',
       business_item: '',
-      main_products: ''
+      main_products: '',
+      mobile: '',
+      website: '',
+      tax_email: '',
+      billing_email: '',
+      bank_account: {
+        bank_name: '',
+        account_no: '',
+        holder: ''
+      },
+      credit_limit: 0,
+      billing_cycle: undefined,
+      payment_method: undefined,
+      currency: 'KRW',
+      vat_rate: 10,
+      delivery_terms: '',
+      address_details: {
+        line1: '', line2: '', city: '', state: '', postal_code: '', country: ''
+      },
+      contacts: [],
+      notes: ''
     }
   });
   const [loading, setLoading] = useState(false);
@@ -61,11 +113,42 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
         business_number: company.business_number ?? '',
         contact_person: company.contact_person ?? '',
         phone: company.phone ?? '',
+        fax: (company as any).fax ?? '',
         mobile: company.mobile ?? '',
         email: company.email ?? '',
         address: company.address ?? '',
         notes: company.notes ?? '',
         company_category: company.company_category ?? '',
+        business_info: {
+          business_type: company.business_info?.business_type ?? '',
+          business_item: company.business_info?.business_item ?? '',
+          main_products: company.business_info?.main_products ?? '',
+          mobile: company.business_info?.mobile ?? company.mobile ?? '',
+          website: company.business_info?.website ?? '',
+          tax_email: company.business_info?.tax_email ?? '',
+          billing_email: company.business_info?.billing_email ?? '',
+          bank_account: {
+            bank_name: company.business_info?.bank_account?.bank_name ?? '',
+            account_no: company.business_info?.bank_account?.account_no ?? '',
+            holder: company.business_info?.bank_account?.holder ?? ''
+          },
+          credit_limit: company.business_info?.credit_limit ?? 0,
+          billing_cycle: company.business_info?.billing_cycle,
+          payment_method: company.business_info?.payment_method,
+          currency: company.business_info?.currency ?? 'KRW',
+          vat_rate: company.business_info?.vat_rate ?? 10,
+          delivery_terms: company.business_info?.delivery_terms ?? '',
+          address_details: {
+            line1: company.business_info?.address_details?.line1 ?? '',
+            line2: company.business_info?.address_details?.line2 ?? '',
+            city: company.business_info?.address_details?.city ?? '',
+            state: company.business_info?.address_details?.state ?? '',
+            postal_code: company.business_info?.address_details?.postal_code ?? '',
+            country: company.business_info?.address_details?.country ?? ''
+          },
+          contacts: company.business_info?.contacts ?? [],
+          notes: company.business_info?.notes ?? company.notes ?? ''
+        }
       });
     }
   }, [company]);
@@ -90,6 +173,55 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
         [field]: value
       }
     }));
+  };
+
+  const handleBusinessInfoDirectChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      business_info: {
+        ...prev.business_info,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleNestedChange = (group: 'bank_account' | 'address_details', field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      business_info: {
+        ...prev.business_info,
+        [group]: {
+          ...(prev.business_info as any)?.[group],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const addContact = () => {
+    setFormData(prev => ({
+      ...prev,
+      business_info: {
+        ...prev.business_info,
+        contacts: [ ...(prev.business_info?.contacts || []), { name: '', role: '', phone: '', email: '' } ]
+      }
+    }));
+  };
+
+  const updateContact = (index: number, key: 'name' | 'role' | 'phone' | 'email', value: string) => {
+    setFormData(prev => {
+      const contacts = [...(prev.business_info?.contacts || [])];
+      contacts[index] = { ...contacts[index], [key]: value };
+      return { ...prev, business_info: { ...prev.business_info, contacts } };
+    });
+  };
+
+  const removeContact = (index: number) => {
+    setFormData(prev => {
+      const contacts = [...(prev.business_info?.contacts || [])];
+      contacts.splice(index, 1);
+      return { ...prev, business_info: { ...prev.business_info, contacts } };
+    });
   };
 
   const validate = (): boolean => {
@@ -119,6 +251,20 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
       newErrors.payment_terms = '결제조건은 0 이상이어야 합니다';
     }
 
+    if (formData.business_info?.tax_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.business_info.tax_email)) {
+      newErrors.tax_email = '세금용 이메일 형식이 올바르지 않습니다';
+    }
+    if (formData.business_info?.billing_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.business_info.billing_email)) {
+      newErrors.billing_email = '청구서 이메일 형식이 올바르지 않습니다';
+    }
+    if ((formData.business_info?.credit_limit ?? 0) < 0) {
+      newErrors.credit_limit = '신용한도는 0 이상이어야 합니다';
+    }
+    if (formData.business_info?.vat_rate !== undefined) {
+      const vr = formData.business_info.vat_rate;
+      if (vr! < 0 || vr! > 100) newErrors.vat_rate = '부가세율은 0~100 사이여야 합니다';
+    }
+
     // Validate company_category if provided
     const validCategories = ['협력업체-원자재', '협력업체-외주', '소모품업체', '기타'];
     if (formData.company_category && !validCategories.includes(formData.company_category)) {
@@ -135,7 +281,16 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      // UI 상의 mobile/notes도 business_info에 일원화하여 전달
+      const normalized = {
+        ...formData,
+        business_info: {
+          ...formData.business_info,
+          mobile: formData.business_info?.mobile || formData.mobile || '',
+          notes: formData.business_info?.notes || formData.notes || ''
+        }
+      };
+      await onSubmit(normalized);
       // 성공 시 자동으로 모달 닫기
       onCancel();
     } catch (error) {

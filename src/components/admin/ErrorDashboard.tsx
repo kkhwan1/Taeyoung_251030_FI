@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/useToast';
 import {
   AlertCircle,
+  AlertTriangle,
   Zap,
   Info
 } from 'lucide-react';
