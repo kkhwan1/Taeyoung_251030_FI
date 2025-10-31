@@ -120,13 +120,27 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
         sortedCount: sorted.length,
         firstItem: sorted[0],
         displayValues: sorted.map(r => r.displayValue),
+        displayValueTypes: sorted.map(r => typeof r.displayValue),
+        displayValueNaNs: sorted.map(r => isNaN(r.displayValue)),
         isEmpty: sorted.length === 0,
-        willRenderChart: sorted.length > 0
+        willRenderChart: sorted.length > 0,
+        selectedMetric: selectedMetric
       });
       
       // 실제 렌더링 조건 확인
       if (sorted.length > 0) {
         console.log('[TransactionDistribution] Will render chart with:', sorted.length, 'items');
+        // 각 아이템의 displayValue 확인
+        sorted.forEach((item, index) => {
+          console.log(`[TransactionDistribution] Item ${index}:`, {
+            type: item.type,
+            displayValue: item.displayValue,
+            displayValueType: typeof item.displayValue,
+            isNaN: isNaN(item.displayValue),
+            hasDisplayValue: 'displayValue' in item,
+            keys: Object.keys(item)
+          });
+        });
       } else {
         console.warn('[TransactionDistribution] Will NOT render chart - empty data');
       }
@@ -403,17 +417,29 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
                 cursor="pointer"
                 radius={[0, 2, 2, 0]}
                 isAnimationActive={false}
+                fill={theme.colors[0]}
               >
-                {processedData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={selectedTypes.has(entry.type)
-                      ? theme.colors[6]
-                      : entry.color
-                    }
-                    opacity={selectedTypes.size === 0 || selectedTypes.has(entry.type) ? 1 : 0.3}
-                  />
-                ))}
+                {processedData.map((entry, index) => {
+                  // 디버깅: 각 Cell의 데이터 확인
+                  if (process.env.NODE_ENV === 'development' && index < 3) {
+                    console.log(`[TransactionDistribution] Cell ${index}:`, {
+                      type: entry.type,
+                      displayValue: entry.displayValue,
+                      hasDisplayValue: 'displayValue' in entry,
+                      color: entry.color
+                    });
+                  }
+                  return (
+                    <Cell
+                      key={`cell-${entry.id || entry.type || index}`}
+                      fill={selectedTypes.has(entry.type)
+                        ? theme.colors[6]
+                        : entry.color || theme.colors[0]
+                      }
+                      opacity={selectedTypes.size === 0 || selectedTypes.has(entry.type) ? 1 : 0.3}
+                    />
+                  );
+                })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

@@ -6,7 +6,9 @@
       "Bash(git rm:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nrefactor: 대규모 코드 개선 및 테스트 결과 정리\n\n주요 변경사항:\n- 인증 시스템 개선 및 보안 강화 (auth API 개선)\n- API 라우트 87개 파일 개선 (accounting, inventory, bom, dashboard)\n- Dashboard 차트 로직 리팩토링 및 성능 최적화\n- 재고 관리 UI/UX 개선 (입고/생산/출고 폼)\n- BOM 및 거래처 관리 기능 향상\n- Playwright 테스트 결과 정리 (167개 파일 삭제)\n- ESLint 설정 및 타입 정의 업데이트\n- 컴포넌트 안정성 개선 (Toast, ItemSelect, SearchFilters)\n\n정리 작업:\n- test-results/ 디렉토리 .gitignore 추가 (27MB 아티팩트 제외)\n- playwright-report/ 제외 설정\n- 구형 테스트 아티팩트 제거\n- IDE 설정 파일 제외 (.local/, .cursor/)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nchore: Claude 설정 및 차트 컴포넌트 업데이트\n\n변경사항:\n- .claude/settings.local.json 설정 업데이트\n- TransactionDistribution 차트 컴포넌트 개선\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
