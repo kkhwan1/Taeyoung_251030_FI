@@ -4,7 +4,7 @@
 
 **Tech Stack**: Next.js 15.5.4 + React 19.1.0 + TypeScript + Supabase PostgreSQL
 
-**Production URL**: https://taeyaoung-erp-251017.vercel.app
+**Production URL**: https://taechangmetal.vercel.app
 
 **GitHub Repository**: https://github.com/kkhwan1/TaeYaoung_ERP_251020.git
 
@@ -246,7 +246,7 @@ npm run type-check       # TypeScript 타입 체크
 ## 🚀 Vercel 배포
 
 ### Production 배포 정보
-- **URL**: https://taeyaoung-erp-251017.vercel.app
+- **URL**: https://taechangmetal.vercel.app
 - **Branch**: main
 - **Environment**: Production
 
