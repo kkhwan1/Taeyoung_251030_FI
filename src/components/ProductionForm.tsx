@@ -150,15 +150,21 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         created_by: 1 // Default user ID
       };
 
+      // Convert reference_no to reference_number for API compatibility
+      const apiData = submissionData as any;
+      if (apiData.reference_no !== undefined) {
+        apiData.reference_number = apiData.reference_no;
+        delete apiData.reference_no;
+      }
+
       // Remove empty optional fields
-      Object.keys(submissionData).forEach(key => {
-        if (submissionData[key as keyof typeof submissionData] === '' ||
-            submissionData[key as keyof typeof submissionData] === undefined) {
-          delete submissionData[key as keyof typeof submissionData];
+      Object.keys(apiData).forEach(key => {
+        if (apiData[key] === '' || apiData[key] === undefined) {
+          delete apiData[key];
         }
       });
 
-      const result = await onSubmit(submissionData);
+      const result = await onSubmit(apiData);
 
       // Show result modal with auto-deduction details
       setProductionResult(result);

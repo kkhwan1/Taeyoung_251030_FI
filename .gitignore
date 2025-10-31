@@ -125,3 +125,12 @@ test-results/
 playwright-report/
 .local/
 .cursor/
+
+# Vercel environment files (SECURITY)
+.env.vercel
+
+# Planning documents (Personal)
+.plan5/
+
+# Development scripts (Temporary utilities)
+scripts/

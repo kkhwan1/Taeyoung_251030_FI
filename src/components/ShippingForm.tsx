@@ -839,7 +839,7 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
         </button>
         <button
           type="submit"
-          disabled={loading || hasInsufficientStock() || formData.items.length === 0}
+          disabled={loading || formData.items.length === 0}
           className="flex items-center gap-2 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (

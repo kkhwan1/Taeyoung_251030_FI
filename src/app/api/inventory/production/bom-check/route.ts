@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
           b.bom_id,
           b.parent_item_id,
           b.child_item_id,
-          b.quantity,
+          b.quantity_required,
           b.unit,
           i.item_code,
           i.item_name,
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
       bom_id: number;
       parent_item_id: number;
       child_item_id: number;
-      quantity: number;
+      quantity_required: number;
       unit: string;
       item_code: string;
       item_name: string;
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
     let bottleneckItem = null;
 
     for (const bomItem of bomItems) {
-      const bomQuantityPerUnit = bomItem.quantity as number;
+      const bomQuantityPerUnit = bomItem.quantity_required as number;
       const requiredQuantity = bomQuantityPerUnit * quantity;
       const availableStock = (bomItem.current_stock as number) || 0;
       const shortage = Math.max(0, requiredQuantity - availableStock);

@@ -89,9 +89,14 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
                    : selectedMetric === 'volume' ? (item.volume || 0)
                    : (item.value || 0);
       
+      const numericValue = Number(displayValue);
+      const finalValue = (!isNaN(numericValue) && numericValue !== null && numericValue !== undefined) 
+        ? numericValue 
+        : 0;
+      
       return {
         ...item,
-        displayValue: Number(displayValue) || 0, // 숫자로 변환하고 NaN 방지
+        displayValue: finalValue, // 숫자로 변환하고 NaN 방지
         color: getTransactionTypeColor(item.type, isDark),
         id: `${item.type}-${index}`
       };
@@ -386,6 +391,7 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
               data={processedData} 
               layout="horizontal"
               margin={{ top: 5, right: 15, left: 110, bottom: 5 }}
+              barCategoryGap="10%"
             >
               <CartesianGrid strokeDasharray="3 3" stroke={theme.cartesianGrid.stroke} />
               <XAxis
@@ -400,6 +406,8 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
                 tick={theme.xAxis.tick}
                 axisLine={theme.xAxis.axisLine}
                 domain={[0, 'dataMax']}
+                allowDataOverflow={false}
+                allowDecimals={true}
               />
               <YAxis
                 type="category"
@@ -418,6 +426,7 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
                 radius={[0, 2, 2, 0]}
                 isAnimationActive={false}
                 fill={theme.colors[0]}
+                minPointSize={2}
               >
                 {processedData.map((entry, index) => {
                   // 디버깅: 각 Cell의 데이터 확인
