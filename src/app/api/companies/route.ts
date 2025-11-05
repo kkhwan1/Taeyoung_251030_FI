@@ -34,7 +34,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type');
     const search = searchParams.get('search');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    // If limit is not specified or is 0, fetch all companies
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam) : 10000; // Default to large number to fetch all
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Get Supabase client from unified db layer
@@ -56,8 +58,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       query = query.or(`company_name.ilike.%${search}%,business_number.ilike.%${search}%,representative.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1);
+    // Apply pagination only if limit is reasonable (not fetching all)
+    if (limit < 10000) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     const { data: companies, error } = (await query) as any;
 
@@ -319,10 +323,13 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.company_type = companyTypeMap[updateData.company_type] || updateData.company_type;
     }
 
-    // Validate company_category if provided
-    if (updateData.company_category) {
+    // Validate and handle company_category
+    if (updateData.company_category !== undefined) {
       const validCategories = ['협력업체-원자재', '협력업체-외주', '소모품업체', '기타'];
-      if (!validCategories.includes(updateData.company_category)) {
+      // If empty string or invalid, remove it (don't update)
+      if (updateData.company_category === '' || updateData.company_category === '선택 안함') {
+        delete updateData.company_category;
+      } else if (!validCategories.includes(updateData.company_category)) {
         return NextResponse.json({
           success: false,
           error: '올바른 거래처 분류를 선택해주세요.'
@@ -331,39 +338,67 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
 
     // Map API field names to database column names
-    const dbUpdateData: any = { ...updateData };
+    const dbUpdateData: any = {};
     
     // Handle both business_registration_no and business_number field names
     if (updateData.business_registration_no !== undefined) {
       dbUpdateData.business_number = updateData.business_registration_no;
-      delete dbUpdateData.business_registration_no;
-    }
-    if (updateData.business_number !== undefined) {
+    } else if (updateData.business_number !== undefined) {
       dbUpdateData.business_number = updateData.business_number;
     }
     
-    // Handle contact_person mapping
+    // Handle contact_person mapping to representative
     if (updateData.contact_person !== undefined) {
       dbUpdateData.representative = updateData.contact_person;
-      delete dbUpdateData.contact_person;
     }
     
-    // Remove mobile and notes fields as they don't exist in database
-    if (dbUpdateData.mobile !== undefined) {
-      delete dbUpdateData.mobile;
+    // Map phone field (API uses 'phone', DB uses 'phone')
+    if (updateData.phone !== undefined) {
+      dbUpdateData.phone = updateData.phone;
     }
-    if (dbUpdateData.notes !== undefined) {
-      delete dbUpdateData.notes;
+    
+    // Map email field
+    if (updateData.email !== undefined) {
+      dbUpdateData.email = updateData.email;
     }
+    
+    // Map address field
+    if (updateData.address !== undefined) {
+      dbUpdateData.address = updateData.address;
+    }
+    
     // Allow fax passthrough (column exists)
     if (updateData.fax !== undefined) {
       dbUpdateData.fax = updateData.fax;
     }
+    
+    // Handle company_name
+    if (updateData.company_name !== undefined) {
+      dbUpdateData.company_name = updateData.company_name;
+    }
+    
+    // Handle company_type (already converted above)
+    if (updateData.company_type !== undefined) {
+      dbUpdateData.company_type = updateData.company_type;
+    }
+    
+    // Handle company_category (validated above)
+    if (updateData.company_category !== undefined) {
+      dbUpdateData.company_category = updateData.company_category;
+    }
+    
     // business_info: accept object as-is; do not merge server-side without read
     if (updateData.business_info !== undefined) {
       dbUpdateData.business_info = updateData.business_info;
     }
+    
     // payment_terms is now a valid DB column, so keep it
+    if (updateData.payment_terms !== undefined) {
+      dbUpdateData.payment_terms = updateData.payment_terms;
+    }
+    
+    // Do not include fields that don't exist in database
+    // (mobile, notes are already excluded by not mapping them)
 
     // Update company using Supabase client
     console.log('[Companies PUT] Updating company_id:', company_id, 'with data:', dbUpdateData);
@@ -380,7 +415,13 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     if (error) {
       console.error('[Companies PUT] UPDATE ERROR:', error);
-      throw new Error(`Database update failed: ${error.message}`);
+      console.error('[Companies PUT] Error details:', JSON.stringify(error, null, 2));
+      console.error('[Companies PUT] Update data:', JSON.stringify(dbUpdateData, null, 2));
+      return NextResponse.json({
+        success: false,
+        error: `데이터베이스 업데이트 실패: ${error.message}`,
+        details: error.details || error.hint || error.code
+      }, { status: 500 });
     }
     console.log('[Companies PUT] UPDATE SUCCESS - company_id:', company?.company_id);
 
@@ -389,12 +430,14 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       message: '거래처가 성공적으로 업데이트되었습니다.',
       data: company
     });
-  } catch (error) {
-    console.error('Error updating company:', error);
+  } catch (error: any) {
+    console.error('[Companies PUT] Error updating company:', error);
+    console.error('[Companies PUT] Error stack:', error.stack);
     return NextResponse.json(
       {
         success: false,
-        error: '거래처 업데이트에 실패했습니다.'
+        error: error.message || '거래처 업데이트에 실패했습니다.',
+        details: error.details || error.hint || error.code
       },
       { status: 500 }
     );

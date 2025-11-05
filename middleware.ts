@@ -3,9 +3,9 @@ import { getCurrentUser } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  
+
   console.log('[MIDDLEWARE] === Processing request:', pathname);
-  
+
   // 정적 파일 제외
   if (
     pathname.startsWith('/_next') ||
@@ -33,16 +33,19 @@ export async function middleware(request: NextRequest) {
   console.log('[MIDDLEWARE] Checking authentication for page:', pathname);
   const user = await getCurrentUser(request);
   console.log('[MIDDLEWARE] User:', user ? `${user.username} (${user.role})` : 'not authenticated');
-  
+
   if (!user) {
     console.log('[MIDDLEWARE] No user - redirecting to /login');
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
-  
+
   console.log('[MIDDLEWARE] Authenticated - allowing');
   return NextResponse.next();
 }
+
+// Force Node.js runtime to prevent Edge Runtime issues during build
+export const runtime = 'nodejs';
 
 export const config = {
   matcher: [

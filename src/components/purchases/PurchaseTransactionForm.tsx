@@ -239,18 +239,18 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4" />
-            거래일자 <span className="text-gray-500">*</span>
+            거래일자 <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
             value={formData.transaction_date}
             onChange={(e) => handleInputChange('transaction_date', e.target.value)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
+              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -258,7 +258,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Building2 className="w-4 h-4" />
-            공급사 <span className="text-gray-500">*</span>
+            공급사 <span className="text-red-500">*</span>
           </label>
           <CompanySelect
             companyType="SUPPLIER"
@@ -272,7 +272,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             
-            품목 <span className="text-gray-500">*</span>
+            품목 <span className="text-red-500">*</span>
           </label>
           <ItemSelect
             value={formData.item_id || undefined}
@@ -328,7 +328,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Hash className="w-4 h-4" />
-            수량 <span className="text-gray-500">*</span>
+            수량 <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -336,11 +336,11 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
             value={formData.quantity || ''}
             onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
+              errors.quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.quantity && (
-            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>
           )}
         </div>
 
@@ -348,7 +348,7 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             
-            단가 <span className="text-gray-500">*</span>
+            단가 <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -357,11 +357,11 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
             value={formData.unit_price || ''}
             onChange={(e) => handleInputChange('unit_price', parseFloat(e.target.value) || 0)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.unit_price ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
+              errors.unit_price ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.unit_price && (
-            <p className="mt-1 text-sm text-gray-500">{errors.unit_price}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.unit_price}</p>
           )}
         </div>
 
@@ -437,11 +437,11 @@ export default function PurchaseTransactionForm({ transaction, onSave, onCancel 
             value={formData.payment_due_date || ''}
             onChange={(e) => handleInputChange('payment_due_date', e.target.value)}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              errors.payment_due_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-600'
+              errors.payment_due_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.payment_due_date && (
-            <p className="mt-1 text-sm text-gray-500">{errors.payment_due_date}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.payment_due_date}</p>
           )}
         </div>
 

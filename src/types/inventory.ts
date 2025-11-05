@@ -159,10 +159,22 @@ export interface ReceivingFormData {
   created_by: number;
 }
 
+export interface ProductionItem {
+  product_item_id: number;
+  item_id: number;
+  item_code: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  reference_no?: string;
+  notes?: string;
+}
+
 export interface ProductionFormData {
   transaction_date: string;
-  product_item_id: number;
-  quantity: number;
+  product_item_id: number; // 단일 품목 모드용 (호환성)
+  quantity: number; // 단일 품목 모드용 (호환성)
+  items?: ProductionItem[]; // 다중 품목 일괄 등록용
   reference_no?: string;
   notes?: string;
   use_bom: boolean;

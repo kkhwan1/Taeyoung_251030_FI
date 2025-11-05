@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase';
 import { APIError, handleAPIError } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
@@ -10,9 +10,7 @@ export async function GET(): Promise<NextResponse> {
 
   try {
     logger.info('Inventory shipping GET request', { endpoint });
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = supabaseAdmin;
 
     const { data: transactions, error } = await supabase
       .from('inventory_transactions')
@@ -111,9 +109,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = supabaseAdmin;
 
     // Check if item exists and is active
     const { data: item, error: itemError } = await supabase
@@ -211,6 +207,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }, { status: 500 });
     }
 
+    // Update stock - subtract shipped quantity
+    const { data: itemData, error: stockError } = await supabase
+      .from('items')
+      .select('current_stock')
+      .eq('item_id', item_id)
+      .single();
+
+    if (stockError) {
+      console.error('Stock query error:', stockError);
+      return NextResponse.json({
+        success: false,
+        error: '재고 조회 중 오류가 발생했습니다.',
+        details: stockError.message
+      }, { status: 500 });
+    }
+
+    const new_stock = (itemData?.current_stock || 0) - quantity;
+
+    const { error: updateError } = await supabase
+      .from('items')
+      .update({ current_stock: new_stock })
+      .eq('item_id', item_id);
+
+    if (updateError) {
+      console.error('Stock update error:', updateError);
+      return NextResponse.json({
+        success: false,
+        error: '재고 업데이트 중 오류가 발생했습니다.',
+        details: updateError.message
+      }, { status: 500 });
+    }
+
     const duration = Date.now() - startTime;
     metricsCollector.trackRequest(endpoint, duration, false);
     logger.info('Inventory shipping POST success', { endpoint, duration, transactionId: data[0]?.transaction_id });
@@ -248,24 +276,22 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
     const { id, ...updateData } = body;
 
-    if (!id) {
-      return NextResponse.json({
-        success: false,
-        error: 'Transaction ID is required'
-      }, { status: 400 });
-    }
+          if (!id) {
+        return NextResponse.json({
+          success: false,
+          error: 'Transaction ID is required'
+        }, { status: 400 });
+      }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabase = supabaseAdmin;
 
-    // Check if transaction exists and is a shipping transaction
-    const { data: existingTransaction, error: existingError } = await supabase
-      .from('inventory_transactions')
-      .select('*')
-      .eq('transaction_id', id)
-      .eq('transaction_type', '출고')
-      .single();
+      // Check if transaction exists and is a shipping transaction
+      const { data: existingTransaction, error: existingError } = await supabase
+        .from('inventory_transactions')
+        .select('*')
+        .eq('transaction_id', id)
+        .eq('transaction_type', '출고')
+        .single();
 
     if (existingError || !existingTransaction) {
       return NextResponse.json({
@@ -347,22 +373,20 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
-    if (!id) {
-      return NextResponse.json({
-        success: false,
-        error: 'Transaction ID is required'
-      }, { status: 400 });
-    }
+          if (!id) {
+        return NextResponse.json({
+          success: false,
+          error: 'Transaction ID is required'
+        }, { status: 400 });
+      }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabase = supabaseAdmin;
 
-    // Check if transaction exists and is a shipping transaction
-    const { data: existingTransaction, error: existingError } = await supabase
-      .from('inventory_transactions')
-      .select('transaction_id')
-      .eq('transaction_id', id)
+      // Check if transaction exists and is a shipping transaction
+      const { data: existingTransaction, error: existingError } = await supabase
+        .from('inventory_transactions')
+        .select('transaction_id')
+        .eq('transaction_id', id)
       .eq('transaction_type', '출고')
       .single();
 

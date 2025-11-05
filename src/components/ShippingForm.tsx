@@ -31,7 +31,7 @@ type Company = Database['public']['Tables']['companies']['Row'];
 // Define a type alias for customer to maintain compatibility
 type Customer = CompanyForComponent;
 
-export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) {
+export default function ShippingForm({ onSubmit, onCancel, initialData, isEdit }: ShippingFormProps) {
   const [formData, setFormData] = useState<ShippingFormData>({
     transaction_date: new Date().toISOString().split('T')[0],
     customer_id: undefined,
@@ -51,6 +51,22 @@ export default function ShippingForm({ onSubmit, onCancel }: ShippingFormProps) 
   const [stockChecking, setStockChecking] = useState(false);
   const [addingProduct, setAddingProduct] = useState(false);
   const toast = useToastNotification();
+
+  // Load initial data when editing
+  useEffect(() => {
+    if (isEdit && initialData) {
+      setFormData({
+        transaction_date: initialData.transaction_date || new Date().toISOString().split('T')[0],
+        customer_id: initialData.customer_id,
+        items: initialData.items || [],
+        reference_no: initialData.reference_no || '',
+        delivery_address: initialData.delivery_address || '',
+        delivery_date: initialData.delivery_date || '',
+        notes: initialData.notes || '',
+        created_by: initialData.created_by || 1
+      });
+    }
+  }, [isEdit, initialData]);
 
   // 재고 확인을 위한 debounce 타이머
   const stockCheckTimerRef = useRef<NodeJS.Timeout | null>(null);

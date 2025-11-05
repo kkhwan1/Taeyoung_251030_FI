@@ -352,19 +352,19 @@ export default function PaymentsPage() {
           />
         </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex justify-end gap-1.5">
           <button
             onClick={handleExcelDownload}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs whitespace-nowrap"
           >
-            <Download className="w-5 h-5" />
+            <Download className="w-3.5 h-3.5" />
             Excel 다운로드
           </button>
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-3.5 h-3.5" />
             지급 등록
           </button>
         </div>
@@ -442,37 +442,37 @@ export default function PaymentsPage() {
           {isLoading ? (
             <TableSkeleton />
           ) : (
-            <table className="w-full table-fixed">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                  <th className="w-[110px] px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     지급일자
                   </th>
-                  <th className="w-[130px] px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     지급번호
                   </th>
-                  <th className="w-[130px] px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     매입번호
                   </th>
-                  <th className="w-[150px] px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     공급사명
                   </th>
-                  <th className="w-[120px] px-6 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     지급금액
                   </th>
-                  <th className="w-[100px] px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     결제방법
                   </th>
-                  <th className="w-[160px] px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     결제 정보
                   </th>
-                  <th className="w-[90px] px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     상태
                   </th>
-                  <th className="w-[180px] px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     비고
                   </th>
-                  <th className="w-[90px] px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     작업
                   </th>
                 </tr>
@@ -488,8 +488,34 @@ export default function PaymentsPage() {
                   filteredPayments.map((payment) => (
                     <tr key={payment.payment_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                          {payment.payment_date}
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                          <div className="flex flex-col">
+                            {(() => {
+                              const date = payment.created_at || payment.payment_date;
+                              const d = new Date(date);
+                              return (
+                                <>
+                                  <span>
+                                    {d.toLocaleDateString('ko-KR', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit'
+                                    }).replace(/\. /g, '.').replace(/\.$/, '')}
+                                  </span>
+                                  {payment.created_at && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {d.toLocaleTimeString('ko-KR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        hour12: false
+                                      })}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 overflow-hidden">
@@ -585,7 +611,26 @@ export default function PaymentsPage() {
                         {payment.payment_no}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {payment.payment_date}
+                        {(() => {
+                          const date = payment.created_at || payment.payment_date;
+                          const d = new Date(date);
+                          return payment.created_at
+                            ? `${d.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              }).replace(/\. /g, '.').replace(/\.$/, '')} ${d.toLocaleTimeString('ko-KR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: false
+                              })}`
+                            : d.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              }).replace(/\. /g, '.').replace(/\.$/, '');
+                        })()}
                       </div>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded ${getPaymentMethodColor(payment.payment_method)}`}>

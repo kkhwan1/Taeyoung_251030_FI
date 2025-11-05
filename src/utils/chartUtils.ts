@@ -370,7 +370,7 @@ export const calculateKPIs = (data: KPIData): KPIResult => {
   // 재고 부족 품목 수 계산
   const lowStockItems = items.filter(item => {
     const current = item.current_stock || 0;
-    const minimum = item.minimum_stock || item.min_stock_level || 0;
+    const minimum = item.safety_stock || 0;
     return current < minimum && item.is_active;
   }).length;
 
@@ -398,10 +398,10 @@ export const calculateKPIs = (data: KPIData): KPIResult => {
     lowStockItems,
     volumeChange,
     trends: {
-      items: 0, // 필요시 historical data 기반으로 계산
-      companies: 0, // 필요시 historical data 기반으로 계산
-      volume: volumeChange,
-      lowStock: 0 // 필요시 historical data 기반으로 계산
+      items: 0, // API route에서 실제 계산 (전월 말 시점 활성 품목 수 기준)
+      companies: 0, // API route에서 실제 계산 (전월 말 시점 활성 거래처 수 기준)
+      volume: volumeChange, // 전월 대비 거래량 변화율
+      lowStock: 0 // API route에서 실제 계산 (전월 말 시점 재고 수준 역산 기반)
     }
   };
 };

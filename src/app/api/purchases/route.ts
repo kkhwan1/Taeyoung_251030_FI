@@ -81,10 +81,9 @@ export const GET = async (request: NextRequest) => {
       query = query.lte('transaction_date', end_date);
     }
 
-    if (search) {
-      // Note: vehicle_model search temporarily removed (column not in current schema)
-      query = query.or(`transaction_no.ilike.%${search}%,item_name.ilike.%${search}%`);
-    }
+    // Note: search for joined table fields (supplier_name) needs to be done client-side
+    // Don't apply search filter at DB level to allow filtering by supplier name
+    // All filtering will be done client-side after fetching data
 
     // Apply ordering and pagination
     query = query
@@ -101,14 +100,40 @@ export const GET = async (request: NextRequest) => {
       );
     }
 
+    // Apply client-side filters for all search fields (transaction_no, item_name, supplier_name)
+    let filteredData = data || [];
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredData = filteredData.filter((txn: any) => {
+        const transactionNo = txn.transaction_no?.toLowerCase() || '';
+        const itemName = txn.item_name?.toLowerCase() || '';
+        const supplierName = txn.supplier?.company_name?.toLowerCase() || '';
+        return (
+          transactionNo.includes(searchLower) ||
+          itemName.includes(searchLower) ||
+          supplierName.includes(searchLower)
+        );
+      });
+    }
+
+    // Handle payment_status filter (normalize COMPLETED to COMPLETE)
+    if (payment_status) {
+      const normalizedStatus = payment_status === 'COMPLETED' ? 'COMPLETE' : payment_status;
+      filteredData = filteredData.filter((txn: any) => {
+        const status = txn.payment_status || 'PENDING';
+        return status === normalizedStatus;
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: filteredData,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        total: filteredData.length, // Use filtered count for accurate pagination
+        totalPages: Math.ceil(filteredData.length / limit)
       }
     });
   } catch (error) {

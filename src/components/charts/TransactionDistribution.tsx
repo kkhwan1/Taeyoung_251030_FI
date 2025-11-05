@@ -68,7 +68,7 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
   className = '',
   onTypeClick
 }) => {
-  const [chartType, setChartType] = useState<ChartType>('bar');
+  const [chartType, setChartType] = useState<ChartType>('pie');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('volume');
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
   const [showLabels, setShowLabels] = useState(true);
@@ -115,7 +115,16 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
       return hasValidValue;
     });
 
-    const sorted = processed.sort((a, b) => b.displayValue - a.displayValue);
+    // Calculate total for percentage calculation
+    const total = processed.reduce((sum, item) => sum + item.displayValue, 0);
+    
+    // Add percentage to each item
+    const withPercentage = processed.map(item => ({
+      ...item,
+      percentage: total > 0 ? (item.displayValue / total) : 0
+    }));
+
+    const sorted = withPercentage.sort((a, b) => b.displayValue - a.displayValue);
     
     // 디버깅: 개발 환경에서만 로그 출력
     if (process.env.NODE_ENV === 'development') {
@@ -239,14 +248,15 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
     return null;
   };
 
-  // Custom label function
+  // Custom label function for pie/donut charts - labels outside the pie
   const renderCustomLabel = ({
-    cx, cy, midAngle, innerRadius, outerRadius, percent, name
+    cx, cy, midAngle, innerRadius, outerRadius, percent, name, value
   }: any) => {
     if (!showLabels || percent < 0.05) return null; // Don't show labels for slices < 5%
 
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    // Position label outside the pie
+    const radius = outerRadius + 20; // 20px outside the pie
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -257,10 +267,10 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
         fill={isDark ? '#F9FAFB' : '#1F2937'}
         textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
-        fontSize="12"
+        fontSize="11"
         fontWeight="500"
       >
-        {`${name} ${(percent * 100).toFixed(1)}%`}
+        {`${name} (${(percent * 100).toFixed(1)}%)`}
       </text>
     );
   };
@@ -340,7 +350,44 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
 
         {/* Controls */}
         {showControls && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Chart Type Toggle */}
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
+              <button
+                onClick={() => setChartType('pie')}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                  chartType === 'pie'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+                title="파이 차트"
+              >
+                파이
+              </button>
+              <button
+                onClick={() => setChartType('donut')}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                  chartType === 'donut'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+                title="도넛 차트"
+              >
+                도넛
+              </button>
+              <button
+                onClick={() => setChartType('bar')}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                  chartType === 'bar'
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+                title="막대 차트"
+              >
+                막대
+              </button>
+            </div>
+
             {/* Metric Type */}
             <select
               value={selectedMetric}
@@ -385,6 +432,90 @@ export const TransactionDistribution: React.FC<TransactionDistributionProps> = (
               )}
             </div>
           </div>
+        ) : chartType === 'pie' ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={processedData}
+                cx="50%"
+                cy="50%"
+                labelLine={showLabels ? { stroke: isDark ? '#9CA3AF' : '#6B7280', strokeWidth: 1 } : false}
+                label={showLabels ? renderCustomLabel : false}
+                outerRadius={75}
+                innerRadius={0}
+                fill="#8884d8"
+                dataKey="displayValue"
+                nameKey="type"
+                onClick={handleSectorClick}
+                cursor="pointer"
+              >
+                {processedData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${entry.id || entry.type || index}`}
+                    fill={selectedTypes.has(entry.type)
+                      ? theme.colors[6]
+                      : entry.color || theme.colors[index % theme.colors.length]
+                    }
+                    opacity={selectedTypes.size === 0 || selectedTypes.has(entry.type) ? 1 : 0.3}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<PieTooltip />} />
+              {showLegend && (
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value, entry) => {
+                    const typeName = entry.payload?.type || value;
+                    const percentage = ((entry.payload?.percentage || 0) * 100).toFixed(1);
+                    return `${typeName} (${percentage}%)`;
+                  }}
+                />
+              )}
+            </PieChart>
+          </ResponsiveContainer>
+        ) : chartType === 'donut' ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={processedData}
+                cx="50%"
+                cy="50%"
+                labelLine={showLabels ? { stroke: isDark ? '#9CA3AF' : '#6B7280', strokeWidth: 1 } : false}
+                label={showLabels ? renderCustomLabel : false}
+                outerRadius={75}
+                innerRadius={35}
+                fill="#8884d8"
+                dataKey="displayValue"
+                nameKey="type"
+                onClick={handleSectorClick}
+                cursor="pointer"
+              >
+                {processedData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${entry.id || entry.type || index}`}
+                    fill={selectedTypes.has(entry.type)
+                      ? theme.colors[6]
+                      : entry.color || theme.colors[index % theme.colors.length]
+                    }
+                    opacity={selectedTypes.size === 0 || selectedTypes.has(entry.type) ? 1 : 0.3}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<PieTooltip />} />
+              {showLegend && (
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value, entry) => {
+                    const typeName = entry.payload?.type || value;
+                    const percentage = ((entry.payload?.percentage || 0) * 100).toFixed(1);
+                    return `${typeName} (${percentage}%)`;
+                  }}
+                />
+              )}
+            </PieChart>
+          </ResponsiveContainer>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart 

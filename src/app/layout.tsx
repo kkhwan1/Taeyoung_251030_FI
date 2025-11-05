@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import MainLayout from "@/components/layout/MainLayout";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { FontSizeProvider } from "@/contexts/FontSizeContext";
 import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 import "../styles/print.css";
@@ -21,6 +22,10 @@ export const metadata: Metadata = {
   description: "태창 자동차 부품 제조 ERP 시스템",
 };
 
+// Force dynamic rendering to prevent build-time static generation errors
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,9 +37,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <ToastProvider>
-            <MainLayout>{children}</MainLayout>
-          </ToastProvider>
+          <FontSizeProvider>
+            <ToastProvider>
+              <MainLayout>{children}</MainLayout>
+            </ToastProvider>
+          </FontSizeProvider>
         </QueryProvider>
       </body>
     </html>

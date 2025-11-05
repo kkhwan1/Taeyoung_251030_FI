@@ -13,7 +13,7 @@ import {
 import ItemSelect from '@/components/ItemSelect';
 import CompanySelect from '@/components/CompanySelect';
 
-export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps) {
+export default function ReceivingForm({ onSubmit, onCancel, initialData, isEdit }: ReceivingFormProps) {
   const [formData, setFormData] = useState<ReceivingFormData>({
     transaction_date: new Date().toISOString().split('T')[0],
     items: [],
@@ -26,6 +26,25 @@ export default function ReceivingForm({ onSubmit, onCancel }: ReceivingFormProps
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
+
+  // Load initial data when editing
+  useEffect(() => {
+    if (isEdit && initialData) {
+      setFormData({
+        transaction_date: initialData.transaction_date || new Date().toISOString().split('T')[0],
+        items: initialData.items || [],
+        company_id: initialData.company_id,
+        reference_no: initialData.reference_no || '',
+        notes: initialData.notes || '',
+        created_by: initialData.created_by || 1
+      });
+      
+      if (initialData.company_id) {
+        // Load company info if needed
+        // This will be handled by CompanySelect component
+      }
+    }
+  }, [isEdit, initialData]);
 
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

@@ -61,24 +61,38 @@ export async function GET(): Promise<NextResponse> {
           .select(`
             quantity_required,
             deducted_quantity,
+            parent_quantity,
             items!child_item_id(item_code, item_name, unit)
           `)
           .eq('transaction_id', tx.transaction_id);
 
         // 부족 총 수량 계산 (전체 자재의 부족 수량 합계)
+        // quantity_required: BOM 단위 수량 (예: 1.0)
+        // parent_quantity: 생산 수량 (예: 50,000)
+        // 실제 필요 수량 = quantity_required × parent_quantity (또는 tx.quantity)
+        // 부족 수량 = 실제 필요 수량 - deducted_quantity
         const totalShortage = (bomLogs || []).reduce((sum, log) => {
-          const required = parseFloat(log.quantity_required || 0);
-          const deducted = parseFloat(log.deducted_quantity || 0);
-          // 부족 수량이 있는 경우에만 합산
-          return sum + Math.max(0, required - deducted);
+          const bomUnitQty = parseFloat(log.quantity_required || 0); // BOM 단위 수량
+          const deducted = parseFloat(log.deducted_quantity || 0); // 실제 차감 수량
+          const productionQty = parseFloat(log.parent_quantity || tx.quantity || 0); // 생산 수량
+          
+          // 실제 필요 수량 계산
+          const actualRequired = bomUnitQty * productionQty;
+          
+          // 부족 수량 계산 (0보다 작으면 0으로 처리)
+          const shortage = Math.max(0, actualRequired - deducted);
+          
+          return sum + shortage;
         }, 0);
         
         // 부족 자재의 단위 정보 추출 (대부분의 부족 자재가 같은 단위를 사용한다고 가정)
         const shortageUnits = (bomLogs || [])
           .filter((log: any) => {
-            const required = parseFloat(log.quantity_required || 0);
+            const bomUnitQty = parseFloat(log.quantity_required || 0);
             const deducted = parseFloat(log.deducted_quantity || 0);
-            return required > deducted;
+            const productionQty = parseFloat(log.parent_quantity || tx.quantity || 0);
+            const actualRequired = bomUnitQty * productionQty;
+            return actualRequired > deducted;
           })
           .map((log: any) => log.items?.unit || 'EA');
         const primaryUnit = shortageUnits.length > 0 ? shortageUnits[0] : 'EA';
@@ -335,15 +349,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .select('current_stock')
         .eq('item_id', item_id)
         .single();
-      
+
       if (!getItemError && currentItem) {
         const newStock = (currentItem.current_stock || 0) + quantity;
-        
+
         const { error: stockError } = await supabase
           .from('items')
           .update({ current_stock: newStock })
           .eq('item_id', item_id);
-        
+
+        if (stockError) {
+          console.error('Stock update error:', stockError);
+        }
+      }
+    }
+
+    // Update product stock for 생산출고 transactions
+    if (transaction_type === '생산출고') {
+      // Get current stock first
+      const { data: currentItem, error: getItemError } = await supabase
+        .from('items')
+        .select('current_stock')
+        .eq('item_id', item_id)
+        .single();
+
+      if (!getItemError && currentItem) {
+        const newStock = (currentItem.current_stock || 0) - quantity;
+
+        const { error: stockError } = await supabase
+          .from('items')
+          .update({ current_stock: newStock })
+          .eq('item_id', item_id);
+
         if (stockError) {
           console.error('Stock update error:', stockError);
         }

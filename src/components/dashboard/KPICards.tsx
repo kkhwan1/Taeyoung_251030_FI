@@ -40,25 +40,30 @@ export const KPICards: React.FC<KPICardsProps> = ({
 
   const kpiData = [
     {
-      title: '총 품목수',
-      value: stats?.totalItems || 0,
-      change: stats?.trends.items || 0,
+      title: '총 재고 가치',
+      value: stats?.totalStockValue || 0,
+      change: stats?.trends.stockValue || 0,
       bgColor: 'bg-gray-700 dark:bg-gray-600',
-      unit: '개'
+      unit: '',
+      isCurrency: true,
+      isPercentage: true
     },
     {
-      title: '활성 거래처',
-      value: stats?.activeCompanies || 0,
-      change: stats?.trends.companies || 0,
+      title: '월 거래 금액',
+      value: stats?.monthlyTransactionAmount || 0,
+      change: stats?.trends.transactionAmount || 0,
       bgColor: 'bg-gray-600 dark:bg-gray-700',
-      unit: '개사'
+      unit: '',
+      isCurrency: true,
+      isPercentage: true
     },
     {
-      title: '월 입출고량',
-      value: stats?.monthlyVolume || 0,
-      change: stats?.trends.volume || 0,
+      title: '신규 등록',
+      value: stats?.newRegistrations?.total || 0,
+      change: stats?.trends.newRegistrations || 0,
       bgColor: 'bg-gray-500 dark:bg-gray-600',
       unit: '개',
+      subtitle: stats?.newRegistrations ? `품목 ${stats.newRegistrations.items}개 / 거래처 ${stats.newRegistrations.companies}개` : undefined,
       isPercentage: true
     },
     {
@@ -66,7 +71,8 @@ export const KPICards: React.FC<KPICardsProps> = ({
       value: stats?.lowStockItems || 0,
       change: stats?.trends.lowStock || 0,
       bgColor: 'bg-gray-800 dark:bg-gray-700',
-      unit: '개'
+      unit: '개',
+      isPercentage: true
     }
   ];
 
@@ -79,6 +85,16 @@ export const KPICards: React.FC<KPICardsProps> = ({
     } else {
       return `${change > 0 ? '+' : ''}${formatKoreanNumber(absChange)}`;
     }
+  };
+
+  // Format currency value
+  const formatCurrency = (value: number): string => {
+    if (value >= 100000000) {
+      return `₩${(value / 100000000).toFixed(1)}억`;
+    } else if (value >= 10000) {
+      return `₩${(value / 10000).toFixed(1)}만`;
+    }
+    return `₩${formatKoreanNumber(value)}`;
   };
 
   const getChangeIcon = (change: number) => {
@@ -110,9 +126,12 @@ export const KPICards: React.FC<KPICardsProps> = ({
           bgColor={kpi.bgColor}
           unit={kpi.unit}
           isPercentage={kpi.isPercentage}
+          isCurrency={kpi.isCurrency}
+          subtitle={kpi.subtitle}
           isAlert={kpi.title.includes('부족')}
           loading={loading}
           formatChangeValue={formatChangeValue}
+          formatCurrency={formatCurrency}
           getChangeIcon={getChangeIcon}
           getChangeColor={getChangeColor}
         />
@@ -129,9 +148,12 @@ interface KPICardProps {
   bgColor: string;
   unit: string;
   isPercentage?: boolean;
+  isCurrency?: boolean;
+  subtitle?: string;
   isAlert?: boolean;
   loading: boolean;
   formatChangeValue: (change: number, isPercentage?: boolean) => string;
+  formatCurrency: (value: number) => string;
   getChangeIcon: (change: number) => React.ReactNode;
   getChangeColor: (change: number, isAlert?: boolean) => string;
 }
@@ -143,9 +165,12 @@ const KPICard: React.FC<KPICardProps> = ({
   bgColor,
   unit,
   isPercentage = false,
+  isCurrency = false,
+  subtitle,
   isAlert = false,
   loading,
   formatChangeValue,
+  formatCurrency,
   getChangeIcon,
   getChangeColor
 }) => {
@@ -166,12 +191,20 @@ const KPICard: React.FC<KPICardProps> = ({
             <>
               <div className="flex items-baseline mt-1.5">
                 <p className="text-xl font-bold text-gray-900 dark:text-white">
-                  {formatKoreanNumber(value)}
+                  {isCurrency ? formatCurrency(value) : formatKoreanNumber(value)}
                 </p>
-                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                  {unit}
-                </span>
+                {unit && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                    {unit}
+                  </span>
+                )}
               </div>
+
+              {subtitle && (
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                  {subtitle}
+                </p>
+              )}
 
               <div className="flex items-center mt-1.5">
                 <div

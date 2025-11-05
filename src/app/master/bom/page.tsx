@@ -12,7 +12,11 @@ import {
   Upload,
   Download,
   RefreshCw,
-  Settings
+  Settings,
+  ChevronDown,
+  ChevronRight,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import BOMForm from '@/components/BOMForm';
@@ -66,10 +70,16 @@ interface FilterState {
 }
 
 type TabType = 'structure' | 'coil-specs' | 'cost-analysis';
+type ViewMode = 'table' | 'grouped';
+type CoilSpecsViewMode = 'table' | 'card';
+type CostAnalysisViewMode = 'overview' | 'table' | 'charts';
 
 export default function BOMPage() {
   // State management
   const [activeTab, setActiveTab] = useState<TabType>('structure');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [coilSpecsViewMode, setCoilSpecsViewMode] = useState<CoilSpecsViewMode>('table');
+  const [costAnalysisViewMode, setCostAnalysisViewMode] = useState<CostAnalysisViewMode>('overview');
   const [bomData, setBomData] = useState<BOM[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -88,6 +98,8 @@ export default function BOMPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [showFilters, setShowFilters] = useState(false); // 필터 토글 (모바일용)
+  const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set()); // 그룹화 뷰 확장/축소
 
   const { success, error, info } = useToast();
   const { warningConfirm, deleteWithToast, ConfirmDialog } = useConfirm();
@@ -292,6 +304,81 @@ export default function BOMPage() {
 
   const filteredData = useMemo(() => applyFilters(bomData), [bomData, filters]);
 
+  // 모품목별 그룹화 함수
+  const groupBOMByParent = useCallback((bomList: BOM[]): Map<number, BOM[]> => {
+    const grouped = new Map<number, BOM[]>();
+    bomList.forEach(bom => {
+      const parentId = bom.parent_item_id;
+      if (!grouped.has(parentId)) {
+        grouped.set(parentId, []);
+      }
+      grouped.get(parentId)!.push(bom);
+    });
+    return grouped;
+  }, []);
+
+  // 그룹화된 데이터 (메모이제이션)
+  const groupedBOMData = useMemo(() => {
+    if (viewMode !== 'grouped' || selectedParentItem) return null;
+    return groupBOMByParent(filteredData);
+  }, [filteredData, viewMode, selectedParentItem, groupBOMByParent]);
+
+  // 확장/축소 토글 함수
+  const toggleParent = useCallback((parentId: number) => {
+    setExpandedParents(prev => {
+      const next = new Set(prev);
+      if (next.has(parentId)) {
+        next.delete(parentId);
+      } else {
+        next.add(parentId);
+      }
+      return next;
+    });
+  }, []);
+
+  // 모두 확장/축소 함수
+  const toggleAllParents = useCallback((expand: boolean) => {
+    if (!groupedBOMData) return;
+    if (expand) {
+      const allParentIds = Array.from(groupedBOMData.keys());
+      setExpandedParents(new Set(allParentIds));
+    } else {
+      setExpandedParents(new Set());
+    }
+  }, [groupedBOMData]);
+
+  // 검색어가 있을 때 관련 모품목 자동 확장
+  useEffect(() => {
+    if (!groupedBOMData || !filters.searchTerm) return;
+
+    const searchTerm = filters.searchTerm.toLowerCase();
+    const matchingParentIds = new Set<number>();
+
+    groupedBOMData.forEach((bomEntries, parentId) => {
+      const parentItem = items.find(item => item.item_id === parentId);
+      const matchesParent = 
+        parentItem?.item_code?.toLowerCase().includes(searchTerm) ||
+        parentItem?.item_name?.toLowerCase().includes(searchTerm);
+      
+      const matchesChild = bomEntries.some(bom =>
+        bom.child_item_code?.toLowerCase().includes(searchTerm) ||
+        bom.child_item_name?.toLowerCase().includes(searchTerm)
+      );
+
+      if (matchesParent || matchesChild) {
+        matchingParentIds.add(parentId);
+      }
+    });
+
+    if (matchingParentIds.size > 0) {
+      setExpandedParents(prev => {
+        const next = new Set(prev);
+        matchingParentIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [filters.searchTerm, groupedBOMData, items]);
+
   // CRUD handlers
   const handleDelete = async (bom: BOM) => {
     const deleteAction = async () => {
@@ -484,6 +571,11 @@ export default function BOMPage() {
         <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-right font-semibold text-gray-900 dark:text-white">
           {bom.material_cost?.toLocaleString() || '-'}
         </td>
+        <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300">
+            {bom.item_type === 'internal_production' ? '내부생산' : bom.item_type === 'external_purchase' ? '외부구매' : '-'}
+          </span>
+        </td>
         <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-gray-600 dark:text-gray-400">
           {bom.notes || '-'}
         </td>
@@ -529,9 +621,230 @@ export default function BOMPage() {
     ));
   };
 
+  // 그룹화 뷰 렌더링 함수
+  const renderGroupedView = () => {
+    if (!groupedBOMData || groupedBOMData.size === 0) {
+      return (
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
+          <div className="px-6 py-12 text-center text-gray-500">
+            {loading ? '데이터를 불러오는 중...' : '등록된 BOM이 없습니다'}
+          </div>
+        </div>
+      );
+    }
+
+    const parentIds = Array.from(groupedBOMData.keys()).sort((a, b) => {
+      const itemA = items.find(item => item.item_id === a);
+      const itemB = items.find(item => item.item_id === b);
+      const codeA = itemA?.item_code || '';
+      const codeB = itemB?.item_code || '';
+      return codeA.localeCompare(codeB);
+    });
+
+    return (
+      <div className="space-y-4">
+        {/* 모두 확장/축소 버튼 */}
+        <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            총 <span className="font-semibold text-gray-900 dark:text-white">{parentIds.length}개</span> 모품목
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleAllParents(true)}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              모두 확장
+            </button>
+            <button
+              onClick={() => toggleAllParents(false)}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              모두 축소
+            </button>
+          </div>
+        </div>
+
+        {/* 모품목별 그룹 */}
+        {parentIds.map(parentId => {
+          const bomEntries = groupedBOMData.get(parentId) || [];
+          const parentItem = items.find(item => item.item_id === parentId);
+          const isExpanded = expandedParents.has(parentId);
+          const bomCount = bomEntries.length;
+
+          return (
+            <div
+              key={parentId}
+              className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm"
+            >
+              {/* 모품목 헤더 */}
+              <div
+                className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => toggleParent(parentId)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {parentItem?.item_code || `ID: ${parentId}`}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {parentItem?.item_name || '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      BOM 항목: <span className="font-medium text-gray-700 dark:text-gray-300">{bomCount}개</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BOM 항목 테이블 */}
+              {isExpanded && (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          자품번
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          자품명
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          소요량
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          단위
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          단가 (₩)
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          재료비 (₩)
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          구분
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          비고
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          상태
+                        </th>
+                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          작업
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {renderBOMRows(bomEntries)}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderCoilSpecsTab = () => {
     const coilItems = filteredData.filter(entry => entry.material_grade);
 
+    // 재질등급별 그룹화 (useMemo는 함수 내부에서 사용 불가하므로 직접 계산)
+    const groupedByGrade = (() => {
+      const grouped = new Map<string, typeof coilItems>();
+      coilItems.forEach(item => {
+        const grade = item.material_grade || '기타';
+        if (!grouped.has(grade)) {
+          grouped.set(grade, []);
+        }
+        grouped.get(grade)!.push(item);
+      });
+      return grouped;
+    })();
+
+    if (coilSpecsViewMode === 'card') {
+      return (
+        <div className="coil-specs-tab space-y-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">코일 품목 목록</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                재질등급이 설정된 코일 품목 {coilItems.length}개
+              </p>
+            </div>
+            <div className="p-4">
+              {groupedByGrade.size === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  코일 품목이 없습니다
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Array.from(groupedByGrade.entries()).map(([grade, items]) => (
+                    <div key={grade} className="space-y-3">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 px-2">
+                        재질등급: {grade} ({items.length}개)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {items.map(item => (
+                          <div
+                            key={item.child_item_id}
+                            className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="font-semibold text-sm text-gray-900 dark:text-white">
+                                  {item.child_item_code}
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  {item.child_item_name}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => setSelectedCoilItem(item.child_item_id)}
+                                className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 flex-shrink-0 ml-2"
+                                title="설정"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-600 dark:text-gray-400">재질등급:</span>
+                                <span className="font-medium text-gray-900 dark:text-white">{grade}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs mt-1">
+                                <span className="text-gray-600 dark:text-gray-400">EA중량:</span>
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {item.weight_per_piece?.toFixed(3) || '-'} kg
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 테이블 뷰 (기본)
     return (
       <div className="coil-specs-tab space-y-4">
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
@@ -632,6 +945,231 @@ export default function BOMPage() {
   const renderCostAnalysisTab = () => {
     if (!costSummary) return null;
 
+    // 차트 뷰만
+    if (costAnalysisViewMode === 'charts') {
+      return (
+        <div className="cost-analysis-tab space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">총 재료비</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                    ₩{(costSummary?.total_material_cost || 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    기준월: {priceMonth}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">스크랩 수익</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                    ₩{costSummary.total_scrap_revenue?.toLocaleString() || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">순 원가</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                    ₩{(costSummary?.total_net_cost || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">품목 구성</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                    {filteredData.length}개
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    코일 {costSummary.coil_count || 0} / 구매 {costSummary.purchased_count || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 차트 섹션 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 원가 구성비 파이 차트 */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">원가 구성비</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={[
+                        { name: '재료비', value: costSummary?.total_material_cost || 0, color: '#4B5563' },
+                        { name: '스크랩 수익', value: costSummary?.total_scrap_revenue || 0, color: '#525252' },
+                        { name: '순 원가', value: costSummary?.total_net_cost || 0, color: '#6B7280' }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={(props: any) => `${props.name} ${((props.percent ?? 0) * 100).toFixed(1)}%`}
+                    >
+                      {[
+                        { name: '재료비', value: costSummary?.total_material_cost || 0, color: '#4B5563' },
+                        { name: '스크랩 수익', value: costSummary?.total_scrap_revenue || 0, color: '#525252' },
+                        { name: '순 원가', value: costSummary?.total_net_cost || 0, color: '#6B7280' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`₩${Number(value).toLocaleString()}`, '금액']} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* 레벨별 원가 분석 바 차트 */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">레벨별 원가 분석</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={filteredData.map(item => ({
+                    level: `L${item.level || 1}`,
+                    cost: item.net_cost || 0,
+                    materialCost: item.material_cost || 0
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="level" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`₩${Number(value).toLocaleString()}`, '원가']} />
+                    <Legend />
+                    <Bar dataKey="cost" fill="#4B5563" name="순 원가" />
+                    <Bar dataKey="materialCost" fill="#6B7280" name="재료비" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* 수율 분석 섹션 */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">수율 분석</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">내부생산 품목</p>
+                <p className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                  {filteredData.filter(item => item.item_type === 'internal_production').length}개
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">외부구매 품목</p>
+                <p className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                  {filteredData.filter(item => item.item_type === 'external_purchase').length}개
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">평균 레벨</p>
+                <p className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                  {filteredData.length > 0 ? (filteredData.reduce((sum, item) => sum + (item.level || 1), 0) / filteredData.length).toFixed(1) : '0'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 테이블 뷰만
+    if (costAnalysisViewMode === 'table') {
+      return (
+        <div className="cost-analysis-tab space-y-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">상세 원가 분석</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      품목코드
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      품목명
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      재료비
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      스크랩 수익
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      순 원가
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      레벨
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      구분
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredData.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        데이터가 없습니다
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredData.map((item) => (
+                      <tr key={item.bom_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          {item.child_item_code}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          {item.child_item_name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white">
+                          ₩{item.material_cost?.toLocaleString() || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">
+                          ₩{item.item_scrap_revenue?.toLocaleString() || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900 dark:text-white">
+                          ₩{item.net_cost?.toLocaleString() || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+                            L{item.level || 1}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300">
+                            {item.item_type === 'internal_production' ? '내부생산' : '외부구매'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 개요 뷰 (기본 - 전체)
     return (
       <div className="cost-analysis-tab space-y-4">
         {/* Summary Cards */}
@@ -853,6 +1391,13 @@ export default function BOMPage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'structure':
+        // 뷰 모드에 따라 테이블 또는 그룹화 뷰 선택
+        // 모품목이 선택된 경우 항상 테이블 뷰
+        if (viewMode === 'grouped' && !selectedParentItem) {
+          return renderGroupedView();
+        }
+        
+        // 테이블 뷰 (기본)
         return (
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -884,6 +1429,9 @@ export default function BOMPage() {
                     <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       재료비 (₩)
                     </th>
+                    <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                      구분
+                    </th>
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       비고
                     </th>
@@ -898,13 +1446,13 @@ export default function BOMPage() {
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
                         데이터를 불러오는 중...
                       </td>
                     </tr>
                   ) : filteredData.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
                         등록된 BOM이 없습니다
                       </td>
                     </tr>
@@ -946,100 +1494,116 @@ export default function BOMPage() {
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">부품 구성표(Bill of Materials)를 관리합니다</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300">자동 새로고침</span>
-            </label>
+          <div className="flex flex-nowrap gap-1.5 items-center overflow-x-auto pb-1">
+            {/* 그룹 1: 자동 새로고침 */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <label className="flex items-center gap-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                />
+                <span className="text-xs text-gray-700 dark:text-gray-300">자동갱신</span>
+              </label>
 
-            {autoRefresh && (
-              <select
-                value={refreshInterval}
-                onChange={(e) => setRefreshInterval(parseInt(e.target.value))}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm whitespace-nowrap"
+              {autoRefresh && (
+                <select
+                  value={refreshInterval}
+                  onChange={(e) => setRefreshInterval(parseInt(e.target.value))}
+                  className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-xs whitespace-nowrap"
+                >
+                  <option value={10000}>10초</option>
+                  <option value={30000}>30초</option>
+                  <option value={60000}>1분</option>
+                  <option value={300000}>5분</option>
+                </select>
+              )}
+            </div>
+
+            {/* 구분선 */}
+            <div className="h-5 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0"></div>
+
+            {/* 그룹 2: 주요 액션 */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={fetchBOMData}
+                disabled={loading}
+                className="flex items-center gap-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 whitespace-nowrap text-xs"
               >
-                <option value={10000}>10초</option>
-                <option value={30000}>30초</option>
-                <option value={60000}>1분</option>
-                <option value={300000}>5분</option>
-              </select>
-            )}
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                갱신
+              </button>
 
-            <button
-              onClick={fetchBOMData}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 whitespace-nowrap"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              새로고침
-            </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap text-xs font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                BOM 등록
+              </button>
+            </div>
 
-            <button
-              onClick={handleTemplateDownload}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
-            >
-              <Download className="w-4 h-4" />
-              템플릿 다운로드
-            </button>
+            {/* 구분선 */}
+            <div className="h-5 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0"></div>
 
-            <label
-              className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors whitespace-nowrap ${
-                dragActive
-                  ? 'border-gray-500 bg-gray-50 dark:bg-gray-900/20'
-                  : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
-              } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <Upload className="w-4 h-4" />
-              {uploading ? '업로드 중...' : '업로드'}
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileInputChange}
-                disabled={uploading}
-                className="hidden"
+            {/* 그룹 3: 파일 관련 */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={handleTemplateDownload}
+                className="flex items-center gap-1 px-2 py-1 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap text-xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                템플릿
+              </button>
+
+              <label
+                className={`flex items-center gap-1 px-2 py-1 border-2 border-dashed rounded-lg cursor-pointer transition-colors whitespace-nowrap text-xs ${
+                  dragActive
+                    ? 'border-gray-500 bg-gray-50 dark:bg-gray-900/20'
+                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
+                } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {uploading ? '중...' : '업로드'}
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileInputChange}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                onClick={handleExportToExcel}
+                className="flex items-center gap-1 px-2 py-1 bg-gray-800 text-white rounded-lg hover:bg-gray-700 whitespace-nowrap text-xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                내보내기
+              </button>
+
+              <PrintButton
+                data={printableBOMData}
+                columns={printColumns}
+                title="BOM 구조도"
+                subtitle={selectedParentItem ? `모품목 필터 적용` : undefined}
+                orientation="landscape"
+                className="bg-gray-800 hover:bg-gray-700 text-white whitespace-nowrap text-xs px-2 py-1 flex items-center gap-1"
               />
-            </label>
-
-            <button
-              onClick={handleExportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 whitespace-nowrap"
-            >
-              <Download className="w-4 h-4" />
-              다운로드
-            </button>
-
-            <PrintButton
-              data={printableBOMData}
-              columns={printColumns}
-              title="BOM 구조도"
-              subtitle={selectedParentItem ? `모품목 필터 적용` : undefined}
-              orientation="landscape"
-              className="bg-gray-800 hover:bg-gray-700 text-white whitespace-nowrap"
-            />
-
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
-            >
-              <Plus className="w-5 h-5" />
-              BOM 등록
-            </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filter Bar */}
       <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col gap-4">
+          {/* 첫 번째 줄: 검색창만 */}
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -1052,17 +1616,30 @@ export default function BOMPage() {
               />
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          
+          {/* 두 번째 줄: 필터 토글 버튼 (모바일에서만 표시) */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? '필터 접기' : '필터 보기'}
+            </button>
+          </div>
+          
+          {/* 세 번째 줄: 필터 영역 */}
+          <div className={`${showFilters ? 'flex' : 'hidden md:flex'} flex-nowrap gap-2 items-end overflow-x-auto pb-1`}>
             {/* 기준 월 선택 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            <div className="flex flex-col gap-1 flex-shrink-0">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
                 기준 월
               </label>
               <input
                 type="month"
                 value={priceMonth}
                 onChange={(e) => setPriceMonth(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm whitespace-nowrap"
               />
             </div>
 
@@ -1072,7 +1649,7 @@ export default function BOMPage() {
                 ...prev,
                 level: e.target.value ? parseInt(e.target.value) : null
               }))}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
             >
               <option value="">모든 레벨</option>
               <option value="1">Level 1</option>
@@ -1088,7 +1665,7 @@ export default function BOMPage() {
                 ...prev,
                 itemType: e.target.value as FilterState['itemType']
               }))}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
             >
               <option value="all">모든 품목</option>
               <option value="internal_production">내부생산</option>
@@ -1103,10 +1680,10 @@ export default function BOMPage() {
                 ...prev,
                 minCost: e.target.value ? parseFloat(e.target.value) : null
               }))}
-              className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm"
+              className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm flex-shrink-0 whitespace-nowrap"
             />
 
-            <span className="flex items-center text-gray-500">~</span>
+            <span className="flex items-center text-gray-500 flex-shrink-0 whitespace-nowrap">~</span>
 
             <input
               type="number"
@@ -1116,13 +1693,13 @@ export default function BOMPage() {
                 ...prev,
                 maxCost: e.target.value ? parseFloat(e.target.value) : null
               }))}
-              className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm"
+              className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm flex-shrink-0 whitespace-nowrap"
             />
 
             <select
               value={selectedParentItem}
               onChange={(e) => setSelectedParentItem(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap min-w-[180px]"
             >
               <option value="">전체 모품목</option>
               {items.filter(item => item.category === '제품').map(item => (
@@ -1132,7 +1709,7 @@ export default function BOMPage() {
               ))}
             </select>
 
-            <div className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg">
+            <div className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg flex-shrink-0 whitespace-nowrap">
               <input
                 type="checkbox"
                 id="activeOnly"
@@ -1140,7 +1717,7 @@ export default function BOMPage() {
                 onChange={(e) => setShowActiveOnly(e.target.checked)}
                 className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
               />
-              <label htmlFor="activeOnly" className="text-sm text-gray-700 dark:text-gray-300">
+              <label htmlFor="activeOnly" className="text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                 활성만 표시
               </label>
             </div>
@@ -1153,10 +1730,112 @@ export default function BOMPage() {
                 minCost: null,
                 maxCost: null
               })}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
             >
               초기화
             </button>
+
+            {/* 뷰 모드 토글 버튼 (모든 탭에서 표시) */}
+            <div className="h-5 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0"></div>
+            <div className="flex items-center gap-1 border border-gray-300 dark:border-gray-700 rounded-lg p-1 flex-shrink-0">
+              {activeTab === 'structure' && (
+                <>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      viewMode === 'table'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="테이블 뷰"
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    테이블
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grouped')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      viewMode === 'grouped'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="그룹화 뷰"
+                    disabled={!!selectedParentItem}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    그룹화
+                  </button>
+                </>
+              )}
+              {activeTab === 'coil-specs' && (
+                <>
+                  <button
+                    onClick={() => setCoilSpecsViewMode('table')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      coilSpecsViewMode === 'table'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="테이블 뷰"
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    테이블
+                  </button>
+                  <button
+                    onClick={() => setCoilSpecsViewMode('card')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      coilSpecsViewMode === 'card'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="카드 뷰"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    카드
+                  </button>
+                </>
+              )}
+              {activeTab === 'cost-analysis' && (
+                <>
+                  <button
+                    onClick={() => setCostAnalysisViewMode('overview')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      costAnalysisViewMode === 'overview'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="개요 뷰"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    개요
+                  </button>
+                  <button
+                    onClick={() => setCostAnalysisViewMode('table')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      costAnalysisViewMode === 'table'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="테이블 뷰"
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    테이블
+                  </button>
+                  <button
+                    onClick={() => setCostAnalysisViewMode('charts')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
+                      costAnalysisViewMode === 'charts'
+                        ? 'bg-gray-800 text-white dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                    title="차트 뷰"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    차트
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

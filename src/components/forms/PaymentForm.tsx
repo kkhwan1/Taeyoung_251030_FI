@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { formStorage } from '@/utils/formStorage';
 
-type PaymentMethod = 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD';
+type PaymentMethod = 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD' | 'BILL';
 
 type Payment = {
   payment_id?: number;
@@ -23,6 +23,9 @@ type Payment = {
   account_number?: string;
   check_number?: string;
   card_number?: string;
+  bill_number?: string;
+  bill_date?: string;
+  bill_drawer?: string;
   notes?: string;
   is_active?: boolean;
   remaining_balance?: number;
@@ -48,7 +51,8 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: 'CASH', label: '현금' },
   { value: 'TRANSFER', label: '계좌이체' },
   { value: 'CHECK', label: '수표' },
-  { value: 'CARD', label: '카드' }
+  { value: 'CARD', label: '카드' },
+  { value: 'BILL', label: '어음' }
 ];
 
 export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormProps) {
@@ -61,6 +65,9 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
     account_number: '',
     check_number: '',
     card_number: '',
+    bill_number: '',
+    bill_date: '',
+    bill_drawer: '',
     notes: '',
     is_active: true,
     remaining_balance: 0
@@ -83,6 +90,9 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
         account_number: payment.account_number ?? '',
         check_number: payment.check_number ?? '',
         card_number: payment.card_number ?? '',
+        bill_number: payment.bill_number ?? '',
+        bill_date: payment.bill_date ?? '',
+        bill_drawer: payment.bill_drawer ?? '',
         notes: payment.notes ?? ''
       });
     }
@@ -216,7 +226,10 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
         bank_name: lastData.bank_name,
         account_number: lastData.account_number,
         check_number: lastData.check_number,
-        card_number: lastData.card_number
+        card_number: lastData.card_number,
+        bill_number: lastData.bill_number,
+        bill_date: lastData.bill_date,
+        bill_drawer: lastData.bill_drawer
       }));
     }
   };
@@ -310,6 +323,15 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
       newErrors.card_number = '카드번호는 필수입니다';
     }
 
+    if (formData.payment_method === 'BILL') {
+      if (!formData.bill_number) {
+        newErrors.bill_number = '어음 번호는 필수입니다';
+      }
+      if (!formData.bill_date) {
+        newErrors.bill_date = '만기일은 필수입니다';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -347,6 +369,12 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
         delete cleanedData.card_number;
       }
 
+      if (cleanedData.payment_method !== 'BILL') {
+        delete cleanedData.bill_number;
+        delete cleanedData.bill_date;
+        delete cleanedData.bill_drawer;
+      }
+
       // Remove empty strings but preserve notes
       Object.keys(cleanedData).forEach(key => {
         if (cleanedData[key as keyof typeof cleanedData] === '' && key !== 'notes') {
@@ -360,7 +388,10 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
         bank_name: formData.bank_name,
         account_number: formData.account_number,
         check_number: formData.check_number,
-        card_number: formData.card_number
+        card_number: formData.card_number,
+        bill_number: formData.bill_number,
+        bill_date: formData.bill_date,
+        bill_drawer: formData.bill_drawer
       });
 
       await onSave(cleanedData);
@@ -403,13 +434,17 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
             name="purchase_transaction_id"
             value={formData.purchase_transaction_id || ''}
             onChange={handlePurchaseTransactionChange}
-            disabled={loadingPurchases}
+            disabled={loadingPurchases && purchaseTransactions.length === 0}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
               errors.purchase_transaction_id ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
-            }`}
+            } ${loadingPurchases && purchaseTransactions.length === 0 ? 'opacity-50 cursor-wait' : ''}`}
             required
           >
-            <option value="">매입 거래를 선택하세요</option>
+            <option value="">
+              {loadingPurchases && purchaseTransactions.length === 0 
+                ? '매입 거래를 불러오는 중...' 
+                : '매입 거래를 선택하세요'}
+            </option>
             {purchaseTransactions.map((tx) => (
               <option key={tx.transaction_id} value={tx.transaction_id}>
                 {tx.transaction_no} - {tx.supplier_name} (미지급: ₩{tx.remaining_balance.toLocaleString()})
@@ -609,6 +644,65 @@ export default function PaymentForm({ payment, onSave, onCancel }: PaymentFormPr
               <p className="mt-1 text-sm text-gray-500">{errors.card_number}</p>
             )}
           </div>
+        )}
+
+        {/* Conditional Fields - Bill */}
+        {formData.payment_method === 'BILL' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Hash className="w-4 h-4 inline mr-2" />
+                어음 번호 <span className="text-gray-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="bill_number"
+                value={formData.bill_number ?? ''}
+                onChange={handleChange}
+                className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  errors.bill_number ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+                placeholder="어음 번호 입력"
+                required
+              />
+              {errors.bill_number && (
+                <p className="mt-1 text-sm text-gray-500">{errors.bill_number}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Calendar className="w-4 h-4 inline mr-2" />
+                만기일 <span className="text-gray-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="bill_date"
+                value={formData.bill_date ?? ''}
+                onChange={handleChange}
+                className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  errors.bill_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+                required
+              />
+              {errors.bill_date && (
+                <p className="mt-1 text-sm text-gray-500">{errors.bill_date}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                발행자
+              </label>
+              <input
+                type="text"
+                name="bill_drawer"
+                value={formData.bill_drawer ?? ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="발행자 입력"
+              />
+            </div>
+          </>
         )}
 
         {/* 비고 */}

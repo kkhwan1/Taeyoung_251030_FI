@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { formStorage } from '@/utils/formStorage';
 
-type PaymentMethod = 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD';
+type PaymentMethod = 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD' | 'BILL';
 
 type Collection = {
   collection_id?: number;
@@ -23,6 +23,9 @@ type Collection = {
   account_number?: string;
   check_number?: string;
   card_number?: string;
+  bill_number?: string;
+  bill_date?: string;
+  bill_drawer?: string;
   notes?: string;
   is_active?: boolean;
   remaining_balance?: number;
@@ -48,7 +51,8 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: 'CASH', label: '현금' },
   { value: 'TRANSFER', label: '계좌이체' },
   { value: 'CHECK', label: '수표' },
-  { value: 'CARD', label: '카드' }
+  { value: 'CARD', label: '카드' },
+  { value: 'BILL', label: '어음' }
 ];
 
 export default function CollectionForm({ collection, onSave, onCancel }: CollectionFormProps) {
@@ -61,6 +65,9 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
     account_number: '',
     check_number: '',
     card_number: '',
+    bill_number: '',
+    bill_date: '',
+    bill_drawer: '',
     notes: '',
     is_active: true,
     remaining_balance: 0
@@ -78,7 +85,14 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
     if (collection) {
       setFormData({
         ...collection,
-        collection_date: collection.collection_date || new Date().toISOString().split('T')[0]
+        collection_date: collection.collection_date || new Date().toISOString().split('T')[0],
+        bank_name: collection.bank_name ?? '',
+        account_number: collection.account_number ?? '',
+        check_number: collection.check_number ?? '',
+        card_number: collection.card_number ?? '',
+        bill_number: collection.bill_number ?? '',
+        bill_date: collection.bill_date ?? '',
+        bill_drawer: collection.bill_drawer ?? ''
       });
     }
     
@@ -126,7 +140,22 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
           payment_status: tx.payment_status
         }));
 
-        setSalesTransactions(transactions);
+        // 중복 제거: transaction_id 기준 (더 안전한 방법)
+        const transactionMap = new Map<number, typeof transactions[0]>();
+        transactions.forEach(tx => {
+          if (!transactionMap.has(tx.transaction_id)) {
+            transactionMap.set(tx.transaction_id, tx);
+          }
+        });
+        const uniqueTransactions = Array.from(transactionMap.values());
+
+        console.log('Filtered transactions:', {
+          originalCount: transactions.length,
+          uniqueCount: uniqueTransactions.length,
+          duplicates: transactions.length - uniqueTransactions.length
+        });
+
+        setSalesTransactions(uniqueTransactions);
 
         // If in edit mode and transaction is not in list, fetch it individually
         if (formData.sales_transaction_id) {
@@ -217,7 +246,11 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         payment_method: lastData.payment_method as PaymentMethod,
         bank_name: lastData.bank_name,
         account_number: lastData.account_number,
-        card_number: lastData.card_number
+        check_number: lastData.check_number,
+        card_number: lastData.card_number,
+        bill_number: lastData.bill_number,
+        bill_date: lastData.bill_date,
+        bill_drawer: lastData.bill_drawer
       }));
     }
   };
@@ -311,6 +344,15 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
       newErrors.card_number = '카드번호는 필수입니다';
     }
 
+    if (formData.payment_method === 'BILL') {
+      if (!formData.bill_number) {
+        newErrors.bill_number = '어음 번호는 필수입니다';
+      }
+      if (!formData.bill_date) {
+        newErrors.bill_date = '만기일은 필수입니다';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -333,8 +375,43 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
       } = formData as any;
 
       // Clean up conditional fields based on payment method
-      const cleanedData = { ...dataToSave };
+      const cleanedData: any = {};
+      
+      // Only include fields that are allowed in the API schema
+      const allowedFields = [
+        'collected_amount',
+        'collection_date',
+        'payment_method',
+        'bank_name',
+        'account_number',
+        'check_number',
+        'card_number',
+        'bill_number',
+        'bill_date',
+        'bill_drawer',
+        'notes'
+      ];
 
+      // Copy only allowed fields
+      allowedFields.forEach(field => {
+        if (dataToSave[field as keyof typeof dataToSave] !== undefined) {
+          cleanedData[field] = dataToSave[field as keyof typeof dataToSave];
+        }
+      });
+
+      // Remove sales_transaction_id for update operations (not allowed to change)
+      if (collection && cleanedData.sales_transaction_id) {
+        delete cleanedData.sales_transaction_id;
+      }
+
+      // Ensure collected_amount is a number
+      if (cleanedData.collected_amount !== undefined) {
+        cleanedData.collected_amount = typeof cleanedData.collected_amount === 'string'
+          ? parseFloat(cleanedData.collected_amount) || 0
+          : cleanedData.collected_amount;
+      }
+
+      // Remove conditional fields based on payment method
       if (cleanedData.payment_method !== 'TRANSFER') {
         delete cleanedData.bank_name;
         delete cleanedData.account_number;
@@ -348,12 +425,29 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
         delete cleanedData.card_number;
       }
 
+      if (cleanedData.payment_method !== 'BILL') {
+        delete cleanedData.bill_number;
+        delete cleanedData.bill_date;
+        delete cleanedData.bill_drawer;
+      }
+
       // Remove empty strings but preserve notes
       Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key as keyof typeof cleanedData] === '' && key !== 'notes') {
-          delete cleanedData[key as keyof typeof cleanedData];
+        if (cleanedData[key] === '' && key !== 'notes') {
+          delete cleanedData[key];
         }
       });
+
+      // Remove any undefined or null values (except for optional fields)
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === undefined || cleanedData[key] === null) {
+          delete cleanedData[key];
+        }
+      });
+
+      // Debug log
+      console.log('[CollectionForm] Sending data:', cleanedData);
+      console.log('[CollectionForm] Is update mode:', !!collection);
 
       await onSave(cleanedData);
     } finally {
@@ -395,18 +489,29 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
             name="sales_transaction_id"
             value={formData.sales_transaction_id || ''}
             onChange={handleSalesTransactionChange}
-            disabled={loadingSales}
+            disabled={loadingSales && salesTransactions.length === 0}
             className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
               errors.sales_transaction_id ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
-            }`}
+            } ${loadingSales && salesTransactions.length === 0 ? 'opacity-50 cursor-wait' : ''}`}
             required
           >
-            <option value="">매출 거래를 선택하세요</option>
-            {salesTransactions.map((tx) => (
-              <option key={tx.transaction_id} value={tx.transaction_id}>
-                {tx.transaction_no} - {tx.customer_name} (미수: ₩{tx.remaining_balance.toLocaleString()})
-              </option>
-            ))}
+            <option value="">
+              {loadingSales && salesTransactions.length === 0 
+                ? '매출 거래를 불러오는 중...' 
+                : '매출 거래를 선택하세요'}
+            </option>
+            {salesTransactions
+              .filter((tx, index, self) => 
+                // 중복 제거: transaction_id 또는 transaction_no 기준
+                index === self.findIndex((t) => 
+                  t.transaction_id === tx.transaction_id && t.transaction_no === tx.transaction_no
+                )
+              )
+              .map((tx, index) => (
+                <option key={`${tx.transaction_id}-${tx.transaction_no}-${index}`} value={tx.transaction_id}>
+                  {tx.transaction_no} - {tx.customer_name} (미수: ₩{tx.remaining_balance.toLocaleString()})
+                </option>
+              ))}
           </select>
           {errors.sales_transaction_id && (
             <p className="mt-1 text-sm text-gray-500">{errors.sales_transaction_id}</p>
@@ -602,6 +707,65 @@ export default function CollectionForm({ collection, onSave, onCancel }: Collect
               <p className="mt-1 text-sm text-gray-500">{errors.card_number}</p>
             )}
           </div>
+        )}
+
+        {/* Conditional Fields - Bill */}
+        {formData.payment_method === 'BILL' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Hash className="w-4 h-4 inline mr-2" />
+                어음 번호 <span className="text-gray-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="bill_number"
+                value={formData.bill_number ?? ''}
+                onChange={handleChange}
+                className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  errors.bill_number ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+                placeholder="어음 번호 입력"
+                required
+              />
+              {errors.bill_number && (
+                <p className="mt-1 text-sm text-gray-500">{errors.bill_number}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Calendar className="w-4 h-4 inline mr-2" />
+                만기일 <span className="text-gray-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="bill_date"
+                value={formData.bill_date ?? ''}
+                onChange={handleChange}
+                className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  errors.bill_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+                required
+              />
+              {errors.bill_date && (
+                <p className="mt-1 text-sm text-gray-500">{errors.bill_date}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Building2 className="w-4 h-4 inline mr-2" />
+                발행자
+              </label>
+              <input
+                type="text"
+                name="bill_drawer"
+                value={formData.bill_drawer ?? ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="발행자 입력"
+              />
+            </div>
+          </>
         )}
 
         {/* 비고 */}

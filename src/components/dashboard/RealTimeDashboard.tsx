@@ -93,6 +93,7 @@ export const RealTimeDashboard: React.FC<RealTimeDashboardProps> = ({
           data={data?.charts.monthlyTrends || null}
           loading={loading}
           error={error}
+          isDark={isDark}
         />
       </Suspense>
 
@@ -107,6 +108,7 @@ export const RealTimeDashboard: React.FC<RealTimeDashboardProps> = ({
               data={data?.charts.categoryStocks || null}
               loading={loading}
               error={error}
+              isDark={isDark}
             />
           </Suspense>
         </div>
@@ -120,6 +122,7 @@ export const RealTimeDashboard: React.FC<RealTimeDashboardProps> = ({
               data={data?.charts.transactionDistribution || data?.charts.transactions || null}
               loading={loading}
               error={error}
+              isDark={isDark}
             />
           </Suspense>
         </div>
@@ -133,6 +136,7 @@ export const RealTimeDashboard: React.FC<RealTimeDashboardProps> = ({
               data={data?.charts.stocks || null}
               loading={loading}
               error={error}
+              isDark={isDark}
             />
           </Suspense>
         </div>

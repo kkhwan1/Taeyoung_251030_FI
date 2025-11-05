@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search,
-  Plus
+  Plus,
+  History,
+  Settings
 } from 'lucide-react';
 import StockAdjustmentForm from '@/components/StockAdjustmentForm';
 import { StockExportButton } from '@/components/ExcelExportButton';
+import CategoryFilter from '@/components/CategoryFilter';
 
 interface StockItem {
   item_id: number;
@@ -15,7 +18,7 @@ interface StockItem {
   item_name: string;
   spec: string;
   unit: string;
-  item_type: string;
+  category: string;
   current_stock: number;
   unit_price: number;
   stock_value: number;
@@ -50,6 +53,7 @@ export default function StockPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortField, setSortField] = useState<string>('last_transaction_date');
@@ -210,6 +214,52 @@ export default function StockPage() {
     return () => clearInterval(interval);
   }, [activeTab]);
 
+  // 카테고리 설정 (실제 데이터베이스 카테고리에 맞게 수정)
+  const categoryConfig = useMemo(() => [
+    { id: 'all', label: '전체', value: 'all' },
+    { id: 'raw_material', label: '원자재', value: 'raw_material', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+    { id: 'parts', label: '부자재', value: 'parts', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+    { id: 'semi_finished', label: '반제품', value: 'semi_finished', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+    { id: 'finished_product', label: '제품', value: 'finished_product', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' }
+  ], []);
+
+  // 카테고리별 카운트 계산
+  const categoryCounts = useMemo(() => {
+    if (!Array.isArray(stockItems)) return {};
+
+    const counts: Record<string, number> = {
+      all: stockItems.length,
+      raw_material: 0,
+      parts: 0,
+      semi_finished: 0,
+      finished_product: 0
+    };
+
+    stockItems.forEach(item => {
+      // API에서 반환하는 category 값 (한글: '원자재', '부자재', '반제품', '제품')
+      const category = item.category || '';
+      let categoryKey: string | null = null;
+      
+      // 데이터베이스 실제 카테고리 값에 따라 매핑
+      if (category === '원자재' || category.toLowerCase() === 'raw_material') {
+        categoryKey = 'raw_material';
+      } else if (category === '부자재' || category.toLowerCase() === 'parts') {
+        categoryKey = 'parts';
+      } else if (category === '반제품' || category.toLowerCase() === 'semi_finished') {
+        categoryKey = 'semi_finished';
+      } else if (category === '제품' || category.toLowerCase() === 'finished_product' || category.toLowerCase() === 'product') {
+        // '제품' 카테고리를 'finished_product'로 매핑
+        categoryKey = 'finished_product';
+      }
+      
+      if (categoryKey && categoryKey in counts) {
+        counts[categoryKey]++;
+      }
+    });
+
+    return counts;
+  }, [stockItems]);
+
   // 필터링된 재고 항목
   const filteredStockItems = Array.isArray(stockItems) ? stockItems.filter(item => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -219,7 +269,21 @@ export default function StockPage() {
                          (stockFilter === 'low' && item.is_low_stock) ||
                          (stockFilter === 'normal' && !item.is_low_stock);
 
-    return matchesSearch && matchesFilter;
+    // 카테고리 필터링: API에서 반환하는 category 값과 필터 값 매칭
+    const matchesCategory = categoryFilter === 'all' || (() => {
+      const category = item.category || '';
+      const filter = categoryFilter.toLowerCase();
+      
+      // 데이터베이스 실제 카테고리 값과 필터 매칭
+      if (filter === 'raw_material' && (category === '원자재' || category.toLowerCase() === 'raw_material')) return true;
+      if (filter === 'parts' && (category === '부자재' || category.toLowerCase() === 'parts')) return true;
+      if (filter === 'semi_finished' && (category === '반제품' || category.toLowerCase() === 'semi_finished')) return true;
+      if (filter === 'finished_product' && (category === '제품' || category.toLowerCase() === 'finished_product' || category.toLowerCase() === 'product')) return true;
+      
+      return false;
+    })();
+
+    return matchesSearch && matchesFilter && matchesCategory;
   }) : [];
 
   // 정렬된 재고 항목 (현재재고 탭용)
@@ -345,12 +409,12 @@ export default function StockPage() {
         </div>
       </div>
 
-      {/* 통계 위젯 */}
+      {/* 통계 위젯 - 현재 재고 */}
       {activeTab === 'current' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              
+
               <div>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">총 품목 수</p>
                 <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{totalItems}</p>
@@ -360,7 +424,7 @@ export default function StockPage() {
 
           <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              
+
               <div>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">재고 부족 품목</p>
                 <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{lowStockItems}</p>
@@ -370,7 +434,7 @@ export default function StockPage() {
 
           <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              
+
               <div>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">총 재고 금액</p>
                 <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
@@ -380,6 +444,119 @@ export default function StockPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 통계 위젯 - 재고 이력 */}
+      {activeTab === 'history' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">총 품목 수</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{totalItems}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">재고 부족 품목</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{lowStockItems}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">총 재고 금액</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
+                  ₩{(totalValue || 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 통계 위젯 - 재고 조정 */}
+      {activeTab === 'adjustment' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">총 품목 수</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{totalItems}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">재고 부족 품목</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{lowStockItems}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+
+              <div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">총 재고 금액</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
+                  ₩{(totalValue || 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 카테고리 필터 - 현재 재고 */}
+      {activeTab === 'current' && (
+        <CategoryFilter
+          title="품목 카테고리"
+          categories={categoryConfig}
+          selectedCategory={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          showCount={true}
+          counts={categoryCounts}
+          collapsible={false}
+        />
+      )}
+
+      {/* 카테고리 필터 - 재고 이력 */}
+      {activeTab === 'history' && (
+        <CategoryFilter
+          title="품목 카테고리"
+          categories={categoryConfig}
+          selectedCategory={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          showCount={true}
+          counts={categoryCounts}
+          collapsible={false}
+        />
+      )}
+
+      {/* 카테고리 필터 - 재고 조정 */}
+      {activeTab === 'adjustment' && (
+        <CategoryFilter
+          title="품목 카테고리"
+          categories={categoryConfig}
+          selectedCategory={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          showCount={true}
+          counts={categoryCounts}
+          collapsible={false}
+        />
       )}
 
       {/* 탭 네비게이션 */}
@@ -451,11 +628,11 @@ export default function StockPage() {
 
           {/* 재고 테이블 */}
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th 
-                    className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle"
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
                     onClick={() => handleSort('last_transaction_date')}
                   >
                     <div className="flex items-center gap-1">
@@ -467,11 +644,11 @@ export default function StockPage() {
                       )}
                     </div>
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                     구분
                   </th>
                   <th 
-                    className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle"
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
                     onClick={() => handleSort('item_code')}
                   >
                     <div className="flex items-center gap-1">
@@ -483,11 +660,11 @@ export default function StockPage() {
                       )}
                     </div>
                   </th>
-                  <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                     규격
                   </th>
                   <th 
-                    className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle"
+                    className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
                     onClick={() => handleSort('current_stock')}
                   >
                     <div className="flex items-center justify-end gap-1">
@@ -500,7 +677,7 @@ export default function StockPage() {
                     </div>
                   </th>
                   <th 
-                    className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle"
+                    className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
                     onClick={() => handleSort('unit_price')}
                   >
                     <div className="flex items-center justify-end gap-1">
@@ -513,7 +690,7 @@ export default function StockPage() {
                     </div>
                   </th>
                   <th 
-                    className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle"
+                    className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
                     onClick={() => handleSort('stock_value')}
                   >
                     <div className="flex items-center justify-end gap-1">
@@ -525,7 +702,7 @@ export default function StockPage() {
                       )}
                     </div>
                   </th>
-                  <th className="w-[80px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                     상태
                   </th>
                 </tr>
@@ -551,14 +728,19 @@ export default function StockPage() {
                           <div className="text-sm text-gray-900 dark:text-white">
                             <div className="flex flex-col">
                               <span>
-                                {new Date(item.last_transaction_date).getFullYear()}.
-                                {String(new Date(item.last_transaction_date).getMonth() + 1).padStart(2, '0')}.
-                                {String(new Date(item.last_transaction_date).getDate()).padStart(2, '0')}
+                                {new Date(item.last_transaction_date).toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit'
+                                }).replace(/\. /g, '.').replace(/\.$/, '')}
                               </span>
                               <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {String(new Date(item.last_transaction_date).getHours()).padStart(2, '0')}:
-                                {String(new Date(item.last_transaction_date).getMinutes()).padStart(2, '0')}:
-                                {String(new Date(item.last_transaction_date).getSeconds()).padStart(2, '0')}
+                                {new Date(item.last_transaction_date).toLocaleTimeString('ko-KR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                  hour12: false
+                                })}
                               </span>
                             </div>
                           </div>
@@ -683,15 +865,42 @@ export default function StockPage() {
 
       {/* 재고 이력 탭 */}
       {activeTab === 'history' && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-4">재고 이동 이력</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+          {/* 검색 및 필터 */}
+          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="품번 또는 품명으로 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+                  />
+                </div>
+              </div>
 
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+                className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+              >
+                <option value="all">전체</option>
+                <option value="normal">정상 재고</option>
+                <option value="low">재고 부족</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 재고 테이블 */}
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th 
-                    className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
                     <div className="flex items-center gap-1">
@@ -701,25 +910,25 @@ export default function StockPage() {
                       </span>
                     </div>
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     구분
                   </th>
-                  <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     품번/품명
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     수량
                   </th>
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     단가
                   </th>
-                  <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     금액
                   </th>
-                  <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     거래처
                   </th>
-                  <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     참조번호
                   </th>
                 </tr>
@@ -753,8 +962,21 @@ export default function StockPage() {
                         {d ? (
                           <div className="text-sm text-gray-900 dark:text-white">
                             <div className="flex flex-col">
-                              <span>{d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, '0')}.{String(d.getDate()).padStart(2, '0')}</span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">{String(d.getHours()).padStart(2, '0')}:{String(d.getMinutes()).padStart(2, '0')}:{String(d.getSeconds()).padStart(2, '0')}</span>
+                              <span>
+                                {d.toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit'
+                                }).replace(/\. /g, '.').replace(/\.$/, '')}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {d.toLocaleTimeString('ko-KR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                  hour12: false
+                                })}
+                              </span>
                             </div>
                           </div>
                         ) : (
@@ -868,27 +1090,47 @@ export default function StockPage() {
       {activeTab === 'adjustment' && (
         <div className="space-y-6">
           {!showAdjustmentForm ? (
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">재고 조정</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">재고 수량을 조정합니다.</p>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              {/* 검색 및 필터 */}
+              <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                  <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="품번 또는 품명으로 검색..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+                        />
+                      </div>
+                    </div>
+
+                    <select
+                      value={stockFilter}
+                      onChange={(e) => setStockFilter(e.target.value)}
+                      className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+                    >
+                      <option value="all">전체</option>
+                      <option value="normal">정상 재고</option>
+                      <option value="low">재고 부족</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => setShowAdjustmentForm(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    재고 조정
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowAdjustmentForm(true)}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base whitespace-nowrap"
-                >
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">재고 조정</span>
-                  <span className="sm:hidden">조정</span>
-                </button>
               </div>
 
               {/* 최근 조정 이력 */}
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="p-4 sm:p-6">
-                  <h4 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-4">최근 조정 이력</h4>
-                </div>
+              <div>
                 
                 {loading ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -901,31 +1143,31 @@ export default function StockPage() {
                 ) : (
                   <>
                     <div className="overflow-x-auto">
-                      <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+                      <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-700">
                           <tr>
-                            <th className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               거래일자
                             </th>
-                            <th className="w-[100px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               구분
                             </th>
-                            <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               품번/품명
                             </th>
-                            <th className="w-[100px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               수량
                             </th>
-                            <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               단가
                             </th>
-                            <th className="w-[130px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               금액
                             </th>
-                            <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               거래처
                             </th>
-                            <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle">
+                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
                               참조번호
                             </th>
                           </tr>
@@ -951,10 +1193,19 @@ export default function StockPage() {
                                     <div className="text-sm text-gray-900 dark:text-white">
                                       <div className="flex flex-col">
                                         <span>
-                                          {d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, '0')}.{String(d.getDate()).padStart(2, '0')}
+                                          {d.toLocaleDateString('ko-KR', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit'
+                                          }).replace(/\. /g, '.').replace(/\.$/, '')}
                                         </span>
                                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                                          {String(d.getHours()).padStart(2, '0')}:{String(d.getMinutes()).padStart(2, '0')}:{String(d.getSeconds()).padStart(2, '0')}
+                                          {d.toLocaleTimeString('ko-KR', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit',
+                                            hour12: false
+                                          })}
                                         </span>
                                       </div>
                                     </div>

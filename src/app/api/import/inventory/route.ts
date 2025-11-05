@@ -45,7 +45,19 @@ export async function POST(request: NextRequest) {
 
     // Parse Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
+    
+    // Find the data sheet (prefer "재고거래 템플릿", otherwise find first sheet with data)
+    let sheetName = workbook.SheetNames.find(name => name.includes('재고거래 템플릿') || name.includes('템플릿'));
+    if (!sheetName) {
+      // If template sheet not found, try to find a sheet with actual data
+      // Skip "입력 가이드" or guide sheets
+      sheetName = workbook.SheetNames.find(name => 
+        !name.includes('가이드') && 
+        !name.includes('Guide') && 
+        !name.includes('안내')
+      ) || workbook.SheetNames[0];
+    }
+    
     const worksheet = workbook.Sheets[sheetName];
 
     // Convert to JSON
@@ -89,9 +101,17 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < convertedData.length; i++) {
       const row = convertedData[i] as Record<string, any>;
-      try {
-        // Map transaction type to English
-        row.transaction_type = mapTransactionType(row.transaction_type);
+              try {
+          // Normalize transaction type: '생산' -> '생산입고' for database
+          let originalTransactionType = row.transaction_type;
+          console.log(`[Import] Row ${i + 1}: Original transaction_type: ${originalTransactionType}`);
+          if (originalTransactionType === '생산') {
+            originalTransactionType = '생산입고';
+            console.log(`[Import] Row ${i + 1}: Converted '생산' to '생산입고'`);
+          }
+          // Map to English only for stock calculation logic
+          const transactionTypeForSwitch = mapTransactionType(originalTransactionType);
+          console.log(`[Import] Row ${i + 1}: Final transaction_type: ${originalTransactionType}, switch type: ${transactionTypeForSwitch}`);
 
         // Get item_id from item_code
         const { data: items, error: itemError } = (await supabase
@@ -102,6 +122,7 @@ export async function POST(request: NextRequest) {
           .single()) as any;
 
         if (itemError || !items) {
+          console.log(`[Import] Row ${i + 1}: Item not found - code: ${row.item_code}, error: ${itemError?.message || 'No items found'}`);
           errors.push(`행 ${i + 1}: 품목코드 '${row.item_code}'를 찾을 수 없습니다.`);
           continue;
         }
@@ -126,32 +147,33 @@ export async function POST(request: NextRequest) {
           companyId = companies.company_id;
         }
 
-        // Insert inventory transaction
+        // Insert inventory transaction (use Korean transaction type for database)
+        // Note: unit is stored in items table, not in inventory_transactions
         const { data: insertedTransaction, error: insertError } = (await supabase
           .from('inventory_transactions')
           .insert({
             transaction_date: row.transaction_date,
-            transaction_type: row.transaction_type,
+            transaction_type: originalTransactionType,
             item_id: itemId,
             quantity: row.quantity,
-            unit: row.unit,
             company_id: companyId,
             reference_number: row.reference_number || null,
-            remarks: row.remarks || null,
-            user_id: 1,
+            notes: row.remarks || null,
+            created_by: 1,
             created_at: new Date().toISOString()
           })
           .select('transaction_id')
           .single()) as any;
 
         if (insertError) {
+          console.log(`[Import] Row ${i + 1}: Insert failed - transaction_type: ${originalTransactionType}, error: ${insertError.message}, code: ${insertError.code}, details: ${JSON.stringify(insertError)}`);
           errors.push(`행 ${i + 1}: 거래 입력 실패 - ${insertError.message}`);
           continue;
         }
 
-        // Update item stock based on transaction type
+        // Update item stock based on transaction type (use English type for switch)
         let stockChange = 0;
-        switch (row.transaction_type) {
+        switch (transactionTypeForSwitch) {
           case 'RECEIVING':
           case 'PRODUCTION':
             stockChange = row.quantity;
@@ -175,15 +197,16 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        insertedRecords.push({
-          transaction_id: insertedTransaction?.transaction_id,
-          row: i + 1,
-          item_code: row.item_code,
-          quantity: row.quantity,
-          transaction_type: row.transaction_type
-        });
+                  insertedRecords.push({
+            transaction_id: insertedTransaction?.transaction_id,
+            row: i + 1,
+            item_code: row.item_code,
+            quantity: row.quantity,
+            transaction_type: originalTransactionType
+          });
 
       } catch (error: unknown) {
+        console.log(`[Import] Row ${i + 1}: Exception caught - ${error instanceof Error ? error.message : String(error)}`, error);
         errors.push(`행 ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }

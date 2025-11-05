@@ -9,12 +9,15 @@ const CollectionCreateSchema = z.object({
   collection_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD'),
   sales_transaction_id: z.number().positive('판매 거래 ID는 양수여야 합니다'),
   collected_amount: z.number().positive('수금 금액은 0보다 커야 합니다'),
-  payment_method: z.enum(['CASH', 'TRANSFER', 'CHECK', 'CARD']),
+  payment_method: z.enum(['CASH', 'TRANSFER', 'CHECK', 'CARD', 'BILL']),
   collection_no: z.string().max(50).optional(),
   bank_name: z.string().max(100).optional(),
   account_number: z.string().max(50).optional(),
   check_number: z.string().max(50).optional(),
   card_number: z.string().max(20).optional(),
+  bill_number: z.string().max(50).optional(),
+  bill_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD').optional(),
+  bill_drawer: z.string().max(100).optional(),
   notes: z.string().optional()
 });
 
@@ -28,11 +31,14 @@ const CollectionUpdateSchema = z.object({
 // GET: 수금 목록 조회
 export const GET = async (request: NextRequest) => {
   try {
+    console.log('=== Collections GET Request Start ===');
     const searchParams = request.nextUrl.searchParams;
     const { page, limit, offset } = parsePagination({
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined
     });
+    
+    console.log('Pagination:', { page, limit, offset });
 
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -76,21 +82,41 @@ export const GET = async (request: NextRequest) => {
     }
 
     if (search) {
-      // Search by collection_no or customer name
-      query = query.or(`collection_no.ilike.%${search}%`);
+      // Search by collection_no
+      // Note: Customer name search would require join, so we only search collection_no for now
+      query = query.ilike('collection_no', `%${search}%`);
     }
 
     // Apply ordering and pagination
+    // Validate offset and limit to prevent negative values
+    const safeOffset = Math.max(0, offset);
+    const safeLimit = Math.max(1, limit);
+    
     query = query
       .order(orderBy, { ascending: order === 'asc' })
-      .range(offset, offset + limit - 1);
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    
+    console.log('Query range:', { safeOffset, safeLimit, end: safeOffset + safeLimit - 1 });
 
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Collections list error:', error);
+      console.error('=== Collections list query error ===');
+      console.error('Error:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error code:', error?.code);
+      console.error('Error details:', error?.details);
+      console.error('Error hint:', error?.hint);
       return NextResponse.json(
-        { success: false, error: error?.message || '수금 조회 실패' },
+        { 
+          success: false, 
+          error: error?.message || '수금 조회 실패',
+          details: {
+            code: error?.code,
+            hint: error?.hint,
+            details: error?.details
+          }
+        },
         { status: 500 }
       );
     }
@@ -105,10 +131,21 @@ export const GET = async (request: NextRequest) => {
         totalPages: Math.ceil((count || 0) / limit)
       }
     });
-  } catch (error) {
-    console.error('Collections list error:', error);
+  } catch (error: any) {
+    console.error('=== Collections GET catch error ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return NextResponse.json(
-      { success: false, error: '수금 조회 중 오류가 발생했습니다' },
+      { 
+        success: false, 
+        error: error?.message || '수금 조회 중 오류가 발생했습니다',
+        details: {
+          type: error?.constructor?.name,
+          message: error?.message
+        }
+      },
       { status: 500 }
     );
   }
@@ -117,6 +154,7 @@ export const GET = async (request: NextRequest) => {
 // POST: 수금 생성
 export const POST = async (request: NextRequest) => {
   try {
+    console.log('=== Collections POST Request Start ===');
     // Korean encoding: Use request.text() + JSON.parse() pattern
     const text = await request.text();
     const body = JSON.parse(text);
@@ -175,9 +213,9 @@ export const POST = async (request: NextRequest) => {
     }
 
     // Determine new payment status
-    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE';
     if (remaining === 0) {
-      newPaymentStatus = 'COMPLETED';
+      newPaymentStatus = 'COMPLETE';
     } else if (remaining < salesTx.total_amount) {
       newPaymentStatus = 'PARTIAL';
     } else {
@@ -200,30 +238,86 @@ export const POST = async (request: NextRequest) => {
       }
     }
 
+    // Verify customer exists before inserting
+    if (!salesTx.customer_id) {
+      return NextResponse.json(
+        { success: false, error: '고객 ID가 없습니다' },
+        { status: 400 }
+      );
+    }
+
+    const { data: customerData, error: customerError } = await supabaseAdmin
+      .from('companies')
+      .select('company_id')
+      .eq('company_id', salesTx.customer_id)
+      .single();
+
+    if (customerError || !customerData) {
+      console.error('Customer verification error:', customerError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `유효하지 않은 고객 ID: ${salesTx.customer_id}`,
+          details: customerError
+        },
+        { status: 400 }
+      );
+    }
+
     // Insert collection using Supabase client
+    const insertData = {
+      collection_no: collectionNo,
+      collection_date: validatedData.collection_date,
+      sales_transaction_id: validatedData.sales_transaction_id,
+      customer_id: salesTx.customer_id,
+      collected_amount: validatedData.collected_amount,
+      payment_method: validatedData.payment_method,
+      bank_name: validatedData.bank_name || null,
+      account_number: validatedData.account_number || null,
+      check_number: validatedData.check_number || null,
+      card_number: validatedData.card_number || null,
+      bill_number: validatedData.bill_number || null,
+      bill_date: validatedData.bill_date || null,
+      bill_drawer: validatedData.bill_drawer || null,
+      notes: validatedData.notes || null,
+      is_active: true
+    };
+
+    console.log('Inserting collection:', {
+      collection_no: insertData.collection_no,
+      sales_transaction_id: insertData.sales_transaction_id,
+      customer_id: insertData.customer_id,
+      collected_amount: insertData.collected_amount
+    });
+
     const { data: insertedCollection, error: insertError } = await (supabaseAdmin
       .from('collections') as any)
-      .insert([{
-        collection_no: collectionNo,
-        collection_date: validatedData.collection_date,
-        sales_transaction_id: validatedData.sales_transaction_id,
-        customer_id: salesTx.customer_id,
-        collected_amount: validatedData.collected_amount,
-        payment_method: validatedData.payment_method,
-        bank_name: validatedData.bank_name || null,
-        account_number: validatedData.account_number || null,
-        check_number: validatedData.check_number || null,
-        card_number: validatedData.card_number || null,
-        notes: validatedData.notes || null,
-        is_active: true
-      }])
+      .insert([insertData])
       .select('collection_id')
       .single();
 
     if (insertError || !insertedCollection) {
-      console.error('Collection insert error:', insertError);
+      console.error('Collection insert error:', {
+        error: insertError,
+        errorMessage: insertError?.message,
+        errorCode: insertError?.code,
+        errorDetails: insertError?.details,
+        errorHint: insertError?.hint,
+        insertData: {
+          ...insertData,
+          customer_id: insertData.customer_id
+        }
+      });
       return NextResponse.json(
-        { success: false, error: insertError?.message || '수금 생성 실패' },
+        { 
+          success: false, 
+          error: insertError?.message || '수금 생성 실패',
+          details: {
+            code: insertError?.code,
+            hint: insertError?.hint,
+            details: insertError?.details
+          }
+        },
         { status: 500 }
       );
     }
@@ -231,27 +325,126 @@ export const POST = async (request: NextRequest) => {
     const collectionId = insertedCollection.collection_id;
 
     // Update sales transaction payment status
-    const { error: updateError } = await (supabaseAdmin
+    console.log('Updating sales transaction payment status:', {
+      transaction_id: validatedData.sales_transaction_id,
+      newPaymentStatus,
+      previousStatus: salesTx.payment_status
+    });
+
+    // First verify the transaction exists and is active
+    const { data: verifyTx, error: verifyError } = await supabaseAdmin
+      .from('sales_transactions')
+      .select('transaction_id, payment_status, is_active')
+      .eq('transaction_id', validatedData.sales_transaction_id)
+      .maybeSingle();
+
+    if (verifyError) {
+      console.error('Transaction verification error:', verifyError);
+      // Rollback
+      await supabaseAdmin.from('collections').delete().eq('collection_id', collectionId);
+      return NextResponse.json(
+        { success: false, error: `거래 확인 실패: ${verifyError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!verifyTx || !verifyTx.is_active) {
+      console.error('Transaction not found or inactive:', {
+        transaction_id: validatedData.sales_transaction_id,
+        found: !!verifyTx,
+        is_active: verifyTx?.is_active
+      });
+      // Rollback
+      await supabaseAdmin.from('collections').delete().eq('collection_id', collectionId);
+      return NextResponse.json(
+        { success: false, error: '거래를 찾을 수 없거나 비활성 상태입니다' },
+        { status: 400 }
+      );
+    }
+
+    // Now update the payment status and paid_amount
+    // Note: updated_at is auto-updated by trigger, don't set it manually
+    const { data: updatedSalesTx, error: updateError } = await (supabaseAdmin
       .from('sales_transactions') as any)
       .update({
         payment_status: newPaymentStatus,
-        updated_at: new Date().toISOString()
+        paid_amount: totalCollected
       })
-      .eq('transaction_id', validatedData.sales_transaction_id);
+      .eq('transaction_id', validatedData.sales_transaction_id)
+      .select('transaction_id, payment_status')
+      .maybeSingle();
 
     if (updateError) {
-      console.error('Sales transaction update error:', updateError);
+      console.error('Sales transaction update error details:', {
+        error: updateError,
+        errorMessage: updateError?.message,
+        errorCode: updateError?.code,
+        errorDetails: updateError?.details,
+        errorHint: updateError?.hint,
+        transaction_id: validatedData.sales_transaction_id,
+        newPaymentStatus,
+        previousStatus: salesTx.payment_status
+      });
+      
       // Rollback: Delete the collection
-      await supabaseAdmin
+      const { error: rollbackError } = await supabaseAdmin
         .from('collections')
         .delete()
         .eq('collection_id', collectionId);
 
+      if (rollbackError) {
+        console.error('Rollback failed:', rollbackError);
+      }
+
       return NextResponse.json(
-        { success: false, error: '판매 거래 상태 업데이트 실패로 수금이 취소되었습니다' },
+        { 
+          success: false, 
+          error: `판매 거래 상태 업데이트 실패: ${updateError?.message || '알 수 없는 오류'}`,
+          details: {
+            transaction_id: validatedData.sales_transaction_id,
+            newPaymentStatus,
+            previousStatus: salesTx.payment_status,
+            errorCode: updateError?.code
+          }
+        },
         { status: 500 }
       );
     }
+
+    if (!updatedSalesTx) {
+      console.error('Sales transaction not found or not updated:', {
+        transaction_id: validatedData.sales_transaction_id,
+        newPaymentStatus
+      });
+      
+      // Rollback: Delete the collection
+      const { error: rollbackError } = await supabaseAdmin
+        .from('collections')
+        .delete()
+        .eq('collection_id', collectionId);
+
+      if (rollbackError) {
+        console.error('Rollback failed:', rollbackError);
+      }
+
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: '판매 거래를 찾을 수 없거나 업데이트에 실패했습니다',
+          details: {
+            transaction_id: validatedData.sales_transaction_id,
+            newPaymentStatus,
+            previousStatus: salesTx.payment_status
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log('Sales transaction payment status updated successfully:', {
+      transaction_id: updatedSalesTx.transaction_id,
+      payment_status: updatedSalesTx.payment_status
+    });
 
     // Fetch created collection with joins using Supabase client
     const { data: createdCollection, error: fetchError } = await supabaseAdmin
@@ -288,11 +481,25 @@ export const POST = async (request: NextRequest) => {
       data: createdCollection,
       message: '수금이 생성되고 판매 거래 상태가 업데이트되었습니다'
     });
-  } catch (error) {
-    console.error('Collection create error:', error);
+  } catch (error: any) {
+    console.error('=== Collection create error ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
     const errorMessage = error instanceof Error ? error.message : '수금 생성 중 오류가 발생했습니다';
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { 
+        success: false, 
+        error: errorMessage,
+        details: {
+          type: error?.constructor?.name,
+          message: error?.message,
+          code: error?.code,
+          hint: error?.hint
+        }
+      },
       { status: 500 }
     );
   }
@@ -343,7 +550,7 @@ export const PUT = async (request: NextRequest) => {
 
     // If amount is being changed, recalculate payment status
     let needsStatusUpdate = false;
-    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED' = 'PENDING';
+    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE' = 'PENDING';
 
     if (body.collected_amount !== undefined && body.collected_amount !== originalCollection.collected_amount) {
       needsStatusUpdate = true;
@@ -391,7 +598,7 @@ export const PUT = async (request: NextRequest) => {
 
       // Determine new payment status
       if (remaining === 0) {
-        newPaymentStatus = 'COMPLETED';
+        newPaymentStatus = 'COMPLETE';
       } else if (remaining < salesTx.total_amount) {
         newPaymentStatus = 'PARTIAL';
       } else {
@@ -546,9 +753,9 @@ export const DELETE = async (request: NextRequest) => {
 
       const remaining = salesTx.total_amount - totalCollected;
 
-      let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+      let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE';
       if (remaining === 0 && totalCollected > 0) {
-        newPaymentStatus = 'COMPLETED';
+        newPaymentStatus = 'COMPLETE';
       } else if (remaining > 0 && totalCollected > 0) {
         newPaymentStatus = 'PARTIAL';
       } else {

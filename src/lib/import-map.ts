@@ -67,8 +67,10 @@ export function convertExcelData(data: Record<string, any>[], mapping: ColumnMap
     const converted: Record<string, any> = {};
 
     mapping.forEach(col => {
+      // 먼저 한글 필드명으로 찾고, 없으면 영문 필드명으로 찾기 (mapExcelHeaders를 통해 변환된 경우)
       const koreanValue = row[col.korean];
-      let value = koreanValue;
+      const englishValue = row[col.english];
+      let value = koreanValue !== undefined ? koreanValue : englishValue;
 
       // 빈 값 처리
       if (value === undefined || value === null || value === '') {
@@ -168,10 +170,12 @@ export function mapCompanyType(type: string): string {
 export function mapTransactionType(type: string): string {
   const mapping: { [key: string]: string } = {
     'RECEIVING': '입고',
-    'PRODUCTION': '생산',
+    'PRODUCTION': '생산입고',
     'SHIPPING': '출고',
     '입고': 'RECEIVING',
-    '생산': 'PRODUCTION',
+    '생산': 'PRODUCTION',  // Excel에서 '생산' 입력 시 'PRODUCTION'으로 변환하여 stock 계산에 사용
+    '생산입고': 'PRODUCTION',
+    '생산출고': 'PRODUCTION',
     '출고': 'SHIPPING'
   };
   return mapping[type] || type;

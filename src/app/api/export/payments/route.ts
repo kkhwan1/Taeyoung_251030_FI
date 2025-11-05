@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       "누적지급액": payment.purchase_transaction?.paid_amount || 0,
       "지급상태": payment.purchase_transaction?.payment_status === 'PENDING' ? '미지급' :
                  payment.purchase_transaction?.payment_status === 'PARTIAL' ? '부분지급' :
-                 payment.purchase_transaction?.payment_status === 'COMPLETED' ? '완료' : '',
+                 payment.purchase_transaction?.payment_status === 'COMPLETE' ? '완료' : '',
       "등록일시": new Date(payment.created_at).toLocaleString('ko-KR'),
       "수정일시": new Date(payment.updated_at).toLocaleString('ko-KR')
     })) || [];

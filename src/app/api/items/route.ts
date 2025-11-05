@@ -244,16 +244,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (useCursorPagination) {
       // Cursor-based pagination
+      // For 'next', we want items after the cursor (ascending order)
+      // For 'prev', we want items before the cursor (descending order)
       const ascending = direction === 'next';
       
       if (cursor) {
+        // When going next, get items with item_code > cursor
+        // When going prev, get items with item_code < cursor
         const operator = ascending ? 'gt' : 'lt';
         query = query[operator]('item_code', cursor);
       }
       
+      // Order by item_code for consistent cursor-based pagination
+      // Primary sort by item_code, secondary by created_at for consistency
       query = query
-        .order('created_at', { ascending: false })
         .order('item_code', { ascending })
+        .order('created_at', { ascending: false })
         .limit(limit + 1); // +1 to check if there are more items
 
       const { data: rawItems, error, count } = await query;
@@ -262,7 +268,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         throw new APIError('품목 정보를 조회하지 못했습니다.', 500, error.message);
       }
 
-      totalCount = count || 0;
+      // Get total count with same filters applied
+      let countQuery = supabase
+        .from('items')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      // Apply same filters as main query
+      if (search) {
+        countQuery = countQuery.or(
+          `item_code.ilike.%${search}%,item_name.ilike.%${search}%,spec.ilike.%${search}%,material.ilike.%${search}%`
+        );
+      }
+      if (category) {
+        countQuery = countQuery.eq('category', category as NonNullable<ItemInsert['category']>);
+      }
+      if (vehicleModel) {
+        countQuery = countQuery.ilike('vehicle_model', `%${vehicleModel}%`);
+      }
+      if (coatingStatus) {
+        countQuery = countQuery.eq('coating_status', coatingStatus);
+      }
+      if (minDaily !== null) {
+        countQuery = countQuery.gte('daily_requirement', minDaily);
+      }
+      if (maxDaily !== null) {
+        countQuery = countQuery.lte('daily_requirement', maxDaily);
+      }
+      
+      const { count: totalCountResult } = await countQuery;
+      totalCount = totalCountResult || 0;
       hasMore = rawItems && rawItems.length > limit;
       
       if (hasMore) {
@@ -270,12 +305,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const lastItem = itemsData[itemsData.length - 1];
         nextCursor = lastItem.item_code;
         
-        // For prev cursor, we need to get the first item's code
+        // For prev cursor, get the first item's code
         if (itemsData.length > 0) {
           prevCursor = itemsData[0].item_code;
         }
       } else {
         itemsData = rawItems || [];
+        // If no more items, set nextCursor to null
+        if (itemsData.length > 0 && direction === 'next') {
+          nextCursor = null;
+        }
       }
     } else {
       // Offset-based pagination (backward compatibility)

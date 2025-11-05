@@ -14,7 +14,8 @@ import {
   Trash2,
   Package,
   Factory,
-  Truck
+  Truck,
+  Upload
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ReceivingForm from '@/components/ReceivingForm';
@@ -22,6 +23,7 @@ import ProductionForm from '@/components/ProductionForm';
 import ShippingForm from '@/components/ShippingForm';
 import { TransactionsExportButton, StockExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
+import ExcelUploadModal from '@/components/upload/ExcelUploadModal';
 import {
   InventoryTransaction,
   StockInfo,
@@ -57,6 +59,7 @@ function InventoryContent() {
   const [selectedTransaction, setSelectedTransaction] = useState<InventoryTransaction | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [stockLastUpdated, setStockLastUpdated] = useState<Date | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const tabs: InventoryTab[] = [
     {
@@ -193,6 +196,7 @@ function InventoryContent() {
 
       if (data.success) {
         setStockInfo(data.data || []);
+        // 현재 시간으로 업데이트 (실시간 반영)
         setStockLastUpdated(new Date());
       }
     } catch (error) {
@@ -262,12 +266,15 @@ function InventoryContent() {
       });
 
       if (result.success) {
-        alert('거래가 삭제되었습니다.');
         setShowDeleteConfirm(false);
         setSelectedTransaction(null);
         setRefreshKey(prev => prev + 1);
-        fetchTransactions();
-        fetchStockInfo();
+        // 즉시 재고 정보 및 거래 내역 새로고침
+        await Promise.all([
+          fetchStockInfo(),
+          fetchTransactions()
+        ]);
+        alert('거래가 삭제되었습니다.');
       } else {
         alert(result.error || '삭제에 실패했습니다.');
       }
@@ -324,11 +331,74 @@ function InventoryContent() {
           break;
       }
 
-      // Handle shipping/receiving forms with multiple items
+      // Handle shipping/receiving forms with multiple items - Use batch API
       if ((activeTab === 'shipping' || activeTab === 'receiving') && 'items' in formData && Array.isArray(formData.items)) {
         const multiItemData = formData as ShippingFormData | ReceivingFormData;
         
-        // Submit each item as a separate transaction
+        // Use batch API for multiple items (일괄 등록 기능)
+        if (multiItemData.items.length > 0) {
+          const batchUrl = activeTab === 'receiving' 
+            ? '/api/inventory/receiving/batch'
+            : '/api/inventory/shipping/batch';
+          
+          const batchData = activeTab === 'receiving' ? {
+            transaction_date: multiItemData.transaction_date,
+            company_id: (multiItemData as ReceivingFormData).company_id,
+            items: multiItemData.items.map(item => ({
+              item_id: item.item_id,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              lot_no: item.lot_no,
+              expiry_date: item.expiry_date,
+              to_location: item.to_location,
+              arrival_date: multiItemData.transaction_date
+            })),
+            reference_no: multiItemData.reference_no,
+            notes: multiItemData.notes,
+            created_by: multiItemData.created_by || 1
+          } : {
+            transaction_date: multiItemData.transaction_date,
+            customer_id: (multiItemData as ShippingFormData).customer_id,
+            items: multiItemData.items.map(item => ({
+              item_id: item.item_id,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              delivery_address: (multiItemData as ShippingFormData).delivery_address
+            })),
+            reference_no: multiItemData.reference_no,
+            delivery_address: (multiItemData as ShippingFormData).delivery_address,
+            delivery_date: (multiItemData as ShippingFormData).delivery_date,
+            notes: multiItemData.notes,
+            created_by: multiItemData.created_by || 1
+          };
+
+          const { safeFetchJson } = await import('@/lib/fetch-utils');
+          const result = await safeFetchJson(batchUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(batchData)
+          }, {
+            timeout: 30000,
+            maxRetries: 2,
+            retryDelay: 1000
+          });
+
+          if (result.success) {
+            setShowModal(false);
+            setRefreshKey(prev => prev + 1);
+            // 즉시 재고 정보 및 거래 내역 새로고침
+            await Promise.all([
+              fetchStockInfo(),
+              fetchTransactions()
+            ]);
+            alert(`${multiItemData.items.length}개 품목이 일괄 등록되었습니다.`);
+            return;
+          } else {
+            throw new Error(result.error || '일괄 등록에 실패했습니다.');
+          }
+        }
+        
+        // Fallback: Submit each item as a separate transaction (single item case)
         const promises = multiItemData.items.map(async (item) => {
           const singleItemData = activeTab === 'shipping' ? {
             transaction_date: multiItemData.transaction_date,
@@ -379,15 +449,98 @@ function InventoryContent() {
         
         setShowModal(false);
         setRefreshKey(prev => prev + 1);
+        // 즉시 재고 정보 및 거래 내역 새로고침
+        await Promise.all([
+          fetchStockInfo(),
+          fetchTransactions()
+        ]);
         alert(`${activeTabInfo.label} 처리가 완료되었습니다.`);
         return { success: true };
       } else {
-        // Standard submission for receiving and production
+        // Handle production form - check for batch items
+        if (activeTab === 'production' && 'items' in formData && Array.isArray((formData as any).items) && (formData as any).items.length > 0) {
+          // Production batch mode
+          const productionData = formData as ProductionFormData;
+          const batchUrl = '/api/inventory/production/batch';
+          
+          const batchData = {
+            transaction_date: productionData.transaction_date,
+            items: productionData.items!.map(item => ({
+              product_item_id: item.product_item_id || item.item_id,
+              item_id: item.item_id,
+              quantity: item.quantity,
+              unit_price: item.unit_price || 0
+            })),
+            reference_no: productionData.reference_no,
+            notes: productionData.notes,
+            use_bom: productionData.use_bom,
+            created_by: productionData.created_by || 1
+          };
+
+          const { safeFetchJson } = await import('@/lib/fetch-utils');
+          const result = await safeFetchJson(batchUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(batchData)
+          }, {
+            timeout: 30000,
+            maxRetries: 2,
+            retryDelay: 1000
+          });
+
+          if (result.success) {
+            setShowModal(false);
+            setRefreshKey(prev => prev + 1);
+            // 즉시 재고 정보 및 거래 내역 새로고침
+            await Promise.all([
+              fetchStockInfo(),
+              fetchTransactions()
+            ]);
+            alert(`${productionData.items!.length}개 품목 생산이 일괄 등록되었습니다.`);
+            return;
+          } else {
+            throw new Error(result.error || '생산 일괄 등록에 실패했습니다.');
+          }
+        }
+        
+        // Standard submission for receiving and production (single item)
         // Handle PUT (update) vs POST (create)
         const method = selectedTransaction ? 'PUT' : 'POST';
-        const requestBody = selectedTransaction && activeTab === 'production'
-          ? { id: selectedTransaction.transaction_id, ...formData }
-          : formData;
+        
+        // Production form data transformation
+        let requestBody: any;
+        if (activeTab === 'production') {
+          const productionData = formData as ProductionFormData;
+          // Get selected product to get unit_price
+          const selectedProduct = (productionData as any).selectedProduct || null;
+          
+          requestBody = {
+            transaction_date: productionData.transaction_date,
+            item_id: productionData.product_item_id || (productionData as any).item_id,
+            quantity: productionData.quantity,
+            unit_price: selectedProduct?.price || selectedProduct?.unit_price || (productionData as any).unit_price || 0,
+            transaction_type: '생산입고',
+            reference_number: productionData.reference_no || productionData.reference_number,
+            notes: productionData.notes,
+            use_bom: productionData.use_bom !== undefined ? productionData.use_bom : true,
+            created_by: productionData.created_by || 1
+          };
+          
+          // Remove undefined/null fields
+          Object.keys(requestBody).forEach(key => {
+            if (requestBody[key] === undefined || requestBody[key] === null || requestBody[key] === '') {
+              delete requestBody[key];
+            }
+          });
+          
+          if (selectedTransaction) {
+            requestBody.id = selectedTransaction.transaction_id;
+          }
+        } else {
+          requestBody = selectedTransaction && activeTab === 'production'
+            ? { id: selectedTransaction.transaction_id, ...formData }
+            : formData;
+        }
 
         const { safeFetchJson } = await import('@/lib/fetch-utils');
         const data = await safeFetchJson(url, {
@@ -406,6 +559,12 @@ function InventoryContent() {
           setShowModal(false);
           setSelectedTransaction(null);
           setRefreshKey(prev => prev + 1);
+          
+          // 즉시 재고 정보 및 거래 내역 새로고침
+          await Promise.all([
+            fetchStockInfo(),
+            fetchTransactions()
+          ]);
 
           // Show success notification
           alert(`${selectedTransaction ? '수정' : '등록'}이 완료되었습니다.`);
@@ -420,6 +579,15 @@ function InventoryContent() {
       alert('처리 중 오류가 발생했습니다');
       throw error;
     }
+  };
+
+  const handleUploadSuccess = async () => {
+    // 데이터 새로고침
+    setRefreshKey(prev => prev + 1);
+    await fetchData();
+    
+    // 성공 메시지 표시
+    alert('엑셀 업로드가 완료되었습니다. 데이터가 반영되었습니다.');
   };
 
   const getTransactionTypeColor = (type: string) => {
@@ -569,18 +737,18 @@ function InventoryContent() {
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">입고, 생산, 출고 통합 관리</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap gap-1.5 items-center overflow-x-auto pb-1">
             <PrintButton
               data={printableStockData}
               columns={stockPrintColumns}
               title="재고 현황 보고서"
               orientation="landscape"
               variant="icon"
-              className="bg-gray-800 hover:bg-gray-700 text-white"
+              className="bg-gray-800 hover:bg-gray-700 text-white whitespace-nowrap text-xs px-2 py-1 flex items-center gap-1 flex-shrink-0"
             />
             <StockExportButton
               stockData={stockInfo}
-              className="text-sm bg-gray-800 hover:bg-gray-700 text-white"
+              className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white flex-shrink-0"
             />
           </div>
         </div>
@@ -618,32 +786,65 @@ function InventoryContent() {
               {activeTabInfo.description}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap gap-1.5 items-center overflow-x-auto pb-1">
             <PrintButton
               data={transactions}
               columns={transactionPrintColumns}
               title={`${activeTabInfo.label} 거래 내역`}
               orientation="landscape"
               variant="icon"
-              className="bg-gray-800 hover:bg-gray-700"
+              className="bg-gray-800 hover:bg-gray-700 text-white whitespace-nowrap text-xs px-2 py-1 flex items-center gap-1 flex-shrink-0"
             />
-            <TransactionsExportButton
-              transactions={transactions}
-              type={activeTabInfo.label}
-              className="text-sm"
-            />
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">
+            {activeTab === 'production' && (
+              <>
+                <TransactionsExportButton
+                  transactions={transactions.filter(t => t.transaction_type === '생산입고' || t.transaction_type === '생산출고')}
+                  filtered={false}
+                  title="생산 관리 거래내역"
+                  orientation="portrait"
+                  className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white whitespace-nowrap text-xs px-2 py-1 flex items-center gap-1 flex-shrink-0"
+                />
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+                  title="엑셀 파일로 대량 생산 등록"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  엑셀 업로드
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedTransaction(null);
+                    setShowModal(true);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  생산 등록
+                </button>
+              </>
+            )}
+            {/* 엑셀 업로드 버튼 (입고 관리, 출고 관리만) */}
+            {(activeTab === 'receiving' || activeTab === 'shipping') && (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+                title="엑셀 파일로 대량 입고/출고 등록"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                엑셀 업로드
+              </button>
+            )}
+            {(activeTab === 'receiving' || activeTab === 'shipping') && (
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
                 {activeTab === 'receiving' && '입고 등록'}
-                {activeTab === 'production' && '생산 등록'}
                 {activeTab === 'shipping' && '출고 등록'}
-              </span>
-              <span className="sm:hidden">등록</span>
-            </button>
+              </button>
+            )}
           </div>
         </div>
 
@@ -742,11 +943,11 @@ function InventoryContent() {
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">최근 거래 내역</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th 
-                    className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                   >
                     <div className="flex items-center gap-1">
@@ -756,28 +957,28 @@ function InventoryContent() {
                       </span>
                     </div>
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     구분
                   </th>
-                  <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     품번/품명
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     수량
                   </th>
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     단가
                   </th>
-                  <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     금액
                   </th>
-                  <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     거래처
                   </th>
-                  <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     참조번호
                   </th>
-                  <th className="w-[80px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     작업
                   </th>
                 </tr>
@@ -815,8 +1016,21 @@ function InventoryContent() {
                               const d = new Date(date);
                               return (
                                 <div className="flex flex-col">
-                                  <span>{d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, '0')}.{String(d.getDate()).padStart(2, '0')}</span>
-                                  <span className="text-xs text-gray-500">{String(d.getHours()).padStart(2, '0')}:{String(d.getMinutes()).padStart(2, '0')}:{String(d.getSeconds()).padStart(2, '0')}</span>
+                                  <span>
+                                    {d.toLocaleDateString('ko-KR', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit'
+                                    }).replace(/\. /g, '.').replace(/\.$/, '')}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {d.toLocaleTimeString('ko-KR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit',
+                                      hour12: false
+                                    })}
+                                  </span>
                                 </div>
                               );
                             })()}
@@ -1066,6 +1280,17 @@ function InventoryContent() {
           </div>
         </div>
       )}
+
+      {/* 엑셀 업로드 모달 */}
+      <ExcelUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        uploadUrl="/api/import/inventory"
+        title={activeTab === 'receiving' ? '입고 데이터 엑셀 업로드' : '출고 데이터 엑셀 업로드'}
+        templateUrl="/api/import/inventory"
+        templateFileName="재고거래_업로드_템플릿.xlsx"
+        onUploadSuccess={handleUploadSuccess}
+      />
     </div>
   );
 }

@@ -13,7 +13,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  ReferenceLine
+  ReferenceLine,
+  Legend
 } from 'recharts';
 import {
   Download,
@@ -596,40 +597,60 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={processedData}
-              layout="horizontal"
-              margin={{ top: 10, right: 20, left: 110, bottom: 10 }}
+              margin={{ top: 10, right: 20, left: 20, bottom: 50 }}
               syncId="topItemsChart"
+              barCategoryGap="15%"
             >
               <CartesianGrid strokeDasharray="3 3" stroke={theme.cartesianGrid.stroke} />
               <XAxis
-                type="number"
+                dataKey="type"
+                tick={{ 
+                  ...theme.xAxis.tick, 
+                  fontSize: 10, 
+                  angle: 0, 
+                  textAnchor: 'middle',
+                  fill: isDark ? '#e5e7eb' : '#374151'
+                }}
+                axisLine={theme.xAxis.axisLine}
+                height={40}
+                interval={0}
+              />
+              <YAxis
                 tickFormatter={(value) =>
                   sortMetric === 'value'
-                    ? `₩${formatKoreanNumber(value)}`
+                    ? `₩${(value / 100000000).toFixed(1)}억`
                     : sortMetric === 'turnover'
                     ? value.toFixed(1)
                     : formatKoreanNumber(value)
                 }
-                tick={theme.xAxis.tick}
-                axisLine={theme.xAxis.axisLine}
+                tick={theme.yAxis.tick}
+                axisLine={theme.yAxis.axisLine}
                 domain={[0, 'dataMax']}
               />
-              <YAxis
-                type="category"
-                dataKey="type"
-                tick={{ ...theme.yAxis.tick, fontSize: 11 }}
-                axisLine={theme.yAxis.axisLine}
-                width={90}
-              />
               <Tooltip content={<CustomTooltip />} />
+              <Legend
+                verticalAlign="bottom"
+                height={28}
+                wrapperStyle={{ paddingTop: '8px' }}
+                formatter={(value, entry) => {
+                  const item = processedData.find(d => d.type === value || d.displayName === value);
+                  if (!item) return value;
+                  const percentage = stats && stats.totalValue > 0 
+                    ? ((item.displayValue / (sortMetric === 'value' ? stats.totalValue : sortMetric === 'volume' ? stats.totalVolume : processedData.reduce((sum, i) => sum + i.currentStock, 0))) * 100).toFixed(1)
+                    : '0.0';
+                  return `${value} (${percentage}%)`;
+                }}
+                iconType="rect"
+              />
 
               <Bar
                 dataKey="displayValue"
                 name={getMetricLabel()}
                 onClick={handleBarClick}
                 cursor="pointer"
-                radius={[0, 2, 2, 0]}
-                isAnimationActive={false}
+                radius={[2, 2, 0, 0]}
+                isAnimationActive={true}
+                fill={theme.colors[0]}
               >
                 {processedData.map((entry, index) => (
                   <Cell
@@ -638,7 +659,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
                       ? theme.colors[6]
                       : showStockStatus
                       ? entry.color
-                      : theme.colors[0]
+                      : theme.colors[index % theme.colors.length]
                     }
                     opacity={selectedItems.size === 0 || selectedItems.has(entry.item_id) ? 1 : 0.3}
                   />

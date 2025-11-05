@@ -43,9 +43,21 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* 기본 폰트 크기를 80%로 축소하여 정보 밀도 증가 */
+/* 기본 폰트 크기를 CSS 변수로 설정 (사용자 조절 가능) */
+:root {
+  --base-font-size: 16px;  /* 기본값: 16px, FontSizeContext에서 동적 변경 */
+  --font-size-xs: calc(var(--base-font-size) * 0.75);   /* 12px at base */
+  --font-size-sm: calc(var(--base-font-size) * 0.875);  /* 14px at base */
+  --font-size-base: var(--base-font-size);               /* 16px at base */
+  --font-size-lg: calc(var(--base-font-size) * 1.125);  /* 18px at base */
+  --font-size-xl: calc(var(--base-font-size) * 1.25);   /* 20px at base */
+  --font-size-2xl: calc(var(--base-font-size) * 1.5);   /* 24px at base */
+  --font-size-3xl: calc(var(--base-font-size) * 1.875); /* 30px at base */
+  --font-size-4xl: calc(var(--base-font-size) * 2.25);  /* 36px at base */
+}
+
 html {
-  font-size: 80%; /* 16px → 12.8px (base) */
+  font-size: var(--base-font-size);
 }
 
 /* Minimalism: Remove decorative transitions (SAP style - instant feedback) */

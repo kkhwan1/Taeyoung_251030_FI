@@ -131,6 +131,20 @@ playwright-report/
 
 # Planning documents (Personal)
 .plan5/
+.plan6/
 
 # Development scripts (Temporary utilities)
 scripts/
+
+# Claude settings (local configuration)
+.claude/settings.local.json
+
+# Screenshots and temporary images
+*.png
+!public/logo.png
+
+# Test reports (archived documentation)
+test-reports/
+
+# Archive directories
+docs/archive/

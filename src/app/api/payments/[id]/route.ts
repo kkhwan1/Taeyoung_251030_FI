@@ -112,7 +112,7 @@ export const PUT = async (
 
     // If amount is being changed, recalculate payment status
     let needsStatusUpdate = false;
-    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED' = 'PENDING';
+    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE' = 'PENDING';
 
     if (body.paid_amount !== undefined && body.paid_amount !== originalPayment.paid_amount) {
       needsStatusUpdate = true;
@@ -160,7 +160,7 @@ export const PUT = async (
 
       // Determine new payment status
       if (remaining === 0) {
-        newPaymentStatus = 'COMPLETED';
+        newPaymentStatus = 'COMPLETE';
       } else if (remaining < purchaseTx.total_amount) {
         newPaymentStatus = 'PARTIAL';
       } else {
@@ -329,9 +329,9 @@ export const DELETE = async (
 
       const remaining = purchaseTx.total_amount - totalPaid;
 
-      let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+      let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE';
       if (remaining === 0 && totalPaid > 0) {
-        newPaymentStatus = 'COMPLETED';
+        newPaymentStatus = 'COMPLETE';
       } else if (remaining > 0 && totalPaid > 0) {
         newPaymentStatus = 'PARTIAL';
       } else {

@@ -12,11 +12,22 @@ export interface DashboardStats {
   monthlyVolume: number;
   lowStockItems: number;
   volumeChange: number;
+  // New KPIs
+  totalStockValue: number;
+  monthlyTransactionAmount: number;
+  newRegistrations: {
+    items: number;
+    companies: number;
+    total: number;
+  };
   trends: {
     items: number;
     companies: number;
     volume: number;
     lowStock: number;
+    stockValue: number;
+    transactionAmount: number;
+    newRegistrations: number;
   };
 }
 

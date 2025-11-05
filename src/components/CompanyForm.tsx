@@ -307,7 +307,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
         {/* 거래처명 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            거래처명 <span className="text-gray-500">*</span>
+            거래처명 <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -320,14 +320,14 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             placeholder="예: 현대자동차"
           />
           {errors.company_name && (
-            <p className="mt-1 text-sm text-gray-500">{errors.company_name}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.company_name}</p>
           )}
         </div>
 
         {/* 거래처 타입 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            거래처 타입 <span className="text-gray-500">*</span>
+            거래처 타입 <span className="text-red-500">*</span>
           </label>
           <select
             name="company_type"
@@ -342,7 +342,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             <option value="BOTH">고객사/공급사</option>
           </select>
           {errors.company_type && (
-            <p className="mt-1 text-sm text-gray-500">{errors.company_type}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.company_type}</p>
           )}
         </div>
 
@@ -392,7 +392,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             placeholder="예: 02-1234-5678"
           />
           {errors.phone && (
-            <p className="mt-1 text-sm text-gray-500">{errors.phone}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
           )}
         </div>
 
@@ -412,7 +412,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             placeholder="예: 010-1234-5678"
           />
           {errors.mobile && (
-            <p className="mt-1 text-sm text-gray-500">{errors.mobile}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>
           )}
         </div>
 
@@ -432,7 +432,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             placeholder="예: admin@company.com"
           />
           {errors.email && (
-            <p className="mt-1 text-sm text-gray-500">{errors.email}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.email}</p>
           )}
         </div>
 
@@ -453,7 +453,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             placeholder="예: 30"
           />
           {errors.payment_terms && (
-            <p className="mt-1 text-sm text-gray-500">{errors.payment_terms}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.payment_terms}</p>
           )}
         </div>
 
@@ -477,7 +477,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }: CompanyForm
             <option value="기타">기타</option>
           </select>
           {errors.company_category && (
-            <p className="mt-1 text-sm text-gray-500">{errors.company_category}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.company_category}</p>
           )}
         </div>
       </div>

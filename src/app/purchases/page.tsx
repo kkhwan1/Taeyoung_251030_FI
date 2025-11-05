@@ -57,7 +57,7 @@ type PurchaseTransaction = {
 const PAYMENT_STATUS_OPTIONS = [
   { value: 'PENDING', label: '대기', color: 'text-gray-600 dark:text-gray-400' },
   { value: 'PARTIAL', label: '부분', color: 'text-gray-600 dark:text-gray-400' },
-  { value: 'COMPLETED', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
+  { value: 'COMPLETE', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
 ];
 
 export default function PurchasesPage() {
@@ -159,7 +159,7 @@ export default function PurchasesPage() {
   const handleSaveTransaction = async (data: Partial<PurchaseTransaction>) => {
     try {
       const url = selectedTransaction
-        ? `/api/purchases?id=${selectedTransaction.transaction_id}`
+        ? `/api/purchases/${selectedTransaction.transaction_id}`
         : '/api/purchases';
 
       const method = selectedTransaction ? 'PUT' : 'POST';
@@ -193,8 +193,36 @@ export default function PurchasesPage() {
 
   // 필터링된 거래 목록
   const filteredTransactions = useMemo(() => {
-    return transactions;
-  }, [transactions]);
+    let filtered = transactions;
+
+    // 검색어 필터링 (거래번호, 품목명, 공급사명)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((transaction) => {
+        const transactionNo = transaction.transaction_no?.toLowerCase() || '';
+        const itemName = transaction.item_name?.toLowerCase() || '';
+        const supplierName = transaction.supplier?.company_name?.toLowerCase() || '';
+        return (
+          transactionNo.includes(searchLower) ||
+          itemName.includes(searchLower) ||
+          supplierName.includes(searchLower)
+        );
+      });
+    }
+
+    // 지급 상태 필터링
+    if (filterStatus) {
+      filtered = filtered.filter((transaction) => {
+        const status = transaction.payment_status;
+        if (filterStatus === 'COMPLETE') {
+          return status === 'COMPLETE' || status === 'COMPLETED';
+        }
+        return status === filterStatus;
+      });
+    }
+
+    return filtered;
+  }, [transactions, searchTerm, filterStatus]);
 
   // 지급 상태별 색상
   const getPaymentStatusColor = (status?: PaymentStatus) => {
@@ -211,9 +239,9 @@ export default function PurchasesPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">매입 관리</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">매입 관리</h1>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
           매입 거래 내역을 관리합니다
         </p>
       </div>
@@ -237,7 +265,7 @@ export default function PurchasesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="거래번호, 품목명 검색..."
+              placeholder="거래번호, 품목명, 공급사명 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
@@ -278,11 +306,10 @@ export default function PurchasesPage() {
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap"
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">매입 등록</span>
-            <span className="sm:hidden">등록</span>
+            <Plus className="w-3.5 h-3.5" />
+            매입 등록
           </button>
         </div>
         </div>
@@ -322,34 +349,34 @@ export default function PurchasesPage() {
           {isLoading ? (
             <TableSkeleton />
           ) : (
-            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     거래일자
                   </th>
-                  <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     거래번호
                   </th>
-                  <th className="w-[140px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     공급사
                   </th>
-                  <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     품목
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     수량
                   </th>
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     단가
                   </th>
-                  <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     총액
                   </th>
-                  <th className="w-[100px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     지급상태
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     작업
                   </th>
                 </tr>
@@ -357,50 +384,76 @@ export default function PurchasesPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-600 dark:text-gray-400">
                       매입 거래가 없습니다
                     </td>
                   </tr>
                 ) : (
                   filteredTransactions.map((transaction) => (
-                    <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                          {transaction.transaction_date}
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          <div className="flex flex-col">
+                            {(() => {
+                              const date = (transaction as any).created_at || transaction.transaction_date;
+                              const d = new Date(date);
+                              return (
+                                <>
+                                  <span>
+                                    {d.toLocaleDateString('ko-KR', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit'
+                                    }).replace(/\. /g, '.').replace(/\.$/, '')}
+                                  </span>
+                                  {(transaction as any).created_at && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {d.toLocaleTimeString('ko-KR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        hour12: false
+                                      })}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={transaction.transaction_no}>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={transaction.transaction_no}>
                           {transaction.transaction_no}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate" title={transaction.supplier?.company_name || '-'}>
+                        <div className="text-sm text-gray-900 dark:text-white truncate" title={transaction.supplier?.company_name || '-'}>
                           {transaction.supplier?.company_name || '-'}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate" title={transaction.item_name || transaction.item?.item_name || '-'}>
+                        <div className="text-sm text-gray-900 dark:text-white truncate" title={transaction.item_name || transaction.item?.item_name || '-'}>
                           {transaction.item_name || transaction.item?.item_name || '-'}
                         </div>
                         {(transaction.spec || transaction.item?.spec) && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={transaction.spec || transaction.item?.spec}>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 truncate" title={transaction.spec || transaction.item?.spec}>
                             {transaction.spec || transaction.item?.spec}
                           </div>
                         )}
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-right text-gray-900 dark:text-gray-100 truncate">
+                        <div className="text-sm text-right text-gray-900 dark:text-white truncate">
                           {transaction.quantity.toLocaleString()}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-right text-gray-900 dark:text-gray-100 truncate">
+                        <div className="text-sm text-right text-gray-900 dark:text-white truncate">
                           {transaction.unit_price.toLocaleString()}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-right font-medium text-gray-900 dark:text-gray-100 truncate">
+                        <div className="text-sm text-right font-medium text-gray-900 dark:text-white truncate">
                           {transaction.total_amount.toLocaleString()}
                         </div>
                       </td>
@@ -442,7 +495,7 @@ export default function PurchasesPage() {
             {isLoading ? (
               <div className="text-center py-8">로딩 중...</div>
             ) : filteredTransactions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-600 dark:text-gray-400">
                 매입 거래가 없습니다
               </div>
             ) : (
@@ -450,11 +503,30 @@ export default function PurchasesPage() {
                 <div key={transaction.transaction_id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                      <div className="font-medium text-sm text-gray-900 dark:text-white">
                         {transaction.transaction_no}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {transaction.transaction_date}
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {(() => {
+                          const date = (transaction as any).created_at || transaction.transaction_date;
+                          const d = new Date(date);
+                          return (transaction as any).created_at
+                            ? `${d.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              }).replace(/\. /g, '.').replace(/\.$/, '')} ${d.toLocaleTimeString('ko-KR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: false
+                              })}`
+                            : d.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              }).replace(/\. /g, '.').replace(/\.$/, '');
+                        })()}
                       </div>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded ${getPaymentStatusColor(transaction.payment_status)}`}>
@@ -464,7 +536,7 @@ export default function PurchasesPage() {
                   <div className="text-sm mb-2">
                     <div className="font-medium">{transaction.item_name || transaction.item?.item_name || '-'}</div>
                     {(transaction.spec || transaction.item?.spec) && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{transaction.spec || transaction.item?.spec}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{transaction.spec || transaction.item?.spec}</div>
                     )}
                   </div>
                   <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 mb-2">
@@ -472,7 +544,7 @@ export default function PurchasesPage() {
                     <span>수량: {transaction.quantity.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
                       단가: ₩{transaction.unit_price.toLocaleString()}
                     </span>
                     <span className="font-bold text-gray-900 dark:text-white">
@@ -507,6 +579,7 @@ export default function PurchasesPage() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         title={selectedTransaction ? '매입 거래 수정' : '매입 거래 등록'}
+        size="lg"
       >
         <PurchaseForm
           transaction={selectedTransaction}

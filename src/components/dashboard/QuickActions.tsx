@@ -15,27 +15,27 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ className = '' }) =>
 
   const actions = [
     {
-      id: 'purchase',
+      id: 'receiving',
       label: '입고 등록',
-      path: '/purchases',
+      path: '/inventory?tab=receiving',
       description: '새로운 입고 거래 등록'
     },
     {
-      id: 'sales',
+      id: 'shipping',
       label: '출고 등록',
-      path: '/sales',
+      path: '/inventory?tab=shipping',
       description: '새로운 출고 거래 등록'
     },
     {
       id: 'inventory',
       label: '재고 조회',
-      path: '/inventory',
+      path: '/stock',
       description: '현재 재고 현황 조회'
     },
     {
       id: 'items',
       label: '품목 등록',
-      path: '/items',
+      path: '/master/items',
       description: '새로운 품목 등록'
     }
   ];

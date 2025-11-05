@@ -113,13 +113,16 @@ export default function CompaniesPage() {
 
   useEffect(() => {
     fetchCompanies();
-  }, [selectedType]);
+  }, [selectedType, searchTerm]);
 
   const fetchCompanies = async (bustCache = false) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (selectedType) params.append('type', selectedType);
+      if (searchTerm) params.append('search', searchTerm); // Add search parameter
+      // Remove limit to fetch all companies
+      // params.append('limit', '10000'); // Fetch all companies
       if (bustCache) params.append('_t', Date.now().toString()); // Cache busting
 
       const { safeFetchJson } = await import('@/lib/fetch-utils');
@@ -213,11 +216,40 @@ export default function CompaniesPage() {
         setShowAddModal(false);
         setEditingCompany(null);
         
-        // Add small delay to ensure DB consistency before refetching
-        await new Promise(resolve => setTimeout(resolve, 300));
-        console.log('[DEBUG] Calling fetchCompanies with cache busting...');
-        await fetchCompanies(true); // Force cache refresh
-        console.log('[DEBUG] fetchCompanies completed');
+        // Reset filters to show newly registered/updated company
+        // This will trigger useEffect which calls fetchCompanies automatically
+        setSelectedType('');
+        setSearchTerm('');
+        
+        // Add small delay to ensure DB consistency and state update before refetching
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Force cache refresh with empty filters (no limit to fetch all)
+        const params = new URLSearchParams();
+        // params.append('limit', '10000'); // Fetch all companies
+        params.append('_t', Date.now().toString());
+        
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        const data = await safeFetchJson(`/api/companies?${params}`, {
+          cache: 'no-store'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        });
+        
+        if (data.success) {
+          const companiesData = data.data?.data || [];
+          console.log('[DEBUG] Setting companies after reset:', companiesData.length, 'items');
+          // Sort by created_at DESC to show newly registered company at the top
+          const sortedData = Array.isArray(companiesData) 
+            ? [...companiesData].sort((a, b) => {
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                return dateB - dateA; // DESC order
+              })
+            : [];
+          setCompanies(sortedData);
+        }
       } else {
         console.error('[DEBUG] Save failed:', responseData);
         error('저장 실패', responseData.error || '저장에 실패했습니다.');
@@ -297,43 +329,43 @@ export default function CompaniesPage() {
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">고객사 및 공급사 정보를 관리합니다</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden md:flex flex-nowrap gap-2 items-end overflow-x-auto pb-1">
             <PrintButton
               data={printableCompanies}
               columns={printColumns}
               title="거래처 목록"
               subtitle={selectedType ? getTypeLabel(selectedType) : undefined}
               orientation="portrait"
-              className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
+              className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white whitespace-nowrap text-xs px-2 py-1 flex items-center gap-1 flex-shrink-0"
             />
             <button
               onClick={handleTemplateDownload}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
+              className="flex items-center gap-1 px-2 py-1 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs whitespace-nowrap flex-shrink-0"
             >
-              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">템플릿 다운로드</span>
-              <span className="sm:hidden">템플릿</span>
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">템플릿 다운로드</span>
+              <span className="xl:hidden">템플릿</span>
             </button>
             <CompaniesExportButton
               companies={filteredCompanies}
               filtered={searchTerm !== '' || selectedType !== ''}
-              className="text-sm sm:text-base"
+              className="text-xs px-2 py-1 flex-shrink-0"
             />
             <button
               onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
+              className="flex items-center gap-1 px-2 py-1 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs whitespace-nowrap flex-shrink-0"
             >
-              <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">엑셀 업로드</span>
-              <span className="sm:hidden">업로드</span>
+              <Upload className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">엑셀 업로드</span>
+              <span className="xl:hidden">업로드</span>
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
             >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">거래처 등록</span>
-              <span className="sm:hidden">등록</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">거래처 등록</span>
+              <span className="lg:hidden">등록</span>
             </button>
           </div>
         </div>
@@ -363,20 +395,20 @@ export default function CompaniesPage() {
               />
             </div>
           </div>
-          <div className={`flex gap-2 ${showFilters || 'hidden'} sm:flex`}>
+          <div className={`flex gap-2 ${showFilters ? 'flex' : 'hidden'} sm:flex`}>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
+              className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 flex-shrink-0 whitespace-nowrap min-w-[100px] max-w-[120px] sm:min-w-[120px] sm:max-w-[140px]"
             >
               <option value="">전체 타입</option>
               {companyTypes.map(type => (
                 <option key={type.value} value={type.value}>{type.label}</option>
               ))}
             </select>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              <Filter className="w-5 h-5" />
-              필터
+            <button className="flex items-center gap-1 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 flex-shrink-0 text-xs font-medium transition-colors text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
+              <Filter className="w-4 h-4" />
+              <span className="hidden lg:inline">필터</span>
             </button>
           </div>
         </div>
@@ -411,37 +443,37 @@ export default function CompaniesPage() {
         </div>
 
         <div className="overflow-x-auto -mx-2 sm:mx-0">
-          <table className={`w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700 ${viewMode === 'card' ? 'hidden' : 'table'}`}>
+          <table className={`w-full divide-y divide-gray-200 dark:divide-gray-700 ${viewMode === 'card' ? 'hidden' : 'table'}`}>
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   거래처명
                 </th>
-                <th className="w-[100px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   타입
                 </th>
-                <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   사업자번호
                 </th>
-                <th className="w-[100px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   담당자
                 </th>
-                <th className="w-[140px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   연락처
                 </th>
-                <th className="w-[120px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   팩스
                 </th>
-                <th className="w-[200px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   이메일
                 </th>
-                <th className="w-[250px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   주소
                 </th>
-                <th className="w-[90px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   결제조건
                 </th>
-                <th className="w-[90px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   작업
                 </th>
               </tr>

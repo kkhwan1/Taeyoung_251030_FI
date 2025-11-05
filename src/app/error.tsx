@@ -13,23 +13,29 @@ interface ErrorBoundaryProps {
 
 export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
   useEffect(() => {
-    // 에러 로깅 (실제 환경에서는 Sentry, LogRocket 등 사용)
-    console.error('Application Error:', {
-      message: error.message,
-      stack: error.stack,
-      digest: error.digest,
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      url: window.location.href
-    });
+    // 에러 로깅 (클라이언트에서만 실행)
+    if (typeof window !== 'undefined') {
+      console.error('Application Error:', {
+        message: error.message,
+        stack: error.stack,
+        digest: error.digest,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      });
+    }
   }, [error]);
 
   const handleGoHome = () => {
-    window.location.href = '/';
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
   const handleRefresh = () => {
-    window.location.reload();
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   };
 
   return (

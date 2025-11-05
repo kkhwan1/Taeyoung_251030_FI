@@ -1,0 +1,486 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import React from 'react';
+import dynamic from 'next/dynamic';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight
+} from 'lucide-react';
+import { TableSkeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/contexts/ToastContext';
+import { useConfirm } from '@/hooks/useConfirm';
+
+const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
+const InvoiceForm = dynamic(() => import('@/components/invoices/InvoiceForm'), { ssr: false });
+const InvoiceItemGrid = dynamic(() => import('@/components/InvoiceItemGrid'), { ssr: false });
+import type { InvoiceItem } from '@/components/InvoiceItemGrid';
+
+type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';
+
+type Invoice = {
+  transaction_id: number;
+  transaction_date: string;
+  transaction_no: string;
+  customer_id: number;
+  total_amount: number;
+  payment_method: string;
+  payment_status?: PaymentStatus;
+  payment_due_date?: string;
+  notes?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  customer?: {
+    company_id: number;
+    company_name: string;
+    company_code: string;
+  };
+  items?: Array<{
+    invoice_item_id: number;
+    item_id: number;
+    quantity: number;
+    unit_price: number;
+    total_amount: number;
+    item?: {
+      item_code: string;
+      item_name: string;
+      unit?: string;
+      spec?: string;
+    };
+  }>;
+};
+
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'PENDING', label: '대기', color: 'text-yellow-600' },
+  { value: 'PARTIAL', label: '부분', color: 'text-blue-600' },
+  { value: 'COMPLETE', label: '완료', color: 'text-green-600' }
+];
+
+export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<PaymentStatus | ''>('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<number>>(new Set());
+
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+
+  // 계산서 확장/축소 토글
+  const toggleExpand = (invoiceId: number) => {
+    setExpandedInvoices(prev => {
+      const next = new Set(prev);
+      if (next.has(invoiceId)) {
+        next.delete(invoiceId);
+      } else {
+        next.add(invoiceId);
+      }
+      return next;
+    });
+  };
+
+  // API items 데이터를 InvoiceItem 형식으로 변환
+  const convertItemsToInvoiceItems = (items?: Invoice['items']): InvoiceItem[] => {
+    if (!items || items.length === 0) return [];
+    
+    return items.map((item) => ({
+      invoice_item_id: item.invoice_item_id,
+      item_id: item.item_id,
+      item_code: item.item?.item_code || '',
+      item_name: item.item?.item_name || '',
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_amount: item.total_amount,
+      unit: item.item?.unit || '',
+      spec: item.item?.spec || ''
+    }));
+  };
+
+  // 계산서 목록 조회
+  const fetchInvoices = async () => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (filterStatus) params.append('payment_status', filterStatus);
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/invoices?${params}`, {}, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+
+      if (result.success) {
+        setInvoices(result.data || []);
+      } else {
+        showToast(result.error || '계산서 조회 실패', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      showToast('계산서 조회 중 오류가 발생했습니다', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [searchTerm, filterStatus, startDate, endDate]);
+
+  // 계산서 추가
+  const handleAdd = () => {
+    setSelectedInvoice(null);
+    setIsFormOpen(true);
+  };
+
+  // 계산서 수정
+  const handleEdit = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsFormOpen(true);
+  };
+
+  // 계산서 삭제
+  const handleDelete = async (invoice: Invoice) => {
+    const confirmed = await confirm({
+      title: '계산서 삭제',
+      message: `계산서 ${invoice.transaction_no}를 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      cancelText: '취소'
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/invoices/${invoice.transaction_id}`, {
+        method: 'DELETE',
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+
+      if (result.success) {
+        showToast('계산서가 삭제되었습니다', 'success');
+        fetchInvoices();
+      } else {
+        showToast(result.error || '삭제 실패', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      showToast('삭제 중 오류가 발생했습니다', 'error');
+    }
+  };
+
+  // 폼 저장
+  const handleSaveInvoice = async (data: any) => {
+    try {
+      const url = selectedInvoice
+        ? `/api/invoices/${selectedInvoice.transaction_id}`
+        : '/api/invoices';
+
+      const method = selectedInvoice ? 'PUT' : 'POST';
+
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+
+      if (result.success) {
+        showToast(
+          selectedInvoice ? '계산서가 수정되었습니다' : '계산서가 등록되었습니다',
+          'success'
+        );
+        setIsFormOpen(false);
+        fetchInvoices();
+      } else {
+        showToast(result.error || '저장 실패', 'error');
+      }
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      showToast('저장 중 오류가 발생했습니다', 'error');
+    }
+  };
+
+  // 결제 상태별 색상
+  const getPaymentStatusColor = (status?: PaymentStatus) => {
+    const option = PAYMENT_STATUS_OPTIONS.find(opt => opt.value === status);
+    return option?.color || 'text-gray-600';
+  };
+
+  // 결제 상태 라벨
+  const getPaymentStatusLabel = (status?: PaymentStatus) => {
+    const option = PAYMENT_STATUS_OPTIONS.find(opt => opt.value === status);
+    return option?.label || '-';
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 헤더 */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3">
+          <FileText className="w-6 h-6 text-blue-600" />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">계산서 관리</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              다중 품목 계산서 및 복합 결제 관리
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 필터 및 검색 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-6 mb-6">
+        {/* 모바일 필터 토글 버튼 */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="sm:hidden flex items-center justify-between w-full mb-3 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        >
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">필터</span>
+          {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {/* 필터 콘텐츠 */}
+        <div className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* 검색 */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="계산서 번호, 고객사 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* 결제 상태 필터 */}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as PaymentStatus | '')}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">전체 상태</option>
+              {PAYMENT_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            {/* 시작일 */}
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+
+            {/* 종료일 */}
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handleAdd}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              계산서 등록
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 테이블 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <TableSkeleton />
+          ) : (
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
+                    {/* 확장 아이콘 컬럼 */}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    계산서일자
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    계산서번호
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    고객사
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    품목 수
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    총액
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    결제방법
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    결제상태
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    작업
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                      등록된 계산서가 없습니다
+                    </td>
+                  </tr>
+                ) : (
+                  invoices.map((invoice) => {
+                    const isExpanded = expandedInvoices.has(invoice.transaction_id);
+                    return (
+                      <React.Fragment key={invoice.transaction_id}>
+                        <tr 
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                          onClick={() => toggleExpand(invoice.transaction_id)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(invoice.transaction_id);
+                              }}
+                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="w-5 h-5" />
+                              ) : (
+                                <ChevronRight className="w-5 h-5" />
+                              )}
+                            </button>
+                          </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {invoice.transaction_date}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {invoice.transaction_no}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {invoice.customer?.company_name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-gray-100">
+                        {invoice.items?.length || 0}개
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-gray-100">
+                        {invoice.total_amount.toLocaleString('ko-KR')}원
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-gray-100">
+                        {invoice.payment_method === 'COMPOUND' ? (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                            복합결제
+                          </span>
+                        ) : (
+                          <span className="text-gray-600">{invoice.payment_method}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`font-medium ${getPaymentStatusColor(invoice.payment_status)}`}>
+                          {getPaymentStatusLabel(invoice.payment_status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(invoice);
+                            }}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="수정"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(invoice);
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && invoice.items && invoice.items.length > 0 && (
+                      <tr key={`${invoice.transaction_id}-details`} className="bg-gray-50 dark:bg-gray-800/50">
+                        <td colSpan={9} className="px-6 py-4">
+                          <div className="transition-all duration-300 ease-in-out">
+                            <div className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                              품목 상세 내역
+                            </div>
+                            <InvoiceItemGrid
+                              items={convertItemsToInvoiceItems(invoice.items)}
+                              onItemsChange={() => {}}
+                              readOnly={true}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* 계산서 폼 모달 */}
+      <Modal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        title={selectedInvoice ? '계산서 수정' : '계산서 등록'}
+        size="xl"
+      >
+        <InvoiceForm
+          invoice={selectedInvoice}
+          onSave={handleSaveInvoice}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </Modal>
+    </div>
+  );
+}

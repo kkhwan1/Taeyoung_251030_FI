@@ -134,7 +134,7 @@ export default function SalesPage() {
 
     try {
       const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const result = await safeFetchJson(`/api/sales?id=${transaction.transaction_id}`, {
+      const result = await safeFetchJson(`/api/sales-transactions?id=${transaction.transaction_id}`, {
         method: 'DELETE',
       }, {
         timeout: 15000,
@@ -158,8 +158,8 @@ export default function SalesPage() {
   const handleSaveTransaction = async (data: Partial<SalesTransaction>) => {
     try {
       const url = selectedTransaction
-        ? `/api/sales?id=${selectedTransaction.transaction_id}`
-        : '/api/sales';
+        ? `/api/sales-transactions/${selectedTransaction.transaction_id}`
+        : '/api/sales-transactions';
 
       const method = selectedTransaction ? 'PUT' : 'POST';
 
@@ -210,9 +210,9 @@ export default function SalesPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">매출 관리</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+      <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">매출 관리</h1>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
           매출 거래 내역을 관리합니다
         </p>
       </div>
@@ -277,11 +277,10 @@ export default function SalesPage() {
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap"
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">매출 등록</span>
-            <span className="sm:hidden">등록</span>
+            <Plus className="w-3.5 h-3.5" />
+            매출 등록
           </button>
         </div>
         </div>
@@ -321,34 +320,34 @@ export default function SalesPage() {
           {isLoading ? (
             <TableSkeleton />
           ) : (
-            <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     거래일자
                   </th>
-                  <th className="w-[130px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     거래번호
                   </th>
-                  <th className="w-[150px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     고객사
                   </th>
-                  <th className="w-[180px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     품목
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     수량
                   </th>
-                  <th className="w-[110px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     단가
                   </th>
-                  <th className="w-[120px] px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     총액
                   </th>
-                  <th className="w-[100px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     수금상태
                   </th>
-                  <th className="w-[90px] px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     작업
                   </th>
                 </tr>
@@ -356,51 +355,77 @@ export default function SalesPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-600 dark:text-gray-400">
                       매출 거래가 없습니다
                     </td>
                   </tr>
                 ) : (
                   filteredTransactions.map((transaction) => (
-                    <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                          {transaction.transaction_date}
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          <div className="flex flex-col">
+                            {(() => {
+                              const date = transaction.created_at || transaction.transaction_date;
+                              const d = new Date(date);
+                              return (
+                                <>
+                                  <span>
+                                    {d.toLocaleDateString('ko-KR', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit'
+                                    }).replace(/\. /g, '.').replace(/\.$/, '')}
+                                  </span>
+                                  {transaction.created_at && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {d.toLocaleTimeString('ko-KR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        hour12: false
+                                      })}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={transaction.transaction_no}>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={transaction.transaction_no}>
                           {transaction.transaction_no}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate" title={transaction.customer?.company_name || '-'}>
+                        <div className="text-sm text-gray-900 dark:text-white truncate" title={transaction.customer?.company_name || '-'}>
                           {transaction.customer?.company_name || '-'}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-gray-900 dark:text-gray-100 truncate" title={transaction.item_name || transaction.item?.item_name || '-'}>
+                        <div className="text-sm text-gray-900 dark:text-white truncate" title={transaction.item_name || transaction.item?.item_name || '-'}>
                           {transaction.item_name || transaction.item?.item_name || '-'}
                         </div>
                         {(transaction.spec || transaction.item?.spec) && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={transaction.spec || transaction.item?.spec}>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 truncate" title={transaction.spec || transaction.item?.spec}>
                             {transaction.spec || transaction.item?.spec}
                           </div>
                         )}
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-right text-gray-900 dark:text-gray-100 truncate">
-                          {transaction.quantity.toLocaleString()}
+                        <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                          {transaction.quantity != null ? transaction.quantity.toLocaleString() : '-'}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-right text-gray-900 dark:text-gray-100 truncate">
-                          {transaction.unit_price.toLocaleString()}
+                        <div className="text-sm text-right text-gray-900 dark:text-white truncate">
+                          {transaction.unit_price != null ? transaction.unit_price.toLocaleString() : '-'}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
-                        <div className="text-sm text-right font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {transaction.total_amount.toLocaleString()}
+                        <div className="text-sm text-right font-medium text-gray-900 dark:text-white truncate">
+                          {transaction.total_amount != null ? transaction.total_amount.toLocaleString() : '-'}
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
@@ -441,7 +466,7 @@ export default function SalesPage() {
             {isLoading ? (
               <div className="text-center py-8">로딩 중...</div>
             ) : filteredTransactions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-600 dark:text-gray-400">
                 매출 거래가 없습니다
               </div>
             ) : (
@@ -449,11 +474,30 @@ export default function SalesPage() {
                 <div key={transaction.transaction_id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                      <div className="font-medium text-sm text-gray-900 dark:text-white">
                         {transaction.transaction_no}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {transaction.transaction_date}
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {(() => {
+                          const date = transaction.created_at || transaction.transaction_date;
+                          const d = new Date(date);
+                          return transaction.created_at
+                            ? `${d.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              }).replace(/\. /g, '.').replace(/\.$/, '')} ${d.toLocaleTimeString('ko-KR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: false
+                              })}`
+                            : d.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                              }).replace(/\. /g, '.').replace(/\.$/, '');
+                        })()}
                       </div>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded ${getPaymentStatusColor(transaction.payment_status)}`}>
@@ -463,19 +507,19 @@ export default function SalesPage() {
                   <div className="text-sm mb-2">
                     <div className="font-medium">{transaction.item_name || transaction.item?.item_name || '-'}</div>
                     {(transaction.spec || transaction.item?.spec) && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{transaction.spec || transaction.item?.spec}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{transaction.spec || transaction.item?.spec}</div>
                     )}
                   </div>
                   <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 mb-2">
                     <span>고객: {transaction.customer?.company_name || '-'}</span>
-                    <span>수량: {transaction.quantity.toLocaleString()}</span>
+                    <span>수량: {transaction.quantity != null ? transaction.quantity.toLocaleString() : '-'}</span>
                   </div>
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      단가: ₩{transaction.unit_price.toLocaleString()}
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      단가: ₩{transaction.unit_price != null ? transaction.unit_price.toLocaleString() : '-'}
                     </span>
                     <span className="font-bold text-gray-900 dark:text-white">
-                      ₩{transaction.total_amount.toLocaleString()}
+                      ₩{transaction.total_amount != null ? transaction.total_amount.toLocaleString() : '-'}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -506,6 +550,7 @@ export default function SalesPage() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         title={selectedTransaction ? '매출 거래 수정' : '매출 거래 등록'}
+        size="lg"
       >
         <SalesTransactionForm
           transaction={selectedTransaction}

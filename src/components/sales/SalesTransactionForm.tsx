@@ -9,7 +9,8 @@ import {
   Hash
 } from 'lucide-react';
 import CompanySelect from '@/components/CompanySelect';
-import ItemSelect from '@/components/ItemSelect';
+import InvoiceItemGrid, { type InvoiceItem } from '@/components/InvoiceItemGrid';
+import PaymentSplitForm, { type PaymentSplit } from '@/components/PaymentSplitForm';
 
 type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';
 
@@ -50,25 +51,13 @@ interface SalesTransactionFormProps {
   onCancel: () => void;
 }
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: 'PENDING', label: '대기', color: 'text-gray-600 dark:text-gray-400' },
-  { value: 'PARTIAL', label: '부분', color: 'text-gray-600 dark:text-gray-400' },
-  { value: 'COMPLETE', label: '완료', color: 'text-gray-600 dark:text-gray-400' }
-];
-
 export default function SalesTransactionForm({ transaction, onSave, onCancel }: SalesTransactionFormProps) {
   const [formData, setFormData] = useState<Partial<SalesTransaction>>({
     transaction_date: new Date().toISOString().split('T')[0],
     customer_id: undefined,
-    item_id: undefined,
-    item_name: '',
-    spec: '',
-    quantity: 1,
-    unit_price: 0,
     supply_amount: 0,
     tax_amount: 0,
     total_amount: 0,
-    payment_status: 'PENDING',
     payment_due_date: '',
     notes: '',
     is_active: true
@@ -77,21 +66,60 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Phase 2: Multi-item invoice and payment splits
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
+
+  // 품목 목록 조회
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await fetch('/api/items?limit=1000');
+        const result = await response.json();
+
+        if (result.success) {
+          // InvoiceItemGrid에서 필요한 형식으로 변환
+          const items = (result.data?.items || []).map((item: any) => ({
+            item_id: item.item_id,
+            item_code: item.item_code || '',
+            item_name: item.item_name || '',
+            unit: item.unit || '',
+            spec: item.spec || '',
+            price: item.unit_price || item.price || 0
+          }));
+          setAvailableItems(items);
+        }
+      } catch (error) {
+        console.error('Error fetching items:', error);
+      }
+    };
+
+    fetchItems();
+  }, []);
+
   useEffect(() => {
     if (transaction) {
       setFormData({
         ...transaction,
         transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0],
         payment_due_date: transaction.payment_due_date || '',
-        payment_status: transaction.payment_status || 'PENDING',
         notes: transaction.notes || ''
       });
+
+      // Phase 2: Load existing invoice items and payment splits
+      if ((transaction as any).invoice_items && Array.isArray((transaction as any).invoice_items)) {
+        setInvoiceItems((transaction as any).invoice_items);
+      }
+      if ((transaction as any).payment_splits && Array.isArray((transaction as any).payment_splits)) {
+        setPaymentSplits((transaction as any).payment_splits);
+      }
     }
   }, [transaction]);
 
-  // 금액 계산
+  // Phase 2: 금액 계산 - 다중 품목 합계
   useEffect(() => {
-    const supplyAmount = (formData.quantity || 0) * (formData.unit_price || 0);
+    const supplyAmount = invoiceItems.reduce((sum, item) => sum + (item.total_amount || 0), 0);
     const taxAmount = supplyAmount * 0.1; // 10% 부가세
     const totalAmount = supplyAmount + taxAmount;
 
@@ -101,7 +129,7 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
       tax_amount: taxAmount,
       total_amount: totalAmount
     }));
-  }, [formData.quantity, formData.unit_price]);
+  }, [invoiceItems]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -123,30 +151,6 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
     }
   };
 
-  const handleItemChange = (item: any) => {
-    if (item) {
-      setFormData(prev => ({
-        ...prev,
-        item_id: item.item_id,
-        item_name: item.item_name,
-        spec: item.spec || '',
-        unit_price: item.unit_price || 0
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        item_id: undefined,
-        item_name: '',
-        spec: '',
-        unit_price: 0
-      }));
-    }
-
-    if (errors.item_id) {
-      setErrors(prev => ({ ...prev, item_id: '' }));
-    }
-  };
-
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -158,16 +162,19 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
       newErrors.customer_id = '고객사를 선택해주세요';
     }
 
-    if (!formData.item_id) {
-      newErrors.item_id = '품목을 선택해주세요';
+    // Phase 2: 다중 품목 검증
+    if (invoiceItems.length === 0) {
+      newErrors.items = '최소 1개 이상의 품목을 추가해주세요';
     }
 
-    if (!formData.quantity || formData.quantity <= 0) {
-      newErrors.quantity = '수량은 0보다 커야 합니다';
-    }
-
-    if (!formData.unit_price || formData.unit_price < 0) {
-      newErrors.unit_price = '단가는 0 이상이어야 합니다';
+    // Phase 2: 결제 분할 검증
+    if (paymentSplits.length === 0) {
+      newErrors.payments = '결제 정보를 입력해주세요';
+    } else {
+      const paymentTotal = paymentSplits.reduce((sum, p) => sum + (p.amount || 0), 0);
+      if (Math.abs(paymentTotal - (formData.total_amount || 0)) > 0.01) {
+        newErrors.payments = `결제 금액 합계(${paymentTotal.toLocaleString('ko-KR')}원)가 총액(${(formData.total_amount || 0).toLocaleString('ko-KR')}원)과 일치하지 않습니다`;
+      }
     }
 
     if (formData.payment_due_date && formData.transaction_date &&
@@ -185,8 +192,21 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
 
     setLoading(true);
     try {
-      // transaction_no는 서버에서 자동 생성되므로 제거
-      const { transaction_no, customer, item, created_at, updated_at, ...dataToSave } = formData as any;
+      // Phase 2: 기본 거래 정보 (단일 품목 필드 제거)
+      const {
+        transaction_no,
+        customer,
+        item,
+        created_at,
+        updated_at,
+        item_id,
+        item_name,
+        spec,
+        quantity,
+        unit_price,
+        payment_status,
+        ...dataToSave
+      } = formData as any;
 
       // 빈 문자열과 null 값을 undefined로 변환
       Object.keys(dataToSave).forEach(key => {
@@ -194,13 +214,15 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
           dataToSave[key] = undefined;
         }
       });
-      
-      // payment_status가 없거나 빈 값이면 'PENDING'으로 설정
-      if (!dataToSave.payment_status) {
-        dataToSave.payment_status = 'PENDING';
-      }
 
-      await onSave(dataToSave);
+      // Phase 2: invoice_items와 payment_splits 추가
+      const completeData = {
+        ...dataToSave,
+        invoice_items: invoiceItems,
+        payment_splits: paymentSplits
+      };
+
+      await onSave(completeData);
     } finally {
       setLoading(false);
     }
@@ -213,20 +235,20 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Calendar className="w-4 h-4 inline mr-2" />
-            거래일자 <span className="text-gray-500">*</span>
+            거래일자 <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
             name="transaction_date"
             value={formData.transaction_date}
             onChange={handleChange}
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.transaction_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.transaction_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
             required
           />
           {errors.transaction_date && (
-            <p className="mt-1 text-sm text-gray-500">{errors.transaction_date}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.transaction_date}</p>
           )}
         </div>
 
@@ -234,7 +256,7 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             <Building2 className="w-4 h-4 inline mr-2" />
-            고객사 <span className="text-gray-500">*</span>
+            고객사 <span className="text-red-500">*</span>
           </label>
           <CompanySelect
             value={formData.customer_id}
@@ -246,96 +268,19 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
           />
         </div>
 
-        {/* 품목 선택 */}
+        {/* Phase 2: 품목 그리드 (다중 품목 지원) */}
         <div className="md:col-span-2">
-          <ItemSelect
-            value={formData.item_id}
-            onChange={handleItemChange}
-            label="품목"
-            placeholder="품목을 검색하여 선택하세요"
-            required={true}
-            showPrice={true}
-            itemType="PRODUCT"
-            className=""
-            error={errors.item_id}
-          />
-        </div>
-
-        {/* 품목명 (읽기 전용) */}
-        {formData.item_name && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              
-              품목명
-            </label>
-            <input
-              type="text"
-              value={formData.item_name}
-              disabled
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300"
-            />
-          </div>
-        )}
-
-        {/* 규격 (읽기 전용) */}
-        {formData.spec && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              
-              규격
-            </label>
-            <input
-              type="text"
-              value={formData.spec}
-              disabled
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300"
-            />
-          </div>
-        )}
-
-        {/* 수량 */}
-        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Hash className="w-4 h-4 inline mr-2" />
-            수량 <span className="text-gray-500">*</span>
+            품목 <span className="text-red-500">*</span>
           </label>
-          <input
-            type="number"
-            name="quantity"
-            value={formData.quantity}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.quantity ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
-            }`}
-            required
+          <InvoiceItemGrid
+            items={invoiceItems}
+            onItemsChange={setInvoiceItems}
+            readOnly={false}
+            availableItems={availableItems}
           />
-          {errors.quantity && (
-            <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
-          )}
-        </div>
-
-        {/* 단가 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            
-            단가 <span className="text-gray-500">*</span>
-          </label>
-          <input
-            type="number"
-            name="unit_price"
-            value={formData.unit_price}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.unit_price ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
-            }`}
-            required
-          />
-          {errors.unit_price && (
-            <p className="mt-1 text-sm text-gray-500">{errors.unit_price}</p>
+          {errors.items && (
+            <p className="mt-1 text-sm text-red-500">{errors.items}</p>
           )}
         </div>
 
@@ -348,7 +293,7 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
             type="text"
             value={`₩ ${(formData.supply_amount || 0).toLocaleString()}`}
             disabled
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
           />
         </div>
 
@@ -361,12 +306,12 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
             type="text"
             value={`₩ ${(formData.tax_amount || 0).toLocaleString()}`}
             disabled
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
           />
         </div>
 
         {/* 총액 (자동 계산) */}
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             총액
           </label>
@@ -374,27 +319,24 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
             type="text"
             value={`₩ ${(formData.total_amount || 0).toLocaleString()}`}
             disabled
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold"
           />
         </div>
 
-        {/* 수금 상태 */}
-        <div>
+        {/* Phase 2: 복합 결제 입력 */}
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            수금 상태
+            결제 정보 <span className="text-red-500">*</span>
           </label>
-          <select
-            name="payment_status"
-            value={formData.payment_status}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {PAYMENT_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <PaymentSplitForm
+            totalAmount={formData.total_amount || 0}
+            onSplitsChange={setPaymentSplits}
+            readOnly={false}
+            initialSplits={paymentSplits.length > 0 ? paymentSplits : undefined}
+          />
+          {errors.payments && (
+            <p className="mt-1 text-sm text-red-500">{errors.payments}</p>
+          )}
         </div>
 
         {/* 납기일 */}
@@ -407,12 +349,12 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
             name="payment_due_date"
             value={formData.payment_due_date}
             onChange={handleChange}
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.payment_due_date ? 'border-gray-500' : 'border-gray-300 dark:border-gray-700'
+            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.payment_due_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {errors.payment_due_date && (
-            <p className="mt-1 text-sm text-gray-500">{errors.payment_due_date}</p>
+            <p className="mt-1 text-sm text-red-500">{errors.payment_due_date}</p>
           )}
         </div>
 
@@ -427,7 +369,7 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
             value={formData.notes ?? ''}
             onChange={handleChange}
             rows={3}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="매출 관련 특이사항이나 메모를 입력하세요"
           />
         </div>
@@ -438,7 +380,7 @@ export default function SalesTransactionForm({ transaction, onSave, onCancel }: 
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         >
           취소
         </button>

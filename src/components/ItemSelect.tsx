@@ -105,12 +105,15 @@ export default function ItemSelect({
 
   // Update search when value changes externally
   useEffect(() => {
-    if (value) {
+    if (value && value > 0) {
       // 먼저 items 배열에서 찾기
       const item = items.find(item => item.item_id === value);
       if (item) {
-        setSelectedItem(item);
-        setSearch(`${item.item_code} - ${item.item_name}`);
+        // 이미 선택된 항목이면 업데이트하지 않음 (사용자 입력 중일 수 있음)
+        if (selectedItem?.item_id !== item.item_id) {
+          setSelectedItem(item);
+          setSearch(`${item.item_code} - ${item.item_name}`);
+        }
       } else if (items.length > 0) {
         // items 배열에 없으면 개별 조회
         fetch(`/api/items/${value}`)
@@ -123,15 +126,21 @@ export default function ItemSelect({
                 item_name: result.data.item_name || result.data.name,
                 unit_price: result.data.unit_price || result.data.price || 0
               };
-              setSelectedItem(itemData);
-              setSearch(`${itemData.item_code} - ${itemData.item_name}`);
+              // 이미 선택된 항목이면 업데이트하지 않음
+              if (selectedItem?.item_id !== itemData.item_id) {
+                setSelectedItem(itemData);
+                setSearch(`${itemData.item_code} - ${itemData.item_name}`);
+              }
             }
           })
           .catch(err => console.error('Failed to fetch item:', err));
       }
-    } else if (!value) {
-      setSelectedItem(null);
-      setSearch('');
+    } else if (!value || value === 0) {
+      // value가 없거나 0이면 초기화 (사용자가 직접 입력 중이 아닐 때만)
+      if (!search || search.trim() === '') {
+        setSelectedItem(null);
+        setSearch('');
+      }
     }
   }, [value, items]);
 
@@ -182,18 +191,18 @@ export default function ItemSelect({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearch = e.target.value;
     setSearch(newSearch);
-
-    // Don't clear selection if search is cleared - keep the selected item
+    
+    // 검색어가 변경되면 선택된 항목 초기화 (새로운 검색을 위해)
+    if (newSearch !== `${selectedItem?.item_code} - ${selectedItem?.item_name}`) {
+      setSelectedItem(null);
+    }
   };
 
   const handleItemSelect = (item: Item) => {
+    setSelectedItem(item);
+    setSearch(`${item.item_code} - ${item.item_name}`);
+    setIsOpen(false);
     onChange(item);
-    // onChange 호출 후 상태 초기화 (깜빡임 방지)
-    setTimeout(() => {
-      setSelectedItem(null);
-      setSearch('');
-      setIsOpen(false);
-    }, 0);
   };
 
   const handleInputFocus = () => {

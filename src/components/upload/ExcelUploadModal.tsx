@@ -26,6 +26,8 @@ interface ExcelUploadModalProps {
   uploadUrl: string;
   title: string;
   onUploadSuccess: () => void;
+  templateUrl?: string; // 템플릿 다운로드 URL (선택적)
+  templateFileName?: string; // 템플릿 파일명 (선택적)
 }
 
 export default function ExcelUploadModal({
@@ -33,7 +35,9 @@ export default function ExcelUploadModal({
   onClose,
   uploadUrl,
   title,
-  onUploadSuccess
+  onUploadSuccess,
+  templateUrl,
+  templateFileName
 }: ExcelUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -41,7 +45,7 @@ export default function ExcelUploadModal({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { success, error: toastError } = useToast();
+  const toast = useToast();
 
   // Allowed file types
   const allowedTypes = [
@@ -139,6 +143,25 @@ export default function ExcelUploadModal({
       setUploadProgress(100);
 
       if (result.success) {
+        // Show detailed success/error message if available
+        const data = result.data || result;
+        const successCount = data.successCount || data.inserted?.length || 0;
+        const errorCount = data.errorCount || data.errors?.length || 0;
+        const totalProcessed = data.totalProcessed || successCount + errorCount;
+        
+        let message = '엑셀 업로드가 완료되었습니다.';
+        if (totalProcessed > 0) {
+          if (errorCount > 0) {
+            message = `${successCount}개 성공, ${errorCount}개 실패 (총 ${totalProcessed}개 처리)`;
+            toast.error('업로드 완료 (일부 실패)', message);
+          } else {
+            message = `${successCount}개 항목이 성공적으로 업로드되었습니다.`;
+            toast.success('업로드 완료', message);
+          }
+        } else {
+          toast.error('업로드 실패', '처리된 항목이 없습니다. 파일 내용을 확인해주세요.');
+        }
+        
         setTimeout(() => {
           resetModal();
           onUploadSuccess();
@@ -146,9 +169,9 @@ export default function ExcelUploadModal({
       } else {
         throw new Error(result.error || '업로드에 실패했습니다.');
       }
-    } catch (err: any) {
+          } catch (err: any) {
       setError(err.message || '업로드 중 오류가 발생했습니다.');
-      toastError('업로드 실패', err.message || '업로드 중 오류가 발생했습니다.');
+      toast.error('업로드 실패', err.message || '업로드 중 오류가 발생했습니다.');
       setUploadProgress(0);
     } finally {
       setIsUploading(false);
@@ -183,9 +206,14 @@ export default function ExcelUploadModal({
 
   const handleTemplateDownload = async () => {
     try {
-      const templateUrl = uploadUrl.replace('/upload/', '/download/template/');
+      // templateUrl이 제공되면 사용, 아니면 기존 로직 사용
+      let templateUrlToUse = templateUrl;
+      if (!templateUrlToUse) {
+        templateUrlToUse = uploadUrl.replace('/upload/', '/download/template/');
+      }
+
       const { safeFetch } = await import('@/lib/fetch-utils');
-      const response = await safeFetch(templateUrl, {}, {
+      const response = await safeFetch(templateUrlToUse, {}, {
         timeout: 30000,
         maxRetries: 2,
         retryDelay: 1000
@@ -200,8 +228,11 @@ export default function ExcelUploadModal({
       const a = document.createElement('a');
       a.href = url;
 
-      // Determine filename based on upload URL
-      const fileName = uploadUrl.includes('items') ? '품목_템플릿.xlsx' : '거래처_템플릿.xlsx';
+      // Determine filename based on templateFileName prop or upload URL
+      const fileName = templateFileName || 
+        (uploadUrl.includes('items') ? '품목_템플릿.xlsx' : 
+         uploadUrl.includes('inventory') ? '재고거래_템플릿.xlsx' :
+         '거래처_템플릿.xlsx');
       a.download = fileName;
 
       document.body.appendChild(a);
@@ -209,9 +240,9 @@ export default function ExcelUploadModal({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      success('템플릿 다운로드 완료', `${fileName}이 다운로드되었습니다.`);
+      toast.success('템플릿 다운로드 완료', `${fileName}이 다운로드되었습니다.`);
     } catch (err: any) {
-      toastError('다운로드 실패', err.message || '템플릿 다운로드에 실패했습니다.');
+      toast.error('다운로드 실패', err.message || '템플릿 다운로드에 실패했습니다.');
     }
   };
 

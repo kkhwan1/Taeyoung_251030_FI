@@ -76,11 +76,12 @@ export const GET = createValidatedRoute(
     );
 
     // 각 품목의 첫 번째(최신) 거래만 저장
+    // created_at을 우선 사용 (시간 정보 포함), 없으면 transaction_date 사용
     const lastTxMap = new Map();
     (lastTransactions || []).forEach((tx: any) => {
       if (!lastTxMap.has(tx.item_id)) {
         lastTxMap.set(tx.item_id, {
-          date: tx.transaction_date || tx.created_at,
+          date: tx.created_at || tx.transaction_date, // created_at 우선 (시간 정보 포함)
           type: tx.transaction_type
         });
       }

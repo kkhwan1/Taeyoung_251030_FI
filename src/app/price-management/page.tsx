@@ -182,7 +182,7 @@ export default function PriceManagementPage() {
     }
     
     return filtered;
-  }, [priceHistory, filters]);
+  }, [priceHistory, filters.showUnsavedOnly, filters.category, filters.search]);
 
   // 페이지네이션 적용된 데이터
   const paginatedData = useMemo(() => {
@@ -486,22 +486,27 @@ export default function PriceManagementPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from_month: prevMonthStr + '-01',
-          to_month: selectedMonth + '-01',
-          created_by: 'admin' // 실제로는 로그인 사용자
+          fromMonth: prevMonthStr + '-01',
+          toMonth: selectedMonth + '-01'
         })
       });
       
       if (response.ok) {
         const result = await response.json();
-        if (result.data.count === 0) {
-          alert(`${prevMonthStr}에 저장된 단가가 없습니다.`);
+        if (result.success) {
+          const copiedCount = result.stats?.copied || 0;
+          if (copiedCount === 0) {
+            alert(`${prevMonthStr}에 저장된 단가가 없거나 모든 항목이 이미 존재합니다.`);
+          } else {
+            alert(`${copiedCount}개 품목의 단가를 복사했습니다.`);
+          }
+          fetchPriceHistory(); // 새로고침
         } else {
-          alert(`${result.data.count}개 품목의 단가를 복사했습니다.`);
+          throw new Error(result.error || '단가 복사 실패');
         }
-        fetchPriceHistory(); // 새로고침
       } else {
-        throw new Error('단가 복사 실패');
+        const errorData = await response.json().catch(() => ({ error: '단가 복사 실패' }));
+        throw new Error(errorData.error || '단가 복사 실패');
       }
     } catch (error) {
       console.error('Copy failed:', error);
@@ -549,7 +554,7 @@ export default function PriceManagementPage() {
             <button
               onClick={fetchPriceHistory}
               disabled={loading}
-              className="px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-muted text-primary-foreground rounded-lg transition-colors"
+              className="px-2 py-1 bg-primary hover:bg-primary/90 disabled:bg-muted text-primary-foreground rounded-lg transition-colors text-xs whitespace-nowrap"
             >
               {loading ? '조회 중...' : '조회'}
             </button>
@@ -605,7 +610,7 @@ export default function PriceManagementPage() {
             <button
               onClick={handleBatchSave}
               disabled={modifiedItems.length === 0 || saving}
-              className={`px-4 py-2 rounded transition-colors ${
+              className={`px-2 py-1 rounded transition-colors text-xs whitespace-nowrap ${
                 modifiedItems.length === 0 || saving
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-gray-800 hover:bg-gray-700 text-white'
@@ -618,7 +623,7 @@ export default function PriceManagementPage() {
             <button
               onClick={handleCopyFromPrevMonth}
               disabled={saving}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:bg-muted text-white rounded-lg transition-colors"
+              className="px-2 py-1 bg-gray-800 hover:bg-gray-700 disabled:bg-muted text-white rounded-lg transition-colors text-xs whitespace-nowrap"
             >
               전월 단가 가져오기
             </button>
@@ -627,20 +632,20 @@ export default function PriceManagementPage() {
           {/* 일괄 조정 섹션 */}
           {selectedItems.size > 0 && (
             <div className="mt-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setBulkAdjustmentMode(!bulkAdjustmentMode)}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
+                  className="px-2 py-1 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors text-xs whitespace-nowrap"
                 >
                   일괄 조정 ({selectedItems.size}개)
                 </button>
                 
                 {bulkAdjustmentMode && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <select
                       value={adjustmentType}
                       onChange={(e) => setAdjustmentType(e.target.value as 'percentage' | 'fixed')}
-                      className="px-3 py-2 border border-input rounded-lg bg-background text-foreground"
+                      className="px-2 py-1 border border-input rounded-lg bg-background text-foreground text-xs"
                     >
                       <option value="percentage">증감률 (%)</option>
                       <option value="fixed">고정금액 (원)</option>
@@ -651,20 +656,20 @@ export default function PriceManagementPage() {
                       value={adjustmentValue}
                       onChange={(e) => setAdjustmentValue(Number(e.target.value))}
                       placeholder={adjustmentType === 'percentage' ? '5' : '1000'}
-                      className="w-24 px-2 py-2 border border-input rounded-lg bg-background text-foreground"
+                      className="w-20 px-2 py-1 border border-input rounded-lg bg-background text-foreground text-xs"
                     />
                     
                     <button
                       onClick={handleBulkAdjust}
                       disabled={saving}
-                      className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-muted transition-colors"
+                      className="px-2 py-1 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-muted transition-colors text-xs whitespace-nowrap"
                     >
                       적용
                     </button>
                     
                     <button
                       onClick={() => setBulkAdjustmentMode(false)}
-                      className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors"
+                      className="px-2 py-1 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors text-xs whitespace-nowrap"
                     >
                       취소
                     </button>
@@ -741,10 +746,10 @@ export default function PriceManagementPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed">
+              <table className="w-full">
                 <thead className="bg-gray-100 dark:bg-gray-800">
                   <tr>
-                    <th className="w-12 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       <input
                         type="checkbox"
                         checked={selectedItems.size === filteredData.length && filteredData.length > 0}
@@ -752,38 +757,42 @@ export default function PriceManagementPage() {
                         className="rounded border-input"
                       />
                     </th>
-                    <th className="w-24 px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       품목코드
                     </th>
-                    <th className="w-36 px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       품목명
                     </th>
-                    <th className="hidden md:table-cell w-32 px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="hidden md:table-cell px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       규격
                     </th>
-                    <th className="w-16 px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       단위
                     </th>
-                    <th className="w-20 px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       분류
                     </th>
-                    <th className="hidden lg:table-cell w-24 px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="hidden lg:table-cell px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       차종
                     </th>
-                    <th className="w-24 px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       현재고
                     </th>
-                    <th className="w-32 px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       단가 (₩)
                     </th>
-                    <th className="w-32 px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       재고금액 (₩)
                     </th>
                     {/* BOM 원가 컬럼 추가 */}
-                    <th className="hidden xl:table-cell w-32 px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="hidden xl:table-cell px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       BOM 원가 (₩)
                     </th>
-                    <th className="w-24 px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    {/* 실제 수익 컬럼 추가 */}
+                    <th className="hidden xl:table-cell px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                      실제 수익 (₩)
+                    </th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       작업
                     </th>
                   </tr>
@@ -884,6 +893,33 @@ export default function PriceManagementPage() {
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
+                      </td>
+                      {/* 실제 수익 컬럼 추가 */}
+                      <td className="hidden xl:table-cell px-2 py-4 whitespace-nowrap text-sm text-right">
+                        {(() => {
+                          const stock = item.item?.current_stock ?? 0;
+                          const unitPrice = item.unit_price || 0;
+                          const bomCost = item.has_bom && item.bom_cost_breakdown 
+                            ? item.bom_cost_breakdown.net_cost 
+                            : (item.bom_cost || 0);
+                          
+                          // 실제 수익 = (단가 - BOM 원가) × 재고수량
+                          // BOM이 없는 경우는 계산하지 않음
+                          if (!item.has_bom || bomCost === 0) {
+                            return <span className="text-muted-foreground">-</span>;
+                          }
+                          
+                          const profit = (unitPrice - bomCost) * stock;
+                          const profitColor = profit >= 0 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400';
+                          
+                          return (
+                            <span className={`font-semibold ${profitColor}`}>
+                              {profit.toLocaleString('ko-KR')}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-2 py-4 whitespace-nowrap text-sm text-center">
                         {editingId === (item.price_history_id || item.item_id) ? (

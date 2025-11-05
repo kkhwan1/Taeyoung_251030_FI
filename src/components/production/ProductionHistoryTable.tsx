@@ -135,9 +135,33 @@ export default function ProductionHistoryTable() {
               {filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.transaction_id}>
                   <TableCell className="text-sm">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      {new Date(transaction.transaction_date).toLocaleDateString('ko-KR')}
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        {(() => {
+                          const date = transaction.created_at || transaction.transaction_date;
+                          const d = new Date(date);
+                          return (
+                            <>
+                              <span>
+                                {d.toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit'
+                                }).replace(/\. /g, '.').replace(/\.$/, '')}
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-1">
+                                {d.toLocaleTimeString('ko-KR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                  hour12: false
+                                })}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>

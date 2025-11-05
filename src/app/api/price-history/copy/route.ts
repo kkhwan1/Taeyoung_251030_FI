@@ -101,6 +101,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         success: true,
         message: '모든 항목이 이미 존재합니다.',
         data: [],
+        stats: {
+          copied: 0,
+          skipped: existingItemIds.size,
+        },
       });
     }
 

@@ -8,12 +8,15 @@ const PaymentCreateSchema = z.object({
   payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD'),
   purchase_transaction_id: z.number().positive('매입 거래 ID는 양수여야 합니다'),
   paid_amount: z.number().positive('지급 금액은 0보다 커야 합니다'),
-  payment_method: z.enum(['CASH', 'TRANSFER', 'CHECK', 'CARD']),
+  payment_method: z.enum(['CASH', 'TRANSFER', 'CHECK', 'CARD', 'BILL']),
   payment_no: z.string().max(50).optional(),
   bank_name: z.string().max(100).optional(),
   account_number: z.string().max(50).optional(),
   check_number: z.string().max(50).optional(),
   card_number: z.string().max(20).optional(),
+  bill_number: z.string().max(50).optional(),
+  bill_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD').optional(),
+  bill_drawer: z.string().max(100).optional(),
   notes: z.string().optional()
 });
 
@@ -174,9 +177,9 @@ export const POST = async (request: NextRequest) => {
     }
 
     // Determine new payment status
-    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+    let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE';
     if (remaining === 0) {
-      newPaymentStatus = 'COMPLETED';
+      newPaymentStatus = 'COMPLETE';
     } else if (remaining < purchaseTx.total_amount) {
       newPaymentStatus = 'PARTIAL';
     } else {
@@ -213,6 +216,9 @@ export const POST = async (request: NextRequest) => {
         account_number: validatedData.account_number,
         check_number: validatedData.check_number,
         card_number: validatedData.card_number,
+        bill_number: validatedData.bill_number,
+        bill_date: validatedData.bill_date,
+        bill_drawer: validatedData.bill_drawer,
         notes: validatedData.notes,
         is_active: true
       })
@@ -230,12 +236,12 @@ export const POST = async (request: NextRequest) => {
     const paymentId = newPayment.payment_id;
 
     // Update purchase transaction using direct Supabase client (matching Collections pattern)
+    // Note: updated_at is auto-updated by trigger, don't set it manually
     const { error: updateError } = await supabaseAdmin
       .from('purchase_transactions')
       .update({
         payment_status: newPaymentStatus,
-        paid_amount: totalPaid,
-        updated_at: new Date().toISOString()
+        paid_amount: totalPaid
       })
       .eq('transaction_id', validatedData.purchase_transaction_id);
 
@@ -403,7 +409,7 @@ export const PUT = async (request: NextRequest) => {
 
       // Determine new payment status
       if (remaining === 0) {
-        newPaymentStatus = 'COMPLETED';
+        newPaymentStatus = 'COMPLETE';
       } else if (remaining < purchaseTx.total_amount) {
         newPaymentStatus = 'PARTIAL';
       } else {
@@ -412,11 +418,11 @@ export const PUT = async (request: NextRequest) => {
     }
 
     // Update payment
+    // Note: updated_at is auto-updated by trigger, don't set it manually
     const { data: updatedPayment, error: updateError } = await supabaseAdmin
       .from('payments')
       .update({
-        ...body,
-        updated_at: new Date().toISOString()
+        ...body
       })
       .eq('payment_id', parseInt(id, 10))
       .select(`
@@ -465,12 +471,12 @@ export const PUT = async (request: NextRequest) => {
         0
       ) || 0;
 
+      // Note: updated_at is auto-updated by trigger, don't set it manually
       const { error: statusError } = await supabaseAdmin
         .from('purchase_transactions')
         .update({
           payment_status: newPaymentStatus,
-          paid_amount: newTotalPaid,
-          updated_at: new Date().toISOString()
+          paid_amount: newTotalPaid
         })
         .eq('transaction_id', originalPayment.purchase_transaction_id);
 
@@ -570,9 +576,9 @@ export const DELETE = async (request: NextRequest) => {
 
       const remaining = purchaseTx.total_amount - totalPaid;
 
-      let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+      let newPaymentStatus: 'PENDING' | 'PARTIAL' | 'COMPLETE';
       if (remaining === 0 && totalPaid > 0) {
-        newPaymentStatus = 'COMPLETED';
+        newPaymentStatus = 'COMPLETE';
       } else if (remaining > 0 && totalPaid > 0) {
         newPaymentStatus = 'PARTIAL';
       } else {

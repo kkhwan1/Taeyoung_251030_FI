@@ -23,12 +23,11 @@ export async function GET(request: NextRequest) {
         business_number,
         representative,
         phone,
-        mobile,
+        fax,
         email,
         address,
         payment_terms,
-        contact_info,
-        notes,
+        description,
         is_active,
         created_at,
         updated_at
@@ -69,12 +68,11 @@ export async function GET(request: NextRequest) {
       "사업자번호": company.business_number,
       "대표자": company.representative,
       "전화번호": company.phone,
-      "휴대폰": company.mobile,
+      "팩스": company.fax,
       "이메일": company.email,
       "주소": company.address,
       "결제조건": company.payment_terms,
-      "연락처정보": company.contact_info,
-      "비고": company.notes,
+      "비고": company.description,
       "상태": company.is_active ? '활성' : '비활성',
       "등록일시": new Date(company.created_at).toLocaleString('ko-KR'),
       "수정일시": new Date(company.updated_at).toLocaleString('ko-KR')
@@ -90,13 +88,12 @@ export async function GET(request: NextRequest) {
       { wch: 25 }, // 회사명
       { wch: 10 }, // 회사구분
       { wch: 15 }, // 사업자번호
-      { wch: 15 }, // 담당자
+      { wch: 15 }, // 대표자
       { wch: 15 }, // 전화번호
-      { wch: 15 }, // 휴대폰
+      { wch: 15 }, // 팩스
       { wch: 25 }, // 이메일
       { wch: 30 }, // 주소
       { wch: 15 }, // 결제조건
-      { wch: 20 }, // 연락처정보
       { wch: 25 }, // 비고
       { wch: 10 }, // 상태
       { wch: 18 }, // 등록일시
@@ -119,9 +116,13 @@ export async function GET(request: NextRequest) {
     const metadataSheet = XLSX.utils.aoa_to_sheet(metadataRows);
     metadataSheet['!cols'] = [{ wch: 15 }, { wch: 25 }];
 
-    // Add summary statistics
-    const customerCount = companies.filter((c: any) => c['회사구분'] === '고객사').length;
-    const supplierCount = companies.filter((c: any) => c['회사구분'] === '공급사').length;
+    // Add summary statistics (use original companies data for filtering)
+    const customerCount = companies.filter((c: any) => 
+      c.company_type === 'CUSTOMER' || c.company_type === '고객사'
+    ).length;
+    const supplierCount = companies.filter((c: any) => 
+      c.company_type === 'SUPPLIER' || c.company_type === '공급사'
+    ).length;
 
     const statsRows = [
       ['통계 정보', ''],
@@ -130,8 +131,8 @@ export async function GET(request: NextRequest) {
       ['공급사 수', supplierCount],
       ['기타', companies.length - customerCount - supplierCount],
       ['', ''],
-      ['활성 회사', companies.filter((c: any) => c['상태'] === '활성').length],
-      ['비활성 회사', companies.filter((c: any) => c['상태'] === '비활성').length]
+      ['활성 회사', companies.filter((c: any) => c.is_active).length],
+      ['비활성 회사', companies.filter((c: any) => !c.is_active).length]
     ];
 
     const statsSheet = XLSX.utils.aoa_to_sheet(statsRows);

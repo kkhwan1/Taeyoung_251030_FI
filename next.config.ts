@@ -2,8 +2,19 @@ import type { NextConfig } from "next";
 import type { Configuration } from 'webpack';
 
 const nextConfig: NextConfig = {
+  // Remove output mode to allow default server rendering
+  // output: 'standalone',  // DISABLED - causes static generation errors
+
   // Disable React Strict Mode to fix Hydration Mismatch issues
   reactStrictMode: false,
+
+  // Skip trailing slash redirect to avoid Pages Router compatibility layer
+  skipTrailingSlashRedirect: true,
+
+  // Disable static generation for error pages to avoid Pages Router hooks
+  generateBuildId: async () => {
+    return 'custom-build-id';
+  },
 
   // ESLint configuration
   eslint: {
@@ -68,8 +79,6 @@ const nextConfig: NextConfig = {
   experimental: {
     // Enable modern bundling optimizations
     optimizePackageImports: ['lucide-react', 'recharts'],
-    // 파일 감시 안정성 개선
-    serverComponentsExternalPackages: [],
     // Turbopack 설정
     turbo: {
       rules: {
@@ -79,6 +88,10 @@ const nextConfig: NextConfig = {
         },
       },
     },
+    // Disable static page generation for error routes
+    appDir: true,
+    // Force dynamic rendering for all routes
+    staticPageGenerationTimeout: 0,
   },
 
   // Webpack configuration for development
@@ -99,9 +112,6 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-
-  // Output configuration
-  // output: 'standalone',
 
   // Resolve workspace root warning
   outputFileTracingRoot: __dirname,

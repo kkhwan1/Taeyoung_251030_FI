@@ -654,7 +654,7 @@ function FormField({ label, name, value, onChange, error, placeholder, required 
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        {label} {required && <span className="text-gray-500">*</span>}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
         type="text"
@@ -664,7 +664,7 @@ function FormField({ label, name, value, onChange, error, placeholder, required 
         placeholder={placeholder}
         className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );
 }
@@ -698,7 +698,7 @@ function FormNumber({ label, name, value, onChange, error, placeholder, min, ste
         />
       </div>
       {helperText && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{helperText}</p>}
-      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );
 }
@@ -718,7 +718,7 @@ function FormSelect({ label, name, value, onChange, options, placeholder, error,
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        {label} {required && <span className="text-gray-500">*</span>}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <select
         name={name}
@@ -733,7 +733,7 @@ function FormSelect({ label, name, value, onChange, options, placeholder, error,
           </option>
         ))}
       </select>
-      {error && <p className="mt-1 text-sm text-gray-500">{error}</p>}
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );
 }

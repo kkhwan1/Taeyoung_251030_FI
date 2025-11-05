@@ -20,15 +20,28 @@ export default function Modal({
 }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
+      const previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
 
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+      return () => {
+        document.body.style.overflow = previousOverflow;
+      };
+    }
   }, [isOpen]);
+
+  // ESC key handler
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey);
+      return () => document.removeEventListener('keydown', handleEscKey);
+    }
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -41,27 +54,41 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-          onClick={onClose}
-        />
+      {/* Backdrop - explicit z-index 1, aria-hidden */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+        style={{ zIndex: 1 }}
+      />
 
-        {/* Modal */}
+      {/* Modal Container - z-index 10, pointer-events control */}
+      <div
+        className="flex min-h-full items-center justify-center p-4 pointer-events-none"
+        style={{ position: 'relative', zIndex: 10 }}
+      >
+        {/* Modal Content - pointer-events restored, propagation stopped */}
         <div
-          className={`relative bg-white dark:bg-gray-900 rounded-lg shadow-sm w-full ${sizeClasses[size]} transform transition-all`}
+          className={`relative bg-white dark:bg-gray-900 rounded-lg shadow-sm w-full ${sizeClasses[size]} transform transition-all pointer-events-auto`}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? "modal-title" : undefined}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
             {title && (
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2
+                id="modal-title"
+                className="text-xl font-semibold text-gray-900 dark:text-white"
+              >
                 {title}
               </h2>
             )}
             <button
               onClick={onClose}
               className="ml-auto text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+              aria-label="Close modal"
             >
               <X className="w-6 h-6" />
             </button>

@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       "매출금액": collection.sales_transaction?.total_amount || 0,
       "수금상태": collection.sales_transaction?.payment_status === 'PENDING' ? '미수금' :
                  collection.sales_transaction?.payment_status === 'PARTIAL' ? '부분수금' :
-                 collection.sales_transaction?.payment_status === 'COMPLETED' ? '완료' : '',
+                 collection.sales_transaction?.payment_status === 'COMPLETE' ? '완료' : '',
       "등록일시": new Date(collection.created_at).toLocaleString('ko-KR'),
       "수정일시": new Date(collection.updated_at).toLocaleString('ko-KR')
     })) || [];

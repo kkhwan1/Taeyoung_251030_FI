@@ -78,7 +78,15 @@ const menuItems: MenuItem[] = [
         id: 'out',
         title: '출고관리',
         href: '/inventory?tab=shipping'
-      }
+      },
+      // 배치 등록 기능 (일시 비활성화)
+      // 생산관리 탭으로 충분하여 메뉴에서 숨김 처리
+      // 재활성화 시 아래 주석을 제거하세요
+      // {
+      //   id: 'batch-registration',
+      //   title: '배치 등록',
+      //   href: '/batch-registration'
+      // }
     ]
   },
   {
@@ -99,6 +107,17 @@ const menuItems: MenuItem[] = [
         id: 'reports',
         title: '재고보고서',
         href: '/stock/reports'
+      }
+    ]
+  },
+  {
+    id: 'process',
+    title: '공정관리',
+    children: [
+      {
+        id: 'process-operations',
+        title: '공정 작업',
+        href: '/process'
       }
     ]
   },
@@ -163,7 +182,7 @@ const menuItems: MenuItem[] = [
 
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['dashboard', 'master', 'inventory', 'stock', 'accounting', 'monitoring']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['dashboard', 'master', 'inventory', 'stock', 'process', 'accounting', 'monitoring']);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {

@@ -156,6 +156,15 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         apiData.reference_number = apiData.reference_no;
         delete apiData.reference_no;
       }
+      
+      // Include selectedProduct for unit_price extraction
+      if (selectedProduct) {
+        apiData.selectedProduct = {
+          item_id: selectedProduct.item_id || selectedProduct.id,
+          price: selectedProduct.price || selectedProduct.unit_price || 0,
+          unit_price: selectedProduct.unit_price || selectedProduct.price || 0
+        };
+      }
 
       // Remove empty optional fields
       Object.keys(apiData).forEach(key => {
