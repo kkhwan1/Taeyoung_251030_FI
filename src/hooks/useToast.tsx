@@ -2,6 +2,7 @@
 
 import { Undo2, ExternalLink, RotateCcw } from 'lucide-react';
 import { useToast as useToastHook, ToastProvider } from '../contexts/ToastContext';
+import type { ToastAction } from '../components/Toast';
 
 // Re-export with original names for easier imports
 export { ToastProvider };
@@ -87,7 +88,7 @@ export const useToastNotification = () => {
     },
 
     // Persistent notifications for critical operations
-    중요알림: (message?: string, actions?: any[]) => context.persistent('warning', '중요 알림', message, actions),
-    시스템오류: (message?: string, actions?: any[]) => context.persistent('error', '시스템 오류', message, actions),
+    중요알림: (message?: string, actions?: ToastAction[]) => context.persistent('warning', '중요 알림', message, actions),
+    시스템오류: (message?: string, actions?: ToastAction[]) => context.persistent('error', '시스템 오류', message, actions),
   };
 };

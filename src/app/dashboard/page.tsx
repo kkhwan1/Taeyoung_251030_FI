@@ -3,6 +3,9 @@
 import React from 'react';
 import { RealTimeDashboard } from '@/components/dashboard/RealTimeDashboard';
 
+// Keep dashboard dynamic for real-time data
+export const dynamic = 'force-dynamic';
+
 export default function Dashboard() {
   return (
     <div className="space-y-12">

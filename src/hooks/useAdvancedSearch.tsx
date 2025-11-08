@@ -62,7 +62,7 @@ export interface SearchPreset {
   id: string;
   name: string;
   description?: string;
-  filters: any;
+  filters: ItemSearchFilters | CompanySearchFilters | BOMSearchFilters | TransactionSearchFilters;
   entityType: 'items' | 'companies' | 'bom' | 'transactions';
   isDefault?: boolean;
   createdAt: Date;

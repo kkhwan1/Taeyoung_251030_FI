@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   // Remove output mode to allow default server rendering
   // output: 'standalone',  // DISABLED - causes static generation errors
 
-  // Disable React Strict Mode to fix Hydration Mismatch issues
-  reactStrictMode: false,
+  // Enable React Strict Mode for better development error detection
+  reactStrictMode: true,
 
   // Skip trailing slash redirect to avoid Pages Router compatibility layer
   skipTrailingSlashRedirect: true,
@@ -18,13 +18,16 @@ const nextConfig: NextConfig = {
 
   // ESLint configuration
   eslint: {
-    // Temporarily ignore ESLint errors during builds
+    // NOTE: Temporarily ignore ESLint errors during builds
+    // TODO: Remove once all linting issues are resolved
     ignoreDuringBuilds: true,
   },
 
   // TypeScript configuration
   typescript: {
-    // Temporarily ignore TypeScript errors during builds
+    // NOTE: Temporarily ignore TypeScript errors during builds
+    // Known issue: Next.js 15 async params type errors (framework-level)
+    // TODO: Remove once Next.js 15 typing issues are resolved
     ignoreBuildErrors: true,
   },
 
@@ -75,11 +78,12 @@ const nextConfig: NextConfig = {
 
   // Bundle analyzer is now integrated in the main webpack config
 
-  // Experimental features
+  // Experimental features (Next.js 15.5.6)
   experimental: {
     // Enable modern bundling optimizations
     optimizePackageImports: ['lucide-react', 'recharts'],
-    // Turbopack 설정
+
+    // Turbopack configuration
     turbo: {
       rules: {
         '*.svg': {
@@ -88,10 +92,9 @@ const nextConfig: NextConfig = {
         },
       },
     },
-    // Disable static page generation for error routes
-    appDir: true,
-    // Force dynamic rendering for all routes
-    staticPageGenerationTimeout: 0,
+
+    // NOTE: appDir removed - always enabled in Next.js 15
+    // NOTE: staticPageGenerationTimeout removed - using default behavior
   },
 
   // Webpack configuration for development

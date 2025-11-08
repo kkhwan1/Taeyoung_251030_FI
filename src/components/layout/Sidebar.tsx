@@ -237,6 +237,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         {item.href ? (
           <Link
             href={item.href}
+            prefetch={true}
             className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium ${
               depth > 0 ? 'pl-12' : ''
             } ${

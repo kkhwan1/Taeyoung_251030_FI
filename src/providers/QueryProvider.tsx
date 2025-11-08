@@ -4,26 +4,58 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-// Create a client with optimized default settings for ERP system
+/**
+ * Enhanced QueryClient Configuration
+ *
+ * Domain-specific staleTime configuration:
+ * - Master Data (items, companies, bom): 5 minutes
+ * - Transactional Data (transactions, inventory): 2 minutes
+ * - Real-time Data (dashboard): 30 seconds with auto-refresh
+ * - Financial Data (accounting): 5 minutes
+ *
+ * Cache Strategy:
+ * - gcTime (garbage collection): 10 minutes (2x staleTime)
+ * - Refetch on window focus: enabled for data consistency
+ * - Retry with exponential backoff: 2 attempts max
+ */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // 5 minutes stale time for ERP data (balance between freshness and performance)
+      // Default staleTime: 5 minutes (master data)
+      // Individual hooks can override with domain-specific values
       staleTime: 5 * 60 * 1000,
-      // 10 minutes cache time
+
+      // Cache garbage collection: 10 minutes
       gcTime: 10 * 60 * 1000,
+
       // Refetch on window focus for data consistency
       refetchOnWindowFocus: true,
+
       // Don't refetch on reconnect to avoid unnecessary requests
       refetchOnReconnect: false,
-      // Retry failed requests 2 times
+
+      // Retry failed requests 2 times with exponential backoff
       retry: 2,
-      // Retry delay with exponential backoff
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+
+      // Network mode: online only (no offline cache)
+      networkMode: 'online',
+
+      // Error handling
+      throwOnError: false,
+
+      // Refetch on mount: only if stale
+      refetchOnMount: 'if-stale',
     },
     mutations: {
-      // Retry mutations once
+      // Retry mutations once (avoid duplicate submissions)
       retry: 1,
+
+      // Network mode: online only
+      networkMode: 'online',
+
+      // Throw on error for mutations (handle in UI)
+      throwOnError: false,
     },
   },
 });

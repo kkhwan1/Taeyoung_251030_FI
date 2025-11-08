@@ -3,7 +3,10 @@
  *
  * Displays key performance indicators for accounting dashboard
  * Supports dark mode and optional trend indicators
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
+
+import { memo } from 'react';
 
 interface KPICardProps {
   /** Card title (e.g., "총 매출", "총 매입") */
@@ -25,7 +28,34 @@ interface KPICardProps {
   };
 }
 
-export default function KPICard({
+/**
+ * Shallow comparison for KPICard props
+ * Compares primitives directly and trend object shallowly
+ */
+function arePropsEqual(prevProps: KPICardProps, nextProps: KPICardProps): boolean {
+  // Compare primitive props
+  if (
+    prevProps.title !== nextProps.title ||
+    prevProps.value !== nextProps.value ||
+    prevProps.icon !== nextProps.icon ||
+    prevProps.color !== nextProps.color
+  ) {
+    return false;
+  }
+
+  // Compare trend object shallowly
+  if (prevProps.trend && nextProps.trend) {
+    return (
+      prevProps.trend.value === nextProps.trend.value &&
+      prevProps.trend.direction === nextProps.trend.direction
+    );
+  }
+
+  // Both undefined or one changed
+  return prevProps.trend === nextProps.trend;
+}
+
+const KPICard = memo(function KPICard({
   title,
   value,
   icon: Icon,
@@ -78,4 +108,6 @@ export default function KPICard({
       </div>
     </div>
   );
-}
+}, arePropsEqual);
+
+export default KPICard;

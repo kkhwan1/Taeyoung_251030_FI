@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import MainLayout from "@/components/layout/MainLayout";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { FontSizeProvider } from "@/contexts/FontSizeContext";
+import { UserProvider } from "@/contexts/UserContext";
+import { FilterProvider } from "@/contexts/FilterContext";
+import { ModalProvider } from "@/contexts/ModalContext";
 import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 import "../styles/print.css";
@@ -22,8 +25,8 @@ export const metadata: Metadata = {
   description: "태창 자동차 부품 제조 ERP 시스템",
 };
 
-// Force dynamic rendering to prevent build-time static generation errors
-export const dynamic = 'force-dynamic';
+// NOTE: force-dynamic removed - implement ISR/SSG on page level instead
+// Only dashboard requires dynamic rendering for real-time data
 export const runtime = 'nodejs';
 
 export default function RootLayout({
@@ -37,11 +40,17 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <FontSizeProvider>
-            <ToastProvider>
-              <MainLayout>{children}</MainLayout>
-            </ToastProvider>
-          </FontSizeProvider>
+          <UserProvider>
+            <FilterProvider>
+              <ModalProvider>
+                <FontSizeProvider>
+                  <ToastProvider>
+                    <MainLayout>{children}</MainLayout>
+                  </ToastProvider>
+                </FontSizeProvider>
+              </ModalProvider>
+            </FilterProvider>
+          </UserProvider>
         </QueryProvider>
       </body>
     </html>

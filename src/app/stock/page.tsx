@@ -65,6 +65,15 @@ export default function StockPage() {
   const [currentPageAdjustment, setCurrentPageAdjustment] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
+  // 실시간 업데이트 간격 설정 (localStorage에서 읽기, 기본값: 5000ms)
+  const [refreshInterval, setRefreshInterval] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('stock-refresh-interval');
+      return saved ? parseInt(saved, 10) : 5000;
+    }
+    return 5000;
+  });
+
   // 거래 내역으로 이동하는 함수
   const handleHistoryRowClick = (history: StockHistory) => {
     // transaction_type에 따라 적절한 탭 결정
@@ -199,8 +208,11 @@ export default function StockPage() {
     return () => clearTimeout(timeoutId);
   }, [activeTab]);
 
-  // 실시간 자동 업데이트 (5초마다) - 백그라운드 업데이트로 화면 깜빡임 방지
+  // 실시간 자동 업데이트 - 백그라운드 업데이트로 화면 깜빡임 방지
   useEffect(() => {
+    // refreshInterval이 0이면 자동 업데이트 비활성화
+    if (refreshInterval === 0) return;
+
     const interval = setInterval(() => {
       if (activeTab === 'current') {
         fetchStockItems(false); // showLoading=false로 깜빡임 방지
@@ -209,10 +221,18 @@ export default function StockPage() {
       } else if (activeTab === 'adjustment') {
         fetchStockHistory(false); // showLoading=false로 깜빡임 방지
       }
-    }, 5000); // 5초마다 업데이트
+    }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [activeTab, refreshInterval]);
+
+  // 새로고침 간격 변경 핸들러
+  const handleRefreshIntervalChange = (interval: number) => {
+    setRefreshInterval(interval);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('stock-refresh-interval', interval.toString());
+    }
+  };
 
   // 카테고리 설정 (실제 데이터베이스 카테고리에 맞게 수정)
   const categoryConfig = useMemo(() => [
@@ -623,6 +643,19 @@ export default function StockPage() {
                 <option value="normal">정상 재고</option>
                 <option value="low">재고 부족</option>
               </select>
+
+              <select
+                value={refreshInterval}
+                onChange={(e) => handleRefreshIntervalChange(Number(e.target.value))}
+                className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+                title="자동 업데이트 간격"
+              >
+                <option value="0">자동 업데이트: Off</option>
+                <option value="3000">자동 업데이트: 3초</option>
+                <option value="5000">자동 업데이트: 5초</option>
+                <option value="10000">자동 업데이트: 10초</option>
+                <option value="30000">자동 업데이트: 30초</option>
+              </select>
             </div>
           </div>
 
@@ -890,6 +923,19 @@ export default function StockPage() {
                 <option value="all">전체</option>
                 <option value="normal">정상 재고</option>
                 <option value="low">재고 부족</option>
+              </select>
+
+              <select
+                value={refreshInterval}
+                onChange={(e) => handleRefreshIntervalChange(Number(e.target.value))}
+                className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+                title="자동 업데이트 간격"
+              >
+                <option value="0">자동 업데이트: Off</option>
+                <option value="3000">자동 업데이트: 3초</option>
+                <option value="5000">자동 업데이트: 5초</option>
+                <option value="10000">자동 업데이트: 10초</option>
+                <option value="30000">자동 업데이트: 30초</option>
               </select>
             </div>
           </div>

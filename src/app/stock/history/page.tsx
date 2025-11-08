@@ -134,12 +134,14 @@ export default function StockHistoryPage() {
     return () => clearInterval(interval);
   }, [dateFrom, dateTo, selectedItem]);
 
-  // Filter history by search term
+  // Filter history by search term (expanded to include reference_number and notes)
   const filteredHistory = stockHistory
     .filter(item =>
       item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.item_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.company_name && item.company_name.toLowerCase().includes(searchTerm.toLowerCase()))
+      (item.company_name && item.company_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.reference_number && item.reference_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .sort((a, b) => {
       const dateA = a.transaction_date || a.created_at;
@@ -351,7 +353,7 @@ export default function StockHistoryPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="품목명, 거래처..."
+                placeholder="품목명, 코드, 거래처, 참조번호, 비고..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400"

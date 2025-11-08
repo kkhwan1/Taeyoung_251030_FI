@@ -54,7 +54,12 @@
       "Skill(systematic-debugging)",
       "Bash(find:*)",
       "Bash(codex exec:*)",
-      "Bash(npm run restart:*)"
+      "Bash(npm run restart:*)",
+      "Skill(codex-claude-loop)",
+      "Bash(npm test:*)",
+      "Skill(subagent-driven-development)",
+      "Bash(npm install:*)",
+      "Bash(NUL)"
     ],
     "deny": [],
     "ask": []

@@ -188,6 +188,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const search = normalizeString(searchParams.get('search'));
     const category = normalizeString(searchParams.get('category'));
+    const itemType = normalizeString(searchParams.get('itemType'));
+    const materialType = normalizeString(searchParams.get('materialType'));
     const vehicleModel = normalizeString(searchParams.get('vehicleModel'));
     const coatingStatus = normalizeString(searchParams.get('coating_status'));
     const minDaily = normalizeInteger(searchParams.get('minDaily'));
@@ -218,6 +220,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (category) {
       query = query.eq('category', category as NonNullable<ItemInsert['category']>);
+    }
+
+    if (itemType) {
+      query = query.eq('item_type', itemType);
+    }
+
+    if (materialType) {
+      query = query.eq('material_type', materialType);
     }
 
     if (vehicleModel) {
@@ -283,6 +293,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (category) {
         countQuery = countQuery.eq('category', category as NonNullable<ItemInsert['category']>);
       }
+      if (itemType) {
+        countQuery = countQuery.eq('item_type', itemType);
+      }
+      if (materialType) {
+        countQuery = countQuery.eq('material_type', materialType);
+      }
       if (vehicleModel) {
         countQuery = countQuery.ilike('vehicle_model', `%${vehicleModel}%`);
       }
@@ -346,7 +362,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       filters: {
         search,
         category,
+        itemType,
+        materialType,
         vehicleModel,
+        coatingStatus,
         minDaily,
         maxDaily,
       },

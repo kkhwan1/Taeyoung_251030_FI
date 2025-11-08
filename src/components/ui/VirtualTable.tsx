@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronUp, ChevronDown, Filter, Search } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
+import { debounce } from '@/lib/utils';
 
 // Column definition interface
 export interface VirtualTableColumn<T = any> {
@@ -71,6 +72,17 @@ export function VirtualTable<T extends Record<string, any>>({
   const [filters, setFilters] = useState<FilterConfig>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Debounced search handler to prevent excessive re-renders
+  const debouncedSetSearchTerm = useMemo(
+    () => debounce((value: string) => setSearchTerm(value), 300),
+    []
+  );
+
+  // Cleanup debounce on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => debouncedSetSearchTerm.cancel();
+  }, [debouncedSetSearchTerm]);
 
   // Create container ref for virtualizer
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -184,8 +196,8 @@ export function VirtualTable<T extends Record<string, any>>({
                   <input
                     type="text"
                     placeholder={searchPlaceholder}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    defaultValue={searchTerm}
+                    onChange={(e) => debouncedSetSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
                   />
                 </div>
