@@ -59,7 +59,9 @@
       "Bash(npm test:*)",
       "Skill(subagent-driven-development)",
       "Bash(npm install:*)",
-      "Bash(NUL)"
+      "Bash(NUL)",
+      "Bash(vercel logs:*)",
+      "Bash(git remote:*)"
     ],
     "deny": [],
     "ask": []

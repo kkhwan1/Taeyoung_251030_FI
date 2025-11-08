@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid Static Generation errors with React hooks
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid Static Generation errors with React hooks
+export const dynamic = 'force-dynamic';
+
 import { useToast } from '@/contexts/ToastContext';
 
 export default function ToastDemoPage() {

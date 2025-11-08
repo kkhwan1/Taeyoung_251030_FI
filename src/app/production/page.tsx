@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid Static Generation errors with React hooks
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import ProductionEntryForm from '@/components/production/ProductionEntryForm';
 import ProductionHistoryTable from '@/components/production/ProductionHistoryTable';

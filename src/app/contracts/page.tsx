@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid Static Generation errors with React hooks
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { FileText, Plus, Search, Edit2, Trash2, Building2, File, Download, X, Calendar, Save, XCircle } from 'lucide-react';

@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid Static Generation errors with React hooks
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { Users, Plus, Search, Edit2, Trash2, Filter, Mail, Phone, Shield } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
