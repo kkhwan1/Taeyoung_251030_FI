@@ -5,9 +5,6 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-
-// Dynamic import to prevent SSR issues
-import dynamic from 'next/dynamic';
 import {
   Plus,
   AlertCircle,

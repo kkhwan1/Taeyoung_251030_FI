@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db-unified';
 import { getDocumentStatusHistory, getDocumentStatusHistoryByNumber, getStatusLabel } from '@/lib/workflow';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/inventory/transactions/[id]/history
  * 문서의 상태 변경 이력을 조회합니다

@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { parsePagination, buildPaginatedResponse } from '@/lib/pagination';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
+
 // 지급 생성 스키마
 const PaymentCreateSchema = z.object({
   payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD'),

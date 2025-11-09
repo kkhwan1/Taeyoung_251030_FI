@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, handleSupabaseError } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/inventory/stock
  * Get current stock levels for all items

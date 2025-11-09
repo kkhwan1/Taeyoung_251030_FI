@@ -15,6 +15,9 @@ import {
   inventoryHeaderMapping
 } from '@/lib/excel-header-mapper';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ entity: string }> }

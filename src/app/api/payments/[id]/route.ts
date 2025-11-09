@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
+
 // 지급 수정 스키마
 const PaymentUpdateSchema = z.object({
   paid_amount: z.number().positive('지급 금액은 0보다 커야 합니다').optional(),

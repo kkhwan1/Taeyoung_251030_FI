@@ -17,6 +17,9 @@ import { getSupabaseClient, handleSupabaseError, createSuccessResponse } from '@
 import { mapExcelHeaders, bomHeaderMapping } from '@/lib/excel-header-mapper';
 import * as XLSX from 'xlsx';
 
+export const dynamic = 'force-dynamic';
+
+
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================

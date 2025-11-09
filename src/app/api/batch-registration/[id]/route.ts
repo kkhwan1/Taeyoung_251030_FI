@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 // ===================================
 // GET /api/batch-registration/[id]
 // 특정 생산 배치 상세 조회

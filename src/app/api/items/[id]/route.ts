@@ -10,6 +10,9 @@ import {
 } from '@/lib/errorHandler';
 import { errorLoggingManager } from '@/lib/errorLogger';
 
+export const dynamic = 'force-dynamic';
+
+
 interface RouteContext {
   params: Promise<{
     id: string;

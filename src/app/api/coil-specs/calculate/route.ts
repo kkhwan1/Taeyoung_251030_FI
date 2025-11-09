@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/coil-specs/calculate
  * Calculate weight and price preview without saving

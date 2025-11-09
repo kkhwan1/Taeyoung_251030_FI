@@ -31,6 +31,9 @@ import { handleError, createSuccessResponse } from '@/lib/errorHandler';
 import { getCurrentMonth } from '@/types/accounting.types';
 import type { MonthlyAccounting, CategoryMonthlySummary } from '@/types/accounting.types';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/accounting/monthly-summary
  * Retrieve monthly accounting summary with category and company breakdowns

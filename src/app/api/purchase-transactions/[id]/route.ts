@@ -9,6 +9,9 @@ import {
   createErrorResponse
 } from '@/lib/validationMiddleware';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/purchase-transactions/[id]
  * Retrieve a single purchase transaction by ID

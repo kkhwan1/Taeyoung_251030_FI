@@ -33,6 +33,9 @@ import { handleError, createSuccessResponse, handleNotFoundError, handleValidati
 import { COMPANY_CATEGORY_VALUES, isValidCompanyCategory } from '@/types/accounting.types';
 import type { BusinessInfo } from '@/types/accounting.types';
 
+export const dynamic = 'force-dynamic';
+
+
 // Company type mapping between Korean (DB) and English (API)
 const companyTypeMap: Record<string, string> = {
   'CUSTOMER': '고객사',

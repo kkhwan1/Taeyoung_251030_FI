@@ -5,6 +5,9 @@ import { APIError, handleAPIError } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/price-history/months?item_id=123&months=2025-10,2025-09,2025-08
  * 특정 품목의 여러 월별 단가 이력 조회

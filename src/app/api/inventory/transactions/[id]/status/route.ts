@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db-unified';
 import { transitDocumentStatus, canTransitTo, getStatusLabel, getNextPossibleStates } from '@/lib/workflow';
 
+export const dynamic = 'force-dynamic';
+
+
 interface StatusTransitionRequest {
   new_status: 'DRAFT' | 'APPROVED' | 'CONFIRMED' | 'CANCELED';
   change_reason?: string;

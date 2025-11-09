@@ -28,6 +28,9 @@ import {
   type CursorPaginationParams
 } from '@/lib/pagination-cursor';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/notifications
  * 사용자 알림 목록 조회 (페이지네이션, 필터링)

@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import {
   Plus,
   Search,
@@ -19,8 +19,8 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 
-const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
-const SalesTransactionForm = dynamic(() => import('@/components/sales/SalesTransactionForm'), { ssr: false });
+const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
+const SalesTransactionForm = dynamicImport(() => import('@/components/sales/SalesTransactionForm'), { ssr: false });
 
 type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';
 

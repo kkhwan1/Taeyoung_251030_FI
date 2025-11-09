@@ -3,6 +3,9 @@ import { errorLoggingManager } from '@/lib/errorLogger';
 import { createSuccessResponse, handleError, handleValidationError } from '@/lib/errorHandler';
 import { ErrorSeverity } from '@/lib/errorHandler';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * 에러 로그 조회 API
  * GET /api/admin/errors

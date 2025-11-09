@@ -16,6 +16,9 @@ import {
   logPortalAccess,
 } from '@/lib/portal-auth';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function POST(request: NextRequest) {
   try {
     // CRITICAL: Use request.text() + JSON.parse() for Korean username support

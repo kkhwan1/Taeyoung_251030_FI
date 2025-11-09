@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { mcp__supabase__execute_sql } from '@/lib/supabase-mcp';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/inventory/production/bom-check
  * Check BOM availability for production

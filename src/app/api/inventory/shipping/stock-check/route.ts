@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // Removed unused imports: db, SupabaseQueryBuilder, handleSupabaseError, createSuccessResponse, getSupabaseClient
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/inventory/shipping/stock-check
  * Check stock availability for shipping multiple items

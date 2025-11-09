@@ -14,6 +14,9 @@ import {
   createPortalResponse,
 } from '@/lib/portal-middleware';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(request: NextRequest): Promise<Response> {
   try {
     // Require authentication (all roles allowed)

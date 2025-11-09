@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/admin/migrate
  *

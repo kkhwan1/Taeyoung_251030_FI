@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import {
   Plus,
   Search,
@@ -35,10 +35,10 @@ import {
   getCoatingStatusColor
 } from '@/lib/constants/coatingStatus';
 
-const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
-const ItemForm = dynamic(() => import('@/components/ItemForm'), { ssr: false });
-const ExcelUploadModal = dynamic(() => import('@/components/upload/ExcelUploadModal'), { ssr: false });
-const ItemDetailModal = dynamic(() => import('@/components/ItemDetailModal').then(mod => ({ default: mod.ItemDetailModal })), { ssr: false });
+const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
+const ItemForm = dynamicImport(() => import('@/components/ItemForm'), { ssr: false });
+const ExcelUploadModal = dynamicImport(() => import('@/components/upload/ExcelUploadModal'), { ssr: false });
+const ItemDetailModal = dynamicImport(() => import('@/components/ItemDetailModal').then(mod => ({ default: mod.ItemDetailModal })), { ssr: false });
 
 type Item = {
   item_id: number;

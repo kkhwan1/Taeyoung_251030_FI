@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
+
 // Note: Uses database views (low_stock_alert_view) - migrated to Supabase MCP
 // Phase 5-2: Supabase execute_sql implementation
 

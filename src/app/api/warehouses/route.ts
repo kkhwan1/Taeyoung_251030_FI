@@ -3,6 +3,9 @@ import { getSupabaseClient } from '@/lib/db-unified';
 import { ERPError, ErrorType, handleError as handleErrorResponse } from '@/lib/errorHandler';
 import type { Database } from '@/types/supabase';
 
+export const dynamic = 'force-dynamic';
+
+
 type WarehouseRow = Database['public']['Tables']['warehouses']['Row'];
 type WarehouseInsert = Database['public']['Tables']['warehouses']['Insert'];
 type WarehouseUpdate = Database['public']['Tables']['warehouses']['Update'];

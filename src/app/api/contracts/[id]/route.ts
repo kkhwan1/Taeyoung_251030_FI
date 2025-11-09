@@ -3,6 +3,9 @@ import { checkPermission } from '@/lib/auth';
 import { validateContract } from '@/lib/contractValidation';
 import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/contracts/[id] - 계약 상세 조회
  */

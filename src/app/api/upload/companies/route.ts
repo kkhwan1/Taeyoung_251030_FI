@@ -5,11 +5,7 @@ import { ExcelCompanyData, ValidationError, UploadResult, VALID_COMPANY_TYPES } 
 import formidable from 'formidable';
 import fs from 'fs';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const dynamic = 'force-dynamic';
 
 // 데이터 유효성 검증
 function validateCompanyData(data: any, rowIndex: number): {company: ExcelCompanyData | null, errors: ValidationError[]} {

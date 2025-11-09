@@ -7,6 +7,9 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { Database } from '@/types/supabase';
 
+export const dynamic = 'force-dynamic';
+
+
 type ItemRow = Database['public']['Tables']['items']['Row'];
 type TransactionRow = Database['public']['Tables']['inventory_transactions']['Row'];
 type TransactionWithItem = TransactionRow & {

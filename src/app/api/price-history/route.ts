@@ -5,6 +5,9 @@ import { getCurrentUser } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/price-history?month=YYYY-MM
  * 월별 단가 이력 조회

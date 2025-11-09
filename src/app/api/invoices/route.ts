@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient, createSuccessResponse, handleSupabaseError } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/invoices
  *

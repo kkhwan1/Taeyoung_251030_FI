@@ -5,6 +5,9 @@ import { calculateTax } from '@/lib/tax';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mcp__supabase__execute_sql } from '@/lib/supabase-mcp';
 
+export const dynamic = 'force-dynamic';
+
+
 export const GET = createValidatedRoute(
   async (request: NextRequest) => {
   try {

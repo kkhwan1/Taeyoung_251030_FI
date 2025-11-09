@@ -7,6 +7,9 @@ import { metricsCollector } from '@/lib/metrics';
 import type { Database, ItemInsert, ItemRow, ItemUpdate } from '@/types/supabase';
 import { type CoatingStatus, normalizeCoatingStatus } from '@/lib/constants/coatingStatus';
 
+export const dynamic = 'force-dynamic';
+
+
 type NormalizedItemPayload = {
   item_code: string;
   item_name: string;

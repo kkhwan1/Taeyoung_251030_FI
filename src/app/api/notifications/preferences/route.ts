@@ -17,6 +17,9 @@ import {
   invalidateUserNotifications
 } from '@/lib/cache-memory';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/notifications/preferences?user_id=1
  * 사용자 알림 설정 조회

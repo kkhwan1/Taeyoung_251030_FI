@@ -4,6 +4,9 @@ import { mcp__supabase__execute_sql } from '@/lib/supabase-mcp';
 import { parsePagination, buildPaginatedResponse } from '@/lib/pagination';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
+
 // 수금 생성 스키마
 const CollectionCreateSchema = z.object({
   collection_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD'),

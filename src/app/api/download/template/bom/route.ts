@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET() {
   try {
     // Create workbook and worksheet

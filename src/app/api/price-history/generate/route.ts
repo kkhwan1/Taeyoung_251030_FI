@@ -3,6 +3,9 @@ import { getSupabaseClient } from '@/lib/db-unified';
 import { getCurrentUser } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/price-history/generate
  * 각 품목에 월별 단가 이력 생성 (테스트용)

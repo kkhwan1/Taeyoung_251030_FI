@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import {
   Plus,
   Search,
@@ -31,8 +31,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 import ProcessStatusBadge from '@/components/process/ProcessStatusBadge';
 
-const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
-const ProcessOperationForm = dynamic(() => import('@/components/process/ProcessOperationForm'), { ssr: false });
+const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
+const ProcessOperationForm = dynamicImport(() => import('@/components/process/ProcessOperationForm'), { ssr: false });
 
 type OperationType = 'BLANKING' | 'PRESS' | 'ASSEMBLY';
 type OperationStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';

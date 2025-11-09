@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * BOM Where-Used API - Recursive Upward Traversal
  *

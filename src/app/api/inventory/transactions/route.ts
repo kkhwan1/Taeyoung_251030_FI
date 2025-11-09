@@ -4,6 +4,9 @@ import { nextSerial, getTransactionPrefix } from '@/lib/serial';
 import { logger } from '@/lib/logger';
 import type { Database } from '@/types/supabase';
 
+export const dynamic = 'force-dynamic';
+
+
 // GET: 재고 이동 목록 조회
 export async function GET(request: NextRequest) {
   const startTime = Date.now();

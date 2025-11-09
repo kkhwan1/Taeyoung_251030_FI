@@ -3,6 +3,9 @@ import { getSupabaseClient } from '@/lib/db-unified';
 import { calculateBatchScrapRevenue } from '@/lib/bom';
 import type { Database } from '@/types/supabase';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/bom
  * List BOM entries with filters

@@ -12,5 +12,8 @@
 import { createRoutes } from '@/lib/api/routeWrapper';
 import { ItemsHandler } from '@/lib/api/handlers';
 
+export const dynamic = 'force-dynamic';
+
+
 const handler = new ItemsHandler();
 export const { GET, POST } = createRoutes(handler, 'items');

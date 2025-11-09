@@ -4,6 +4,9 @@ import { optimizeImage, calculateCompressionRatio } from '@/lib/image-optimizer'
 import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@/lib/db-unified';
 import { createSupabaseBrowserClient } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/images/optimize - 이미지 업로드 및 최적화
  */

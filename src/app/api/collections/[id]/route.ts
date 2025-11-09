@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
+
 // 수금 수정 스키마
 const CollectionUpdateSchema = z.object({
   collected_amount: z.number().positive('수금 금액은 0보다 커야 합니다').optional(),

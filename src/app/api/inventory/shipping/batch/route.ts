@@ -4,6 +4,9 @@ import { APIError, handleAPIError } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
   const endpoint = '/api/inventory/shipping/batch';

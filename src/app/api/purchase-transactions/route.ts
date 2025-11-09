@@ -11,6 +11,9 @@ import {
   getValidatedData
 } from '@/lib/validationMiddleware';
 
+export const dynamic = 'force-dynamic';
+
+
 // Type definitions for purchase transaction
 type PurchaseTransactionRow = {
   transaction_id: number;

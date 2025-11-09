@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
 // Lazy load dashboard component for better initial load performance
-const RealTimeDashboard = dynamic(
+const RealTimeDashboard = dynamicImport(
   () => import('../components/dashboard/RealTimeDashboard').then(m => ({ default: m.RealTimeDashboard })),
   {
     loading: () => (

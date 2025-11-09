@@ -4,6 +4,9 @@ import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 import { COATING_STATUS_LABELS, type CoatingStatus } from '@/lib/constants/coatingStatus';
 
+export const dynamic = 'force-dynamic';
+
+
 const ITEM_TYPE_LABEL: Record<string, string> = {
   RAW: 'RAW',
   SUB: 'SUB',

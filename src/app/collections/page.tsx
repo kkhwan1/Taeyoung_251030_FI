@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import {
   Plus,
   Search,
@@ -21,8 +21,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 import { QuickDateSelector } from '@/components/ui/QuickDateSelector';
 
-const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
-const CollectionForm = dynamic(() => import('@/components/forms/CollectionForm'), { ssr: false });
+const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
+const CollectionForm = dynamicImport(() => import('@/components/forms/CollectionForm'), { ssr: false });
 
 type PaymentMethod = 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD';
 

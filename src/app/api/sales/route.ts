@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
+
 // 판매 거래 생성 스키마
 const SalesTransactionCreateSchema = z.object({
   transaction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식: YYYY-MM-DD'),

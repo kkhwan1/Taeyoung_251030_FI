@@ -12,5 +12,8 @@
 import { createIdRoutes } from '@/lib/api/routeWrapper';
 import { ItemsHandler } from '@/lib/api/handlers';
 
+export const dynamic = 'force-dynamic';
+
+
 const handler = new ItemsHandler();
 export const { GET, PUT, PATCH, DELETE } = createIdRoutes(handler, 'items');

@@ -5,6 +5,9 @@ import { getCurrentUser } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/price-history/batch
  * 단가 이력 일괄 저장

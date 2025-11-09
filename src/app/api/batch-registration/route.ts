@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 // ===================================
 // POST /api/batch-registration
 // 신규 생산 배치 등록 (다중 품목 지원)

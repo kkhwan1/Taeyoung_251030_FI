@@ -1,7 +1,5 @@
-import type { NextConfig } from "next";
-import type { Configuration } from 'webpack';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Remove output mode to allow default server rendering
   // output: 'standalone',  // DISABLED - causes static generation errors
 
@@ -78,32 +76,20 @@ const nextConfig: NextConfig = {
 
   // Bundle analyzer is now integrated in the main webpack config
 
-  // Experimental features (Next.js 15.5.6)
+  // Experimental features (Next.js 14.2.16)
   experimental: {
     // Enable modern bundling optimizations
     optimizePackageImports: ['lucide-react', 'recharts'],
-
-    // Turbopack configuration
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
-
-    // NOTE: appDir removed - always enabled in Next.js 15
-    // NOTE: staticPageGenerationTimeout removed - using default behavior
   },
 
   // Webpack configuration for development
-  webpack: (config: Configuration, { isServer }: { dev: boolean; isServer: boolean }) => {
+  webpack: (config, { isServer }) => {
     // Bundle analyzer integration
     if (process.env.ANALYZE === 'true' && !isServer) {
       // Dynamic import to avoid bundling in production
       import('webpack-bundle-analyzer').then(({ BundleAnalyzerPlugin }) => {
-        config.plugins?.push(
+        if (!config.plugins) config.plugins = [];
+        config.plugins.push(
           new BundleAnalyzerPlugin({
             analyzerMode: 'static',
             reportFilename: '../analyze/client.html',
@@ -121,4 +107,4 @@ const nextConfig: NextConfig = {
 
 };
 
-export default nextConfig;
+module.exports = nextConfig;

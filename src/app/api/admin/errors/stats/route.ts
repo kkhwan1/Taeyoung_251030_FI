@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { errorLoggingManager } from '@/lib/errorLogger';
 import { createSuccessResponse, handleError, handleValidationError } from '@/lib/errorHandler';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * 에러 통계 조회 API
  * GET /api/admin/errors/stats

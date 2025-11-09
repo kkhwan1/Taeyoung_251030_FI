@@ -61,7 +61,8 @@
       "Bash(npm install:*)",
       "Bash(NUL)",
       "Bash(vercel logs:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

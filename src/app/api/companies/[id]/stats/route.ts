@@ -36,6 +36,9 @@ import { getSupabaseClient } from '@/lib/db-unified';
 import { handleError, createSuccessResponse, handleNotFoundError } from '@/lib/errorHandler';
 import type { MonthlyAccounting, BusinessInfo } from '@/types/accounting.types';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/companies/[id]/stats
  * Retrieve monthly statistics for a specific company

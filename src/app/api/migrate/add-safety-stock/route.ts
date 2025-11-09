@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/migrate/add-safety-stock
  * Add safety_stock column to items table

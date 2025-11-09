@@ -19,6 +19,9 @@ import type {
 } from '@/types/process';
 import { validateStatusTransition, calculateEfficiency } from '@/types/process';
 
+export const dynamic = 'force-dynamic';
+
+
 // ============================================================================
 // GET - Retrieve Single Process Operation
 // ============================================================================

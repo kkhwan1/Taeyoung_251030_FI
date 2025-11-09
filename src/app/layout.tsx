@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import MainLayout from "@/components/layout/MainLayout";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { FontSizeProvider } from "@/contexts/FontSizeContext";
@@ -10,13 +10,8 @@ import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 import "../styles/print.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -25,8 +20,8 @@ export const metadata: Metadata = {
   description: "태창 자동차 부품 제조 ERP 시스템",
 };
 
-// NOTE: force-dynamic removed - implement ISR/SSG on page level instead
-// Only dashboard requires dynamic rendering for real-time data
+// Force dynamic rendering for all pages due to client-side contexts
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export default function RootLayout({
@@ -37,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} antialiased`}
       >
         <QueryProvider>
           <UserProvider>

@@ -1,3 +1,6 @@
+
+export const dynamic = 'force-dynamic';
+
 // 간단한 테스트용 API - 환경 변수 확인
 export async function GET() {
   try {

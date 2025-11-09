@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { checkPermission, hashPassword, User } from '@/lib/auth';
 import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/users - 사용자 목록 조회 (manager 이상)
  */

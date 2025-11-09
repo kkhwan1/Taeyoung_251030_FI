@@ -5,11 +5,7 @@ import { ExcelItemData, ValidationError, UploadResult, VALID_ITEM_TYPES, VALID_C
 import formidable from 'formidable';
 import fs from 'fs';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const dynamic = 'force-dynamic';
 
 // 데이터 유효성 검증
 function validateItemData(data: any, rowIndex: number): {item: ExcelItemData | null, errors: ValidationError[]} {

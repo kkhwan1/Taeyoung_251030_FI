@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createValidatedRoute } from '@/lib/validationMiddleware';
 import { getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 interface CurrentStock {
   item_id: number;
   item_code: string;

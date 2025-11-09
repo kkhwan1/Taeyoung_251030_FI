@@ -3,6 +3,9 @@ import { checkPermission } from '@/lib/auth';
 import { uploadDocument, deleteDocument } from '@/lib/storage';
 import { createSuccessResponse, handleSupabaseError, getSupabaseClient } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * GET /api/contracts/[id]/documents - 계약 문서 목록 조회
  */

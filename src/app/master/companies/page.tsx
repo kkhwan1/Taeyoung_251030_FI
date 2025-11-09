@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import { Building2, Plus, Search, Edit2, Trash2, Filter, Phone, Mail, Upload, Download, ChevronDown, ChevronUp, Grid, List } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
@@ -13,7 +13,7 @@ import { CompaniesExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
 
 // Dynamic imports for form components
-const Modal = dynamic(() => import('@/components/Modal'), {
+const Modal = dynamicImport(() => import('@/components/Modal'), {
   loading: () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl">
@@ -27,7 +27,7 @@ const Modal = dynamic(() => import('@/components/Modal'), {
   ssr: false
 });
 
-const CompanyForm = dynamic(() => import('@/components/CompanyForm'), {
+const CompanyForm = dynamicImport(() => import('@/components/CompanyForm'), {
   loading: () => (
     <div className="animate-pulse">
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -44,7 +44,7 @@ const CompanyForm = dynamic(() => import('@/components/CompanyForm'), {
   ssr: false
 });
 
-const ExcelUploadModal = dynamic(() => import('@/components/upload/ExcelUploadModal'), {
+const ExcelUploadModal = dynamicImport(() => import('@/components/upload/ExcelUploadModal'), {
   loading: () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">

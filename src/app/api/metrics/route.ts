@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { metricsCollector } from '@/lib/metrics';
 import { dashboardCache, apiCache, dataCache } from '@/lib/cache';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET() {
   try {
     const metrics = metricsCollector.getMetrics();

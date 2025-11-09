@@ -20,6 +20,9 @@ import type {
 } from '@/types/process';
 import { calculateEfficiency } from '@/types/process';
 
+export const dynamic = 'force-dynamic';
+
+
 // ============================================================================
 // GET - List Process Operations with Filtering
 // ============================================================================

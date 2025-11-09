@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 import * as XLSX from 'xlsx';
 
+export const dynamic = 'force-dynamic';
+
+
 const supabase = getSupabaseClient();
 
 /**

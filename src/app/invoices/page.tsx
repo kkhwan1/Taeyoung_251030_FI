@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import React from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import {
   Plus,
   Search,
@@ -20,9 +20,9 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 
-const Modal = dynamic(() => import('@/components/Modal'), { ssr: false });
-const InvoiceForm = dynamic(() => import('@/components/invoices/InvoiceForm'), { ssr: false });
-const InvoiceItemGrid = dynamic(() => import('@/components/InvoiceItemGrid'), { ssr: false });
+const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
+const InvoiceForm = dynamicImport(() => import('@/components/invoices/InvoiceForm'), { ssr: false });
+const InvoiceItemGrid = dynamicImport(() => import('@/components/InvoiceItemGrid'), { ssr: false });
 import type { InvoiceItem } from '@/components/InvoiceItemGrid';
 
 type PaymentStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE';

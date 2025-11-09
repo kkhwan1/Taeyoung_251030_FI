@@ -8,6 +8,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createValidatedRoute } from '@/lib/validationMiddleware';
 import { calculateKPIs } from '@/utils/chartUtils';
 
+export const dynamic = 'force-dynamic';
+
+
 export const GET = createValidatedRoute(
   async (request: Request) => {
     try {

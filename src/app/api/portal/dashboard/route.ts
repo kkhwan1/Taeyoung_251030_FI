@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 import { PortalSessionWithUser, PortalApiResponse } from '@/types/portal.types';
 
+export const dynamic = 'force-dynamic';
+
+
 const supabase = getSupabaseClient();
 
 /**

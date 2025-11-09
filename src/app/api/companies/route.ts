@@ -4,6 +4,9 @@ import { APIError, handleAPIError, validateRequiredFields } from '@/lib/api-util
 import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
+
 // Company type mapping between Korean (DB) and English (API)
 const companyTypeMap: Record<string, string> = {
   'CUSTOMER': '고객사',

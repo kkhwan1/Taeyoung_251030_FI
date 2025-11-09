@@ -1,3 +1,6 @@
+
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   // 개발 환경에서만 접근 가능
   if (process.env.NODE_ENV !== 'development') {

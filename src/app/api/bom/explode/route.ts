@@ -11,6 +11,9 @@ import {
   type BOMNode
 } from '@/lib/bom';
 
+export const dynamic = 'force-dynamic';
+
+
 interface TreeStats {
   totalItems: number;
   totalCost: number;

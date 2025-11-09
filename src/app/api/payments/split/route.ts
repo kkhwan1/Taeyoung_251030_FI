@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 import { handleSupabaseError, createSuccessResponse } from '@/lib/db-unified';
 
+export const dynamic = 'force-dynamic';
+
+
 /**
  * POST /api/payments/split
  * 결제 분할 정보 저장 API

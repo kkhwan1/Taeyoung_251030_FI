@@ -9,6 +9,9 @@ import {
   LoginRequest,
 } from '@/types/portal.types';
 
+export const dynamic = 'force-dynamic';
+
+
 const supabase = getSupabaseClient();
 
 /**
