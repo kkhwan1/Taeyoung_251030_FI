@@ -6,7 +6,7 @@
 
 import { describe, test, expect, beforeAll } from '@jest/globals';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3009';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 describe('Purchase API Tests', () => {
   let testSupplierId: number;
@@ -14,9 +14,26 @@ describe('Purchase API Tests', () => {
   let testPurchaseId: number;
 
   beforeAll(async () => {
-    // Assume we have supplier ID 1 and item ID 1 from existing data
-    testSupplierId = 1;
-    testItemId = 1;
+    // Dynamically fetch existing supplier and item from database
+    const supplierResponse = await fetch(`${API_URL}/api/companies?company_type=공급사&limit=1`);
+    const supplierData = await supplierResponse.json();
+
+    if (!supplierData.success || !supplierData.data || supplierData.data.length === 0) {
+      throw new Error('테스트용 공급사가 데이터베이스에 없습니다. 공급사를 먼저 생성해주세요.');
+    }
+
+    testSupplierId = supplierData.data[0].company_id;
+
+    const itemResponse = await fetch(`${API_URL}/api/items?limit=1`);
+    const itemData = await itemResponse.json();
+
+    if (!itemData.success || !itemData.data || itemData.data.length === 0) {
+      throw new Error('테스트용 품목이 데이터베이스에 없습니다. 품목을 먼저 생성해주세요.');
+    }
+
+    testItemId = itemData.data[0].item_id;
+
+    console.log(`✅ 테스트 데이터 로드 완료: 공급사 ID ${testSupplierId}, 품목 ID ${testItemId}`);
   });
 
   describe('GET /api/purchases', () => {

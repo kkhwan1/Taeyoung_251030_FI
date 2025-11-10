@@ -1,22 +1,21 @@
+/**
+ * Jest Configuration for Unit Tests
+ * Runs isolated unit tests for utilities and libraries
+ */
 module.exports = {
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   testMatch: [
-    '<rootDir>/src/__tests__/**/*.test.ts',
-    '<rootDir>/src/__tests__/**/*.test.js',
-    '<rootDir>/src/__tests__/**/*.spec.ts',
-    '<rootDir>/src/__tests__/**/*.spec.js'
+    '<rootDir>/src/__tests__/lib/**/*.test.ts',
+    '<rootDir>/src/__tests__/utils/**/*.test.ts',
+    '<rootDir>/src/__tests__/unit/**/*.test.ts'
   ],
   collectCoverageFrom: [
-    'src/**/*.{js,ts}',
+    'src/lib/**/*.{js,ts}',
+    'src/utils/**/*.{js,ts}',
     '!src/**/*.d.ts',
-    '!src/__tests__/**',
-    '!src/app/**/layout.tsx',
-    '!src/app/**/loading.tsx',
-    '!src/app/**/not-found.tsx',
-    '!src/app/**/error.tsx'
+    '!src/__tests__/**'
   ],
-  coverageDirectory: 'coverage',
+  coverageDirectory: 'coverage/unit',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
@@ -31,6 +30,6 @@ module.exports = {
     }]
   },
   moduleFileExtensions: ['js', 'ts', 'tsx', 'json'],
-  testTimeout: 10000,
+  testTimeout: 5000, // 단위 테스트는 짧은 타임아웃
   verbose: true
 };

@@ -89,6 +89,9 @@ export function useFilters() {
   return context;
 }
 
+// Backward compatibility alias
+export { useFilters as useFilter };
+
 // Re-export types
 export type {
   ItemFilters,

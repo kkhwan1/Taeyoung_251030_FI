@@ -231,7 +231,7 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
       // displayName을 안정적으로 생성 (YAxis category로 사용)
       // TransactionDistribution의 "type" 필드와 동일한 역할
       const fullName = item.item_name || item.item_code || '알 수 없음';
-      const displayName = fullName.length > 15
+      const baseDisplayName = fullName.length > 15
         ? `${fullName.substring(0, 12)}...`
         : fullName;
       
@@ -243,8 +243,8 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
         ...item,
         // YAxis category로 사용할 필드 (TransactionDistribution의 "type"과 동일한 역할)
         // "type" 필드로도 추가하여 TransactionDistribution과 완전히 동일하게
-        type: String(displayName).trim(),
-        displayName: String(displayName).trim(),
+        type: String(baseDisplayName).trim(),
+        displayName: String(baseDisplayName).trim(),
         // Bar dataKey로 사용할 값 (TransactionDistribution의 "displayValue"와 동일)
         displayValue: Number(displayValue) || 0,
         // TransactionDistribution과 동일한 필드 구조
@@ -274,6 +274,37 @@ export const TopItemsByValue: React.FC<TopItemsByValueProps> = ({
       }
       
       return processedItem;
+    });
+    
+    // displayName/type 중복 방지
+    const nameCounts = new Map<string, number>();
+    result.forEach((item, index) => {
+      const baseName = item.displayName && item.displayName.trim().length > 0
+        ? item.displayName.trim()
+        : `Item-${item.rank ?? index + 1}`;
+      const existingCount = nameCounts.get(baseName) ?? 0;
+
+      if (existingCount === 0) {
+        nameCounts.set(baseName, 1);
+        item.displayName = baseName;
+        item.type = baseName;
+        return;
+      }
+
+      nameCounts.set(baseName, existingCount + 1);
+
+      const identifier = (item.item_code || item.item_id || String(existingCount + 1)).toString();
+      let suffix = existingCount + 1;
+      let candidate = `${baseName} (${identifier})`.trim();
+
+      while (nameCounts.has(candidate)) {
+        suffix += 1;
+        candidate = `${baseName} (${identifier}-${suffix})`.trim();
+      }
+
+      item.displayName = candidate;
+      item.type = candidate;
+      nameCounts.set(candidate, 1);
     });
     
     // 디버깅: 개발 환경에서만 로그 출력

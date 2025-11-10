@@ -1,9 +1,7 @@
 'use client';
 
-// Force dynamic rendering to avoid Static Generation errors with React hooks
-export const dynamic = 'force-dynamic';
-
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface PriceHistoryItem {
   price_history_id: number | null; // null이면 아직 저장 안됨
@@ -83,26 +81,42 @@ export default function PriceManagementPage() {
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(30);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+
+  // BOM 원가 조회 옵션 (기본값: false = 빠른 로딩)
+  const [includeBomCost, setIncludeBomCost] = useState<boolean>(false);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch price history data
   const fetchPriceHistory = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/price-history?month=${selectedMonth}`);
+      // 서버 사이드 페이지네이션 사용
+      const response = await fetch(
+        `/api/price-history?month=${selectedMonth}&page=${currentPage}&limit=${itemsPerPage}`
+      );
       if (!response.ok) {
         throw new Error(`Failed to fetch price history: ${response.statusText}`);
       }
       const result = await response.json();
       if (result.success) {
         const items = result.data || [];
-        
+
+        // 페이지네이션 메타데이터 저장
+        if (result.pagination) {
+          setTotalCount(result.pagination.totalCount);
+          setTotalPages(result.pagination.totalPages);
+        }
+
         // 1. 모든 item_id 추출
         const itemIds = items.map((item: PriceHistoryItem) => item.item_id);
         
-        // 2. 배치 BOM 원가 조회 (타임아웃 및 에러 처리 개선)
+        // 2. 배치 BOM 원가 조회 (선택적 활성화)
         let bomCostMap: { [key: number]: any } = {};
-        if (itemIds.length > 0) {
+        if (itemIds.length > 0 && includeBomCost) {
           try {
             // 타임아웃 설정: 30초
             const controller = new AbortController();
@@ -165,37 +179,39 @@ export default function PriceManagementPage() {
     }
   };
 
-  // 필터링된 데이터 생성
+  // 서버에서 이미 페이지네이션된 데이터를 사용
+  // 클라이언트 사이드 필터링은 현재 페이지 데이터에만 적용
   const filteredData = useMemo(() => {
     let filtered = priceHistory;
-    
+
     if (filters.showUnsavedOnly) {
       filtered = filtered.filter(item => !item.is_saved);
     }
-    
+
     if (filters.category) {
       filtered = filtered.filter(item => item.item?.category === filters.category);
     }
-    
+
     if (filters.search) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.item?.item_code.toLowerCase().includes(filters.search.toLowerCase()) ||
         item.item?.item_name.toLowerCase().includes(filters.search.toLowerCase())
       );
     }
-    
+
     return filtered;
   }, [priceHistory, filters.showUnsavedOnly, filters.category, filters.search]);
 
-  // 페이지네이션 적용된 데이터
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredData.slice(startIndex, endIndex);
-  }, [filteredData, currentPage, itemsPerPage]);
+  // paginatedData는 이제 filteredData와 동일 (서버가 이미 페이지네이션했으므로)
+  const paginatedData = filteredData;
 
-  // 총 페이지 수
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  // Virtual scrolling setup
+  const rowVirtualizer = useVirtualizer({
+    count: paginatedData.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 64, // estimated row height in pixels
+    overscan: 5, // render 5 extra rows above/below visible area
+  });
 
   // 수정된 품목들
   const modifiedItems = useMemo(() => {
@@ -228,11 +244,11 @@ export default function PriceManagementPage() {
     });
   };
 
-  // Initial load
+  // Initial load and re-fetch on pagination or BOM cost option changes
   useEffect(() => {
     fetchPriceHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth]);
+  }, [selectedMonth, currentPage, itemsPerPage, includeBomCost]);
 
   // Recalculate stats when priceHistory changes
   useEffect(() => {
@@ -580,7 +596,24 @@ export default function PriceManagementPage() {
               />
               <span className="text-sm font-medium text-card-foreground">단가 미입력 품목만 보기</span>
             </label>
-            
+
+            {/* BOM 원가 조회 옵션 */}
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={includeBomCost}
+                onChange={(e) => {
+                  setIncludeBomCost(e.target.checked);
+                  setCurrentPage(1);
+                }}
+                className="rounded border-input"
+              />
+              <span className="text-sm font-medium text-card-foreground">BOM 원가 포함</span>
+              {!includeBomCost && (
+                <span className="text-xs text-muted-foreground">(비활성 시 빠른 로딩)</span>
+              )}
+            </label>
+
             {/* 카테고리 필터 */}
             <select
               value={filters.category}
@@ -749,7 +782,11 @@ export default function PriceManagementPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <div
+                ref={tableContainerRef}
+                className="max-h-[600px] overflow-y-auto"
+              >
+                <table className="w-full">
                 <thead className="bg-gray-100 dark:bg-gray-800">
                   <tr>
                     <th className="py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
@@ -801,15 +838,38 @@ export default function PriceManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-card divide-y divide-border">
-                  {paginatedData.map((item) => (
-                    <tr
-                      key={item.price_history_id || item.item_id}
-                      className={`hover:bg-muted/50 transition-colors ${
-                        !item.is_saved ? 'bg-gray-50 dark:bg-gray-800/50' : ''
-                      } ${
-                        item.is_modified ? 'bg-gray-100 dark:bg-gray-800' : ''
-                      }`}
-                    >
+                  {(() => {
+                    const virtualRows = rowVirtualizer.getVirtualItems();
+                    const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+                    const paddingBottom =
+                      virtualRows.length > 0
+                        ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+                        : 0;
+                    const TOTAL_COLUMNS = 13;
+
+                    return (
+                      <>
+                        {paddingTop > 0 && (
+                          <tr style={{ height: `${paddingTop}px` }}>
+                            <td colSpan={TOTAL_COLUMNS} style={{ padding: 0, border: 0 }} />
+                          </tr>
+                        )}
+                        {virtualRows.map((virtualRow) => {
+                          const item = paginatedData[virtualRow.index];
+                          if (!item) {
+                            return null;
+                          }
+                          return (
+                            <tr
+                              key={item.price_history_id || item.item_id}
+                              data-index={virtualRow.index}
+                              className={`hover:bg-muted/50 transition-colors ${
+                                !item.is_saved ? 'bg-gray-50 dark:bg-gray-800/50' : ''
+                              } ${
+                                item.is_modified ? 'bg-gray-100 dark:bg-gray-800' : ''
+                              }`}
+                              style={{ height: `${virtualRow.size}px` }}
+                            >
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <input
                           type="checkbox"
@@ -952,9 +1012,19 @@ export default function PriceManagementPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                          );
+                        })}
+                        {paddingBottom > 0 && (
+                          <tr style={{ height: `${paddingBottom}px` }}>
+                            <td colSpan={TOTAL_COLUMNS} style={{ padding: 0, border: 0 }} />
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
+              </div>
               
               {/* 페이지네이션 컨트롤 */}
               <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-card">

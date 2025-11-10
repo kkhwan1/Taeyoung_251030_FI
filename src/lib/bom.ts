@@ -329,7 +329,176 @@ export async function getBomTree(
 }
 
 /**
- * 최하위 품목들의 총 원가 계산 (개선된 버전)
+ * 배치 BOM 원가 계산 (N+1 문제 해결)
+ * 모든 필요한 데이터를 한 번에 조회 후 메모리에서 계산
+ * @param conn - DB 연결
+ * @param itemIds - 품목 ID 배열
+ * @param priceMonth - 기준 월 (YYYY-MM-DD 형식)
+ * @returns Map<item_id, cost_info>
+ */
+export async function calculateBatchTotalCost(
+  conn: any,
+  itemIds: number[],
+  priceMonth?: string
+): Promise<Map<number, {
+  material_cost: number;
+  labor_cost: number;
+  overhead_cost: number;
+  scrap_revenue: number;
+  net_cost: number;
+}>> {
+  const result = new Map();
+  const currentMonth = priceMonth || new Date().toISOString().slice(0, 7) + '-01';
+
+  try {
+    if (itemIds.length === 0) return result;
+
+    // 1. 모든 BOM 데이터 한 번에 조회 (재귀 구조 포함)
+    const { data: allBomData } = await conn
+      .from('bom')
+      .select(`
+        bom_id,
+        parent_item_id,
+        child_item_id,
+        quantity_required,
+        labor_cost,
+        child:items!child_item_id (
+          item_id,
+          item_code,
+          item_name,
+          price,
+          scrap_rate,
+          scrap_unit_price,
+          mm_weight
+        )
+      `)
+      .in('parent_item_id', itemIds)
+      .eq('is_active', true);
+
+    if (!allBomData || allBomData.length === 0) {
+      // BOM이 없는 품목들은 0 원가로 설정
+      itemIds.forEach(id => {
+        result.set(id, {
+          material_cost: 0,
+          labor_cost: 0,
+          overhead_cost: 0,
+          scrap_revenue: 0,
+          net_cost: 0
+        });
+      });
+      return result;
+    }
+
+    // 2. 모든 child_item_id 추출 (하위 BOM 조회용)
+    const allChildIds = allBomData.map(bom => bom.child_item_id).filter(Boolean);
+
+    // 3. 모든 월별 단가 한 번에 조회
+    const { data: allPrices } = await conn
+      .from('item_price_history')
+      .select('item_id, unit_price')
+      .in('item_id', allChildIds)
+      .eq('price_month', currentMonth);
+
+    const priceMap = new Map<number, number>();
+    (allPrices || []).forEach((p: any) => {
+      if (!priceMap.has(p.item_id)) {
+        priceMap.set(p.item_id, p.unit_price);
+      }
+    });
+
+    // 4. 하위 BOM 존재 여부 한 번에 조회
+    const { data: subBomData } = await conn
+      .from('bom')
+      .select('parent_item_id')
+      .in('parent_item_id', allChildIds)
+      .eq('is_active', true);
+
+    const hasSubBom = new Set<number>();
+    (subBomData || []).forEach((sb: any) => {
+      hasSubBom.add(sb.parent_item_id);
+    });
+
+    // 5. 하위 BOM이 있는 품목들에 대해 재귀 조회 (한 번만)
+    let subCostsMap = new Map();
+    if (hasSubBom.size > 0) {
+      const subItemIds = Array.from(hasSubBom);
+      subCostsMap = await calculateBatchTotalCost(conn, subItemIds, priceMonth);
+    }
+
+    // 6. 각 품목별 원가 계산 (메모리에서 처리)
+    for (const itemId of itemIds) {
+      const bomItems = allBomData.filter(bom => bom.parent_item_id === itemId);
+
+      let materialCost = 0;
+      let laborCost = 0;
+      let scrapRevenue = 0;
+
+      for (const bomItem of bomItems) {
+        const child = bomItem.child;
+        if (!child) continue;
+
+        const unitPrice = priceMap.get(child.item_id) || child.price || 0;
+        const quantity = bomItem.quantity_required || 0;
+        const laborCostPerItem = bomItem.labor_cost || 0;
+
+        // 재료비 계산
+        materialCost += quantity * unitPrice;
+
+        // 가공비 계산
+        laborCost += quantity * laborCostPerItem;
+
+        // 스크랩 수익 계산
+        const scrapRate = child.scrap_rate || 0;
+        const scrapUnitPrice = child.scrap_unit_price || 0;
+        const mmWeight = child.mm_weight || 0;
+        scrapRevenue += quantity * (scrapRate / 100) * scrapUnitPrice * mmWeight;
+
+        // 하위 BOM 원가 추가
+        if (hasSubBom.has(child.item_id)) {
+          const subCost = subCostsMap.get(child.item_id);
+          if (subCost) {
+            materialCost += quantity * subCost.material_cost;
+            laborCost += quantity * subCost.labor_cost;
+            scrapRevenue += quantity * subCost.scrap_revenue;
+          }
+        }
+      }
+
+      // 간접비 계산
+      const overheadCost = (materialCost + laborCost) * 0.1;
+
+      // 순원가
+      const netCost = materialCost + laborCost + overheadCost - scrapRevenue;
+
+      result.set(itemId, {
+        material_cost: materialCost,
+        labor_cost: laborCost,
+        overhead_cost: overheadCost,
+        scrap_revenue: scrapRevenue,
+        net_cost: netCost
+      });
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('Error calculating batch total cost:', error);
+    // 오류 시 모든 품목 0 원가로 반환
+    itemIds.forEach(id => {
+      result.set(id, {
+        material_cost: 0,
+        labor_cost: 0,
+        overhead_cost: 0,
+        scrap_revenue: 0,
+        net_cost: 0
+      });
+    });
+    return result;
+  }
+}
+
+/**
+ * 최하위 품목들의 총 원가 계산 (기존 버전 - 호환성 유지)
  * @param conn - DB 연결 (supabaseAdmin 사용)
  * @param parentId - 상위 품목 ID
  * @param priceMonth - 기준 월 (YYYY-MM-DD 형식)

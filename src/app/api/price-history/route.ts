@@ -9,11 +9,16 @@ export const dynamic = 'force-dynamic';
 
 
 /**
- * GET /api/price-history?month=YYYY-MM
- * 월별 단가 이력 조회
- * 
- * 모든 활성 품목에 대해 해당 월의 단가 이력을 조회합니다.
+ * GET /api/price-history?month=YYYY-MM&page=1&limit=30
+ * 월별 단가 이력 조회 (서버 사이드 페이지네이션 지원)
+ *
+ * 활성 품목에 대해 해당 월의 단가 이력을 조회합니다.
  * 이미 저장된 단가가 있으면 그것을 반환하고, 없으면 기본값(현재 단가)을 반환합니다.
+ *
+ * Query Parameters:
+ * - month: YYYY-MM (필수)
+ * - page: 페이지 번호 (기본: 1)
+ * - limit: 페이지당 항목 수 (기본: 30)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
@@ -22,15 +27,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // 권한 체크 (관대하게 처리 - 인증만 확인)
     const user = await getCurrentUser(request).catch(() => null);
-    
+
     // 인증되지 않았어도 일단 진행 (권한 체크는 선택적)
     logger.info('Price history GET request', { endpoint });
     const supabase = getSupabaseClient();
     const searchParams = request.nextUrl.searchParams;
     const month = searchParams.get('month');
 
+    // 페이지네이션 파라미터
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '30', 10);
+
     if (!month) {
       throw new APIError('month 파라미터가 필요합니다.', 400);
+    }
+
+    // 페이지네이션 검증
+    if (page < 1 || limit < 1 || limit > 1000) {
+      throw new APIError('page는 1 이상, limit는 1-1000 범위여야 합니다.', 400);
     }
 
     // YYYY-MM 형식 검증 및 DATE 형식으로 변환 (YYYY-MM-01)
@@ -41,36 +55,54 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // DATE 형식으로 변환 (YYYY-MM-01)
     const priceMonthDate = `${month}-01`;
 
-    // 1. 모든 활성 품목 조회
+    // 1. 활성 품목 총 개수 조회
+    const { count: totalCount, error: countError } = await supabase
+      .from('items')
+      .select('item_id', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    if (countError) {
+      throw new APIError('품목 총 개수를 조회하지 못했습니다.', 500, countError.message);
+    }
+
+    // 2. 페이지네이션된 품목 조회
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
     const { data: items, error: itemsError } = await supabase
       .from('items')
       .select('item_id, item_code, item_name, spec, current_stock, price, unit, category, vehicle_model')
       .eq('is_active', true)
-      .order('item_code', { ascending: true });
+      .order('item_code', { ascending: true })
+      .range(from, to);
 
     if (itemsError) {
       throw new APIError('품목 정보를 조회하지 못했습니다.', 500, itemsError.message);
     }
 
-    // 2. 해당 월의 단가 이력 조회 (DATE 형식으로)
+    // 3. 조회된 품목들의 ID 목록 생성
+    const itemIds = (items || []).map(item => item.item_id);
+
+    // 4. 해당 품목들의 단가 이력만 조회 (필터링으로 불필요한 데이터 제거)
     const { data: priceHistory, error: priceError } = await supabase
       .from('item_price_history')
       .select('price_history_id, item_id, price_month, unit_price, note, created_at, updated_at')
-      .eq('price_month', priceMonthDate);
+      .eq('price_month', priceMonthDate)
+      .in('item_id', itemIds.length > 0 ? itemIds : [-1]); // 빈 배열 방지
 
     if (priceError) {
       throw new APIError('단가 이력을 조회하지 못했습니다.', 500, priceError.message);
     }
 
-    // 3. 품목별로 단가 이력 매핑
+    // 5. 품목별로 단가 이력 매핑
     const priceMap = new Map(
       (priceHistory || []).map(ph => [ph.item_id, ph])
     );
 
-    // 4. 모든 품목에 대해 단가 이력 생성 (없으면 기본값 사용)
+    // 6. 페이지네이션된 품목에 대해 단가 이력 생성
     const result = (items || []).map(item => {
       const history = priceMap.get(item.item_id);
-      
+
       return {
         price_history_id: history?.price_history_id || null,
         item_id: item.item_id,
@@ -95,12 +127,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     const duration = Date.now() - startTime;
+    const totalPages = Math.ceil((totalCount || 0) / limit);
+
     metricsCollector.trackRequest(endpoint, duration, false);
-    logger.info('Price history GET success', { endpoint, duration, itemCount: result.length, month });
+    logger.info('Price history GET success', {
+      endpoint,
+      duration,
+      itemCount: result.length,
+      month,
+      page,
+      limit,
+      totalCount,
+      totalPages
+    });
 
     return NextResponse.json({
       success: true,
       data: result,
+      pagination: {
+        page,
+        limit,
+        totalCount: totalCount || 0,
+        totalPages,
+      },
     });
   } catch (error) {
     const duration = Date.now() - startTime;

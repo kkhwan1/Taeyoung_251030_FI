@@ -58,6 +58,21 @@ async function apiRequest(
 describe('Collections API', () => {
   // Test data
   let testCollectionId: number;
+  let testSalesTransactionId: number;
+
+  beforeAll(async () => {
+    // Dynamically fetch existing sales transaction from database
+    const salesResponse = await fetch(`${API_BASE_URL}/api/sales-transactions?limit=1`);
+    const salesData = await salesResponse.json();
+
+    if (!salesData.success || !salesData.data || salesData.data.length === 0) {
+      throw new Error('테스트용 매출 거래가 데이터베이스에 없습니다. 매출 거래를 먼저 생성해주세요.');
+    }
+
+    testSalesTransactionId = salesData.data[0].transaction_id;
+
+    console.log(`✅ 테스트 데이터 로드 완료: 매출 거래 ID ${testSalesTransactionId}`);
+  });
 
   describe('GET /api/collections', () => {
     test('should return paginated list of collections', async () => {
@@ -117,7 +132,7 @@ describe('Collections API', () => {
     test('should create new collection with valid data', async () => {
       const newCollection = {
         collection_date: '2025-01-28',
-        sales_transaction_id: 1, // Assuming sales transaction ID 1 exists
+        sales_transaction_id: testSalesTransactionId,
         collected_amount: 50000.00,
         payment_method: 'TRANSFER',
         bank_name: '우리은행',
@@ -145,7 +160,7 @@ describe('Collections API', () => {
     test('should handle Korean characters correctly', async () => {
       const koreanCollection = {
         collection_date: '2025-01-28',
-        sales_transaction_id: 1,
+        sales_transaction_id: testSalesTransactionId,
         collected_amount: 100000.00,
         payment_method: 'CASH',
         notes: '현금 수금 처리 - 한글 테스트'
@@ -164,7 +179,7 @@ describe('Collections API', () => {
     test('should reject invalid payment method', async () => {
       const invalidCollection = {
         collection_date: '2025-01-28',
-        sales_transaction_id: 1,
+        sales_transaction_id: testSalesTransactionId,
         collected_amount: 50000.00,
         payment_method: 'INVALID_METHOD'
       };
@@ -178,7 +193,7 @@ describe('Collections API', () => {
     test('should reject negative collected amount', async () => {
       const invalidCollection = {
         collection_date: '2025-01-28',
-        sales_transaction_id: 1,
+        sales_transaction_id: testSalesTransactionId,
         collected_amount: -10000.00,
         payment_method: 'CASH'
       };
@@ -367,7 +382,7 @@ describe('Collections API', () => {
     test('should respond within 200ms for POST request', async () => {
       const newCollection = {
         collection_date: '2025-01-28',
-        sales_transaction_id: 1,
+        sales_transaction_id: testSalesTransactionId,
         collected_amount: 50000.00,
         payment_method: 'CASH'
       };

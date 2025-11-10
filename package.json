@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "excel:verify-consistency": "node scripts/verification/verify-excel-vs-db.js",
-    "dev": "next dev --turbo -p 5000 -H 0.0.0.0",
+    "dev": "next dev -p 5000 -H 0.0.0.0",
     "dev:safe": "powershell -ExecutionPolicy Bypass -File ./scripts/server-manager.ps1",
     "dev:stop": "powershell -ExecutionPolicy Bypass -File ./scripts/server-manager.ps1 -Stop",
     "dev:restart": "powershell -ExecutionPolicy Bypass -File ./scripts/server-manager.ps1 -Restart",
@@ -136,6 +136,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.3",
+    "@babel/preset-react": "^7.28.5",
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
