@@ -14,7 +14,6 @@ import {
 import StockAdjustmentForm from '@/components/StockAdjustmentForm';
 import { StockExportButton } from '@/components/ExcelExportButton';
 import CategoryFilter from '@/components/CategoryFilter';
-import CompanySelect from '@/components/CompanySelect';
 
 interface StockItem {
   item_id: number;
@@ -59,6 +58,7 @@ export default function StockPage() {
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState<number | null>(null);
+  const [supplierOptions, setSupplierOptions] = useState<Array<{company_id: number, company_name: string}>>([]);
   const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortField, setSortField] = useState<string>('last_transaction_date');
@@ -102,6 +102,19 @@ export default function StockPage() {
     } else {
       setSortField(field);
       setSortOrderStock('asc');
+    }
+  };
+
+  // 공급사 목록 조회
+  const fetchSuppliers = async () => {
+    try {
+      const response = await fetch('/api/companies?type=SUPPLIER');
+      const result = await response.json();
+      if (result.success && result.data) {
+        setSupplierOptions(result.data.data || []);
+      }
+    } catch (error) {
+      console.error('공급사 목록 조회 실패:', error);
     }
   };
 
@@ -237,6 +250,11 @@ export default function StockPage() {
 
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval]);
+
+  // 공급사 목록 초기 로드
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
 
   // Re-fetch data when company filter changes
   useEffect(() => {
@@ -663,15 +681,18 @@ export default function StockPage() {
                 <option value="low">재고 부족</option>
               </select>
 
-              <div className="w-full sm:w-64">
-                <CompanySelect
-                  value={companyFilter}
-                  onChange={setCompanyFilter}
-                  companyType="SUPPLIER"
-                  placeholder="거래처 선택..."
-                  allowClear
-                />
-              </div>
+              <select
+                value={companyFilter || ''}
+                onChange={(e) => setCompanyFilter(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full sm:w-64 px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+              >
+                <option value="">전체</option>
+                {supplierOptions.map(supplier => (
+                  <option key={supplier.company_id} value={supplier.company_id}>
+                    {supplier.company_name}
+                  </option>
+                ))}
+              </select>
 
               <select
                 value={refreshInterval}

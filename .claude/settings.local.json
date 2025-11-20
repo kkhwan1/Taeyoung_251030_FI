@@ -38,7 +38,12 @@
       "Skill(codex-claude-loop)",
       "Bash(codex status:*)",
       "Skill(internal-comms)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(vercel env ls:*)",
+      "Bash(vercel --prod:*)",
+      "Bash(vercel inspect:*)"
     ],
     "deny": [],
     "ask": []
