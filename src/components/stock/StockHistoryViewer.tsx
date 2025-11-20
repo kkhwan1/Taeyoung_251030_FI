@@ -236,7 +236,7 @@ export default function StockHistoryViewer({ itemId }: Props) {
       {/* Header with filters */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          재고 이력
+          상세 재고이력
         </h2>
 
         {/* Filters */}
