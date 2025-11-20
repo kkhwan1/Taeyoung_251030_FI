@@ -213,6 +213,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const page = normalizeInteger(searchParams.get('page'));
     const useCursorPagination = searchParams.get('use_cursor') === 'true' || (!page && cursor);
 
+    // Sort parameters
+    const sortColumn = normalizeString(searchParams.get('sort_column')) ?? 'created_at';
+    const sortOrder = normalizeString(searchParams.get('sort_order')) ?? 'desc';
+    const sortAscending = sortOrder === 'asc';
+
     // Build base query
     let query = supabase
       .from('items')
@@ -274,11 +279,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         query = query[operator]('item_code', cursor);
       }
       
-      // Order by item_code for consistent cursor-based pagination
-      // Primary sort by item_code, secondary by created_at for consistency
+      // Order by created_at (newest first) for cursor-based pagination
+      // Primary sort by created_at (descending), secondary by item_code for consistency
       query = query
-        .order('item_code', { ascending })
         .order('created_at', { ascending: false })
+        .order('item_code', { ascending: true })
         .limit(limit + 1); // +1 to check if there are more items
 
       const { data: rawItems, error, count } = await query;
