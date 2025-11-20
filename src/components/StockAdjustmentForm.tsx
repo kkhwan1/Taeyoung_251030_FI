@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, AlertTriangle } from 'lucide-react';
+import { Plus, X, AlertTriangle, Loader2 } from 'lucide-react';
 import ItemSelect from './ItemSelect';
 import { ItemForComponent } from '@/types/inventory';
 
@@ -52,6 +52,7 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
     item_code: string;
     item_name: string;
   } | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -74,20 +75,26 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    // Add created_by (임시로 1로 설정 - 실제로는 로그인한 사용자 ID 사용)
-    const submitData = {
-      ...formData,
-      created_by: 1
-    };
+    setLoading(true);
 
-    onSubmit(submitData);
+    try {
+      // Add created_by (임시로 1로 설정 - 실제로는 로그인한 사용자 ID 사용)
+      const submitData = {
+        ...formData,
+        created_by: 1
+      };
+
+      await onSubmit(submitData);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleItemSelect = (item: ItemForComponent | null) => {
@@ -308,10 +315,20 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
         </button>
         <button
           type="submit"
-          className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Plus className="w-4 h-4" />
-          조정 등록
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              처리중...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              조정 등록
+            </>
+          )}
         </button>
       </div>
     </form>

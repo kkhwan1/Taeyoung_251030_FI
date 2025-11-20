@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
+import { extractCompanyId, applyCompanyFilter } from '@/lib/filters';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +37,8 @@ export const GET = async (request: NextRequest) => {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20));
     const offset = (page - 1) * limit;
 
-    const supplier_id = searchParams.get('supplier_id');
+    // 중앙 집중식 company_id 추출
+    const companyId = extractCompanyId(searchParams, 'company_id');
     const item_id = searchParams.get('item_id');
     const vehicle_model = searchParams.get('vehicle_model');
     const payment_status = searchParams.get('payment_status');
@@ -58,10 +60,8 @@ export const GET = async (request: NextRequest) => {
       `, { count: 'exact' })
       .eq('is_active', true);
 
-    // Apply filters
-    if (supplier_id) {
-      query = query.eq('supplier_id', parseInt(supplier_id, 10));
-    }
+    // 중앙 집중식 거래처 필터 적용 (supplier_id)
+    query = applyCompanyFilter(query, 'purchase_transactions', companyId, 'supplier');
 
     if (item_id) {
       query = query.eq('item_id', parseInt(item_id, 10));

@@ -3,7 +3,7 @@
 // Force dynamic rendering to avoid Static Generation errors with React hooks
 export const dynamic = 'force-dynamic';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Plus,
@@ -16,7 +16,11 @@ import {
   Factory,
   Truck,
   Upload,
-  History
+  History,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Search
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ReceivingForm from '@/components/ReceivingForm';
@@ -41,14 +45,7 @@ import {
   INVENTORY_TYPE_OPTIONS,
   type InventoryType
 } from '@/lib/constants/inventoryTypes';
-
-// Company filter interface
-interface CompanyOption {
-  company_id: number;
-  company_name: string;
-  company_code: string | null;
-  label: string;
-}
+import { useCompanyFilter } from '@/hooks/useCompanyFilter';
 
 // Search params를 사용하는 내부 컴포넌트
 function InventoryContent() {
@@ -73,6 +70,7 @@ function InventoryContent() {
   const [selectedTransactionForShortage, setSelectedTransactionForShortage] = useState<any>(null);
   // 정렬 상태 추가
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortColumn, setSortColumn] = useState<string>('created_at');
   // 수정/삭제 관련 상태
   const [selectedTransaction, setSelectedTransaction] = useState<InventoryTransaction | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -82,10 +80,11 @@ function InventoryContent() {
   const [selectedItemForHistory, setSelectedItemForHistory] = useState<number | null>(null);
   // Phase 3 - Inventory Classification filter
   const [selectedClassification, setSelectedClassification] = useState<InventoryType | null>(null);
-  // Company filter state
+  // Company filter state using shared hook
   const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL');
-  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const { companies: companyOptions, loading: companiesLoading } = useCompanyFilter();
+  // TASK-001: Comprehensive search filter state
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const tabs: InventoryTab[] = [
     {
@@ -113,6 +112,18 @@ function InventoryContent() {
       bgColor: 'bg-gray-50 dark:bg-gray-900/20'
     }
   ];
+
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // 같은 컬럼 클릭 시 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭 시 해당 컬럼으로 정렬 (기본: 내림차순)
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
 
   const activeTabInfo = tabs.find(tab => tab.id === activeTab)!;
 
@@ -159,9 +170,9 @@ function InventoryContent() {
     const timeoutId = setTimeout(() => {
       fetchData();
     }, 100);
-    
+
     return () => clearTimeout(timeoutId);
-  }, [activeTab, refreshKey]);
+  }, [activeTab, sortColumn, sortOrder, refreshKey]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -181,6 +192,10 @@ function InventoryContent() {
     try {
       let url = '/api/inventory';
       const params = new URLSearchParams();
+
+      // 정렬 파라미터 추가
+      params.append('sort_column', sortColumn);
+      params.append('sort_order', sortOrder);
 
       switch (activeTab) {
         case 'receiving':
@@ -248,26 +263,6 @@ function InventoryContent() {
     }
   }, [refreshKey]);
 
-  // Fetch companies on mount
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
-
-  // Fetch companies function
-  const fetchCompanies = async () => {
-    setCompaniesLoading(true);
-    try {
-      const res = await fetch('/api/companies/options');
-      const json = await res.json();
-      if (json.success) {
-        setCompanyOptions(json.data || []);
-      }
-    } catch (error) {
-      console.error('거래처 목록 불러오기 실패:', error);
-    } finally {
-      setCompaniesLoading(false);
-    }
-  };
 
   const handleEdit = (transaction: InventoryTransaction) => {
     setSelectedTransaction(transaction);
@@ -782,13 +777,41 @@ function InventoryContent() {
     }
   };
 
+  // Memoized filtered data for both card view and table view
+  const filteredStockInfo = useMemo(() => stockInfo
+    .filter((item) => !selectedClassification || item.inventory_type === selectedClassification)
+    .filter((item) => selectedCompany === 'ALL' || item.company_id === selectedCompany),
+  [stockInfo, selectedClassification, selectedCompany]);
+
+  const filteredTransactions = useMemo(() => transactions
+    .filter((tx) => {
+      if (!selectedClassification) return true;
+      const txClassification = tx.inventory_type || (tx as any).items?.inventory_type || null;
+      return txClassification === selectedClassification;
+    })
+    .filter((tx) => {
+      if (selectedCompany === 'ALL') return true;
+      const txCompany = tx.company_id || (tx as any).companies?.company_id;
+      return txCompany === selectedCompany;
+    })
+    .filter((tx) => {
+      // TASK-002: Comprehensive search filter logic (with null safety fix)
+      if (searchTerm === '') return true;
+      const searchLower = searchTerm.toLowerCase().trim();
+      return (
+        (tx.item_name ?? '').toLowerCase().includes(searchLower) ||
+        (tx.item_code ?? '').toLowerCase().includes(searchLower) ||
+        (tx.reference_no && tx.reference_no.toLowerCase().includes(searchLower))
+      );
+    }),
+  [transactions, selectedClassification, selectedCompany, searchTerm]);
+
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <div className="flex flex-col gap-3 sm:gap-6 p-3 sm:p-6 max-w-[2000px] mx-auto">
       <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            
+
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">재고 관리</h1>
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">입고, 생산, 출고 통합 관리</p>
@@ -919,66 +942,67 @@ function InventoryContent() {
                 </div>
               )}
             </div>
-            {/* Phase 3 - Classification Filter Buttons */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                onClick={() => setSelectedClassification(null)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  selectedClassification === null
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                전체
-              </button>
-              {INVENTORY_TYPE_OPTIONS.map(option => (
-                <button
-                  key={option.value}
-                  onClick={() => setSelectedClassification(option.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedClassification === option.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                  }`}
+            {/* Filter Section - Classification & Company */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              {/* Classification Filter Dropdown */}
+              <div className="flex-1">
+                <label htmlFor="classification-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  분류
+                </label>
+                <select
+                  id="classification-filter"
+                  value={selectedClassification || ''}
+                  onChange={(e) => setSelectedClassification(e.target.value as InventoryType || null)}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
                 >
-                  {option.label}
-                </button>
-              ))}
+                  <option value="">전체 분류</option>
+                  {INVENTORY_TYPE_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Company Filter Dropdown */}
+              <div className="flex-1">
+                <label htmlFor="company-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  거래처
+                </label>
+                <select
+                  id="company-filter"
+                  value={selectedCompany === 'ALL' ? '' : selectedCompany}
+                  onChange={(e) => setSelectedCompany(e.target.value ? parseInt(e.target.value) : 'ALL')}
+                  disabled={companiesLoading}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+                >
+                  <option value="">전체 거래처</option>
+                  {companyOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {companiesLoading && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">거래처 불러오는 중...</p>
+                )}
+              </div>
             </div>
 
-            {/* Company filter */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                거래처 필터
-              </label>
-              <select
-                value={selectedCompany === 'ALL' ? '' : selectedCompany}
-                onChange={(e) => setSelectedCompany(e.target.value ? parseInt(e.target.value) : 'ALL')}
-                disabled={companiesLoading}
-                className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">전체 거래처</option>
-                {companyOptions.map(option => (
-                  <option key={option.company_id} value={option.company_id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {companiesLoading && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">거래처 불러오는 중...</p>
-              )}
+            {/* TASK-003: Comprehensive Search Filter UI */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="품목명, 코드, 참조번호..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {stockInfo
-                .filter((item: any) => {
-                  if (!selectedClassification) return true;
-                  return item.inventory_type === selectedClassification;
-                })
-                .filter((item: any) => {
-                  if (selectedCompany === 'ALL') return true;
-                  return item.company_id === selectedCompany;
-                })
+              {filteredStockInfo
                 .sort((a, b) => {
                   const dateA = (a as any).last_transaction_date 
                     ? new Date((a as any).last_transaction_date).getTime() 
@@ -1071,34 +1095,98 @@ function InventoryContent() {
             <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th 
-                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
-                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                  >
-                    <div className="flex items-center gap-1">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <button
+                      onClick={() => handleSort('created_at')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
                       거래일시
-                      <span className="ml-1">
-                        {sortOrder === 'desc' ? '↓' : '↑'}
-                      </span>
-                    </div>
+                      {sortColumn === 'created_at' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     구분
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    품번/품명
+                    <button
+                      onClick={() => handleSort('item_name')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      품번/품명
+                      {sortColumn === 'item_name' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    수량
+                    <button
+                      onClick={() => handleSort('quantity')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      수량
+                      {sortColumn === 'quantity' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    단가
+                    <button
+                      onClick={() => handleSort('unit_price')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      단가
+                      {sortColumn === 'unit_price' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    금액
+                    <button
+                      onClick={() => handleSort('total_amount')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      금액
+                      {sortColumn === 'total_amount' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    거래처
+                    <button
+                      onClick={() => handleSort('company_name')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      거래처
+                      {sortColumn === 'company_name' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     참조번호
@@ -1115,14 +1203,14 @@ function InventoryContent() {
                       데이터를 불러오는 중...
                     </td>
                   </tr>
-                ) : transactions.length === 0 ? (
+                ) : filteredTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
-                      거래 내역이 없습니다
+                      필터링된 거래 내역이 없습니다
                     </td>
                   </tr>
                 ) : (
-                  [...transactions]
+                  filteredTransactions
                     .sort((a, b) => {
                       const dateA = (a as any).created_at ? new Date((a as any).created_at).getTime() : new Date(a.transaction_date || 0).getTime();
                       const dateB = (b as any).created_at ? new Date((b as any).created_at).getTime() : new Date(b.transaction_date || 0).getTime();

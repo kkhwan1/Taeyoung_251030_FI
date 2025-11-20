@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       .select(`
         *,
         customer:companies!customer_id(company_id, company_name, company_code),
-        items:invoice_items(
+        items:invoice_items!fk_invoice_items_sales_transactions(
           invoice_item_id,
           item_id,
           quantity,
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         customer:companies!customer_id(company_id, company_name, company_code),
-        items:invoice_items(
+        items:invoice_items!fk_invoice_items_sales_transactions(
           invoice_item_id,
           item_id,
           quantity,

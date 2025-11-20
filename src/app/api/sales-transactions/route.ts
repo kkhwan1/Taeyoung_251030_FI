@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
 import { ERPError, ErrorType, handleError as handleErrorResponse } from '@/lib/errorHandler';
+import { applyCompanyFilter } from '@/lib/filters';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +59,7 @@ async function handleCustomerGrouping(
 ): Promise<NextResponse> {
   try {
     // Build base query for sales transactions with customer info
+    // Note: Explicitly specify foreign key constraint names to avoid PGRST201 error
     let query = supabase
       .from('sales_transactions')
       .select(`
@@ -66,8 +68,8 @@ async function handleCustomerGrouping(
         customer_id,
         total_amount,
         customer:companies!customer_id(company_id, company_name),
-        invoice_items(quantity, total_amount),
-        payment_splits(amount)
+        invoice_items!fk_invoice_items_sales_transactions(quantity, total_amount),
+        payment_splits!fk_payment_splits_transaction_id(amount)
       `)
       .eq('is_active', true);
 
@@ -190,6 +192,7 @@ async function handleItemGrouping(
 ): Promise<NextResponse> {
   try {
     // Build base query for invoice items with transaction info
+    // Note: Specify FK constraint name to avoid ambiguity
     let query = supabase
       .from('invoice_items')
       .select(`
@@ -197,8 +200,8 @@ async function handleItemGrouping(
         item_id,
         quantity,
         total_amount,
-        item:items(item_id, item_name),
-        transaction:sales_transactions!transaction_id(
+        item:items!item_id(item_id, item_name),
+        transaction:sales_transactions!fk_invoice_items_sales_transactions(
           transaction_id,
           transaction_date,
           customer_id,
@@ -350,33 +353,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return handleItemGrouping(supabase, { customerId, startDate, endDate });
     }
 
-    // Phase 2: Build query with multi-item joins
+    // Phase 2: Build query without invoice_items to avoid PGRST201 error
+    // We'll fetch invoice_items and payment_splits separately
     let query = supabase
       .from('sales_transactions')
       .select(`
         *,
-        customer:companies!customer_id(company_id, company_name, company_code),
-        invoice_items(
-          invoice_item_id, 
-          item_id, 
-          quantity, 
-          unit_price, 
-          total_amount, 
-          line_no, 
-          notes,
-          item:items(item_id, item_code, item_name, unit, spec)
-        ),
-        payment_splits(
-          payment_split_id, 
-          payment_method, 
-          amount, 
-          bill_number, 
-          bill_date, 
-          bill_drawer, 
-          check_number, 
-          check_bank, 
-          notes
-        )
+        customer:companies!customer_id(company_id, company_name, company_code)
       `, { count: 'exact' })
       .eq('is_active', true)
       .order('transaction_date', { ascending: false })
@@ -404,8 +387,80 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw error;
     }
 
+    // Fetch invoice_items separately to avoid PGRST201 error
+    const transactionIds = (data ?? []).map((txn: any) => txn.transaction_id);
+    let invoiceItemsMap = new Map<number, any[]>();
+    let paymentSplitsMap = new Map<number, any[]>();
+    
+    if (transactionIds.length > 0) {
+      // Fetch invoice_items
+      const { data: invoiceItems, error: invoiceItemsError } = await supabase
+        .from('invoice_items')
+        .select('invoice_item_id, transaction_id, item_id, quantity, unit_price, total_amount, line_no, notes')
+        .in('transaction_id', transactionIds);
+
+      if (!invoiceItemsError && invoiceItems) {
+        invoiceItems.forEach((item: any) => {
+          if (!invoiceItemsMap.has(item.transaction_id)) {
+            invoiceItemsMap.set(item.transaction_id, []);
+          }
+          invoiceItemsMap.get(item.transaction_id)!.push(item);
+        });
+      }
+
+      // Fetch payment_splits
+      const { data: paymentSplits, error: paymentSplitsError } = await supabase
+        .from('payment_splits')
+        .select('payment_split_id, transaction_id, payment_method, amount, bill_number, bill_date, bill_drawer, check_number, check_bank, notes')
+        .in('transaction_id', transactionIds);
+
+      if (!paymentSplitsError && paymentSplits) {
+        paymentSplits.forEach((split: any) => {
+          if (!paymentSplitsMap.has(split.transaction_id)) {
+            paymentSplitsMap.set(split.transaction_id, []);
+          }
+          paymentSplitsMap.get(split.transaction_id)!.push(split);
+        });
+      }
+
+      // Fetch item details for invoice_items
+      const itemIds = new Set<number>();
+      invoiceItems?.forEach((item: any) => {
+        if (item.item_id) itemIds.add(item.item_id);
+      });
+
+      let itemsMap = new Map<number, any>();
+      if (itemIds.size > 0) {
+        const { data: items, error: itemsError } = await supabase
+          .from('items')
+          .select('item_id, item_code, item_name, unit, spec')
+          .in('item_id', Array.from(itemIds));
+
+        if (!itemsError && items) {
+          items.forEach((item: any) => {
+            itemsMap.set(item.item_id, item);
+          });
+        }
+      }
+
+      // Merge item details into invoice_items
+      invoiceItemsMap.forEach((items, transactionId) => {
+        invoiceItemsMap.set(transactionId, items.map((item: any) => ({
+          ...item,
+          item: itemsMap.get(item.item_id) || null,
+        })));
+      });
+    }
+
+    // Merge invoice_items and payment_splits into transactions
+    const enrichedData = (data ?? []).map((txn: any) => ({
+      ...txn,
+      invoice_items: invoiceItemsMap.get(txn.transaction_id) || [],
+      payment_splits: paymentSplitsMap.get(txn.transaction_id) || [],
+    }));
+
     // Apply client-side filters for joined table fields (customer name, item name)
-    let filteredData = data ?? [];
+    let filteredData = enrichedData;
     
     if (search) {
       const searchLower = search.toLowerCase();
@@ -706,12 +761,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Phase 2: Fetch complete transaction with joins
+    // Note: Explicitly specify foreign key relationships to avoid PGRST201 error
     const { data: completeTransaction, error: fetchError } = await supabase
       .from('sales_transactions')
       .select(`
         *,
         customer:companies!customer_id(company_id, company_name, company_code),
-        invoice_items(
+        invoice_items!transaction_id(
           invoice_item_id, 
           item_id, 
           quantity, 
@@ -719,9 +775,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           total_amount, 
           line_no, 
           notes,
-          item:items(item_id, item_code, item_name, unit, spec)
+          item:items!item_id(item_id, item_code, item_name, unit, spec)
         ),
-        payment_splits(
+        payment_splits!transaction_id(
           payment_split_id, 
           payment_method, 
           amount, 

@@ -18,13 +18,17 @@ import {
   ChevronDown,
   ChevronUp,
   Grid,
-  List
+  List,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { Pagination } from '@/components/ui/Pagination';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCompanyFilter } from '@/hooks/useCompanyFilter';
 import { ItemsExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
 import type { ItemCategory, ItemTypeCode, MaterialTypeCode } from '@/types/supabase';
@@ -122,26 +126,30 @@ export default function ItemsPage() {
   const [selectedMaterialType, setSelectedMaterialType] = useState<string>('');
   const [vehicleFilter, setVehicleFilter] = useState('');
   const [selectedCoatingStatus, setSelectedCoatingStatus] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [selectedItemForImage, setSelectedItemForImage] = useState<Item | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
-  
+
   // Mobile optimization states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
-  
+
   // Pagination state
   const [pagination, setPagination] = useState<any>(null);
   const [currentCursor, setCurrentCursor] = useState<string | null>(null);
   const [currentDirection, setCurrentDirection] = useState<'next' | 'prev'>('next');
   const [useCursorPagination, setUseCursorPagination] = useState(true);
-  
+  const [sortColumn, setSortColumn] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
   const { success, error } = useToast();
   const { deleteWithToast, ConfirmDialog } = useConfirm();
   const { canEdit, isAccountant } = useUserRole();
+  const { companies, loading: companiesLoading } = useCompanyFilter();
 
   // Pagination handlers
   const handlePageChange = (page: number) => {
@@ -157,39 +165,63 @@ export default function ItemsPage() {
     fetchItems(null, 'next');
   };
 
-  // Reset pagination when filters change
+  // Sort handler
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Toggle order if clicking same column
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new column with desc as default
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+
+  // Reset pagination when filters or sort changes
   useEffect(() => {
     setCurrentCursor(null);
     setCurrentDirection('next');
     fetchItems(null, 'next');
-  }, [selectedCategory, selectedItemType, selectedMaterialType, vehicleFilter, selectedCoatingStatus]);
+  }, [selectedCategory, selectedItemType, selectedMaterialType, vehicleFilter, selectedCoatingStatus, selectedCompany, sortColumn, sortOrder]);
 
   const fetchItems = async (cursor?: string | null, direction: 'next' | 'prev' = 'next') => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (selectedItemType) params.append('itemType', selectedItemType);
-      if (selectedMaterialType) params.append('materialType', selectedMaterialType);
-      if (vehicleFilter) params.append('vehicleModel', vehicleFilter);
-      if (selectedCoatingStatus) params.append('coating_status', selectedCoatingStatus);
-      if (searchTerm) params.append('search', searchTerm);
-      
+      // 중앙 집중식 필터 헬퍼 사용
+      const { buildFilteredApiUrl } = await import('@/lib/filters');
+      const additionalParams: Record<string, string> = {};
+      if (selectedCategory) additionalParams.category = selectedCategory;
+      if (selectedItemType) additionalParams.itemType = selectedItemType;
+      if (selectedMaterialType) additionalParams.materialType = selectedMaterialType;
+      if (vehicleFilter) additionalParams.vehicleModel = vehicleFilter;
+      if (selectedCoatingStatus) additionalParams.coating_status = selectedCoatingStatus;
+      if (searchTerm) additionalParams.search = searchTerm;
+
+      // Sort parameters
+      additionalParams.sort_column = sortColumn;
+      additionalParams.sort_order = sortOrder;
+
       // Pagination parameters
       if (useCursorPagination) {
-        params.append('use_cursor', 'true');
-        params.append('limit', '20');
+        additionalParams.use_cursor = 'true';
+        additionalParams.limit = '20';
         if (cursor) {
-          params.append('cursor', cursor);
-          params.append('direction', direction);
+          additionalParams.cursor = cursor;
+          additionalParams.direction = direction;
         }
       } else {
-        params.append('page', '1');
-        params.append('limit', '20');
+        additionalParams.page = '1';
+        additionalParams.limit = '20';
       }
 
+      const url = buildFilteredApiUrl(
+        '/api/items',
+        selectedCompany === 'ALL' ? null : selectedCompany,
+        additionalParams
+      );
+
       const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const data = await safeFetchJson(`/api/items?${params.toString()}`, {}, {
+      const data = await safeFetchJson(url, {}, {
         timeout: 15000,
         maxRetries: 2,
         retryDelay: 1000
@@ -322,12 +354,47 @@ export default function ItemsPage() {
     }
   };
 
+  // Fetch all unique vehicle models from API
+  const [vehicleOptions, setVehicleOptions] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const fetchVehicleOptions = async () => {
+      try {
+        const { safeFetchJson } = await import('@/lib/fetch-utils');
+        // Fetch all items to get unique vehicle models
+        const data = await safeFetchJson('/api/items?limit=1000', {}, {
+          timeout: 10000,
+          maxRetries: 1
+        });
+        
+        if (data.success && data.data?.items) {
+          const uniqueVehicles = Array.from(
+            new Set(
+              data.data.items
+                .map((item: Item) => item.vehicle_model)
+                .filter((v: string | null | undefined): v is string => Boolean(v && v.trim()))
+            )
+          );
+          setVehicleOptions(uniqueVehicles.sort());
+        }
+      } catch (err) {
+        console.error('Failed to fetch vehicle options:', err);
+        // Fallback to current items if API fails
+        const uniqueVehicles = Array.from(new Set(items.map(item => item.vehicle_model).filter(Boolean)));
+        setVehicleOptions(uniqueVehicles.sort());
+      }
+    };
+    
+    fetchVehicleOptions();
+  }, []); // Only fetch once on mount
+
   const resetFilters = () => {
     setSelectedCategory('');
     setSelectedItemType('');
     setSelectedMaterialType('');
     setVehicleFilter('');
     setSelectedCoatingStatus('');
+    setSelectedCompany('ALL');
     setSearchTerm('');
     setCurrentCursor(null);
     setCurrentDirection('next');
@@ -352,7 +419,7 @@ export default function ItemsPage() {
   }, [items, normalizedSearch]);
 
   const filtersApplied = Boolean(
-    selectedCategory || selectedItemType || selectedMaterialType || vehicleFilter || selectedCoatingStatus || normalizedSearch
+    selectedCategory || selectedItemType || selectedMaterialType || vehicleFilter || selectedCoatingStatus || selectedCompany !== 'ALL' || normalizedSearch
   );
 
   const printColumns = [
@@ -447,10 +514,13 @@ export default function ItemsPage() {
             </div>
           </div>
           <div className={`flex flex-wrap gap-2 md:w-auto ${showFilters || 'hidden'} sm:flex`}>
+            <label className="sr-only" htmlFor="category-filter">분류 필터</label>
             <select
+              id="category-filter"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
+              aria-label="분류 필터"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               <option value="">전체 분류</option>
               {CATEGORY_OPTIONS.map((category) => (
@@ -459,10 +529,14 @@ export default function ItemsPage() {
                 </option>
               ))}
             </select>
+
+            <label className="sr-only" htmlFor="item-type-filter">타입 필터</label>
             <select
+              id="item-type-filter"
               value={selectedItemType}
               onChange={(e) => setSelectedItemType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
+              aria-label="타입 필터"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               <option value="">전체 타입</option>
               {ITEM_TYPE_OPTIONS.map((option) => (
@@ -471,10 +545,14 @@ export default function ItemsPage() {
                 </option>
               ))}
             </select>
+
+            <label className="sr-only" htmlFor="material-type-filter">소재 필터</label>
             <select
+              id="material-type-filter"
               value={selectedMaterialType}
               onChange={(e) => setSelectedMaterialType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
+              aria-label="소재 필터"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               <option value="">전체 소재</option>
               {MATERIAL_TYPE_OPTIONS.map((option) => (
@@ -483,17 +561,47 @@ export default function ItemsPage() {
                 </option>
               ))}
             </select>
-            <input
-              type="text"
+
+            <label className="sr-only" htmlFor="vehicle-filter">차종 필터</label>
+            <select
+              id="vehicle-filter"
               value={vehicleFilter}
               onChange={(e) => setVehicleFilter(e.target.value)}
-              placeholder="차종 필터"
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
-            />
+              aria-label="차종 필터"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+            >
+              <option value="">전체 차종</option>
+              {vehicleOptions.map((vehicle) => (
+                <option key={vehicle} value={vehicle}>
+                  {vehicle}
+                </option>
+              ))}
+            </select>
+
+            <label className="sr-only" htmlFor="company-filter">거래처 필터</label>
             <select
+              id="company-filter"
+              value={selectedCompany}
+              onChange={(e) => setSelectedCompany(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+              aria-label="거래처 필터"
+              disabled={companiesLoading}
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+            >
+              <option value="ALL">전체 거래처</option>
+              {companies.map((company) => (
+                <option key={company.value} value={company.value}>
+                  {company.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="sr-only" htmlFor="coating-status-filter">도장상태 필터</label>
+            <select
+              id="coating-status-filter"
               value={selectedCoatingStatus}
               onChange={(e) => setSelectedCoatingStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
+              aria-label="도장상태 필터"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               {COATING_STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -501,6 +609,7 @@ export default function ItemsPage() {
                 </option>
               ))}
             </select>
+
             <button
               type="button"
               onClick={resetFilters}
@@ -545,40 +654,117 @@ export default function ItemsPage() {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  품목코드
+                  <button onClick={() => handleSort('item_code')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    품목코드
+                    {sortColumn === 'item_code' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  품목명
+                  <button onClick={() => handleSort('item_name')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    품목명
+                    {sortColumn === 'item_name' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  분류
+                  <button onClick={() => handleSort('category')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    분류
+                    {sortColumn === 'category' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  타입
+                  <button onClick={() => handleSort('item_type')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    타입
+                    {sortColumn === 'item_type' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  소재형태
+                  <button onClick={() => handleSort('material_type')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    소재형태
+                    {sortColumn === 'material_type' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  차종
+                  <button onClick={() => handleSort('vehicle_model')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    차종
+                    {sortColumn === 'vehicle_model' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   규격 / 소재
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  단위중량(kg)
+                  <button onClick={() => handleSort('mm_weight')} className="flex items-center gap-1 ml-auto hover:text-gray-700 dark:hover:text-gray-100">
+                    단위중량(kg)
+                    {sortColumn === 'mm_weight' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  현재고
+                  <button onClick={() => handleSort('current_stock')} className="flex items-center gap-1 ml-auto hover:text-gray-700 dark:hover:text-gray-100">
+                    현재고
+                    {sortColumn === 'current_stock' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  안전재고
+                  <button onClick={() => handleSort('safety_stock')} className="flex items-center gap-1 ml-auto hover:text-gray-700 dark:hover:text-gray-100">
+                    안전재고
+                    {sortColumn === 'safety_stock' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  기준단가
+                  <button onClick={() => handleSort('price')} className="flex items-center gap-1 ml-auto hover:text-gray-700 dark:hover:text-gray-100">
+                    기준단가
+                    {sortColumn === 'price' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  도장상태
+                  <button onClick={() => handleSort('coating_status')} className="flex items-center gap-1 mx-auto hover:text-gray-700 dark:hover:text-gray-100">
+                    도장상태
+                    {sortColumn === 'coating_status' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   작업

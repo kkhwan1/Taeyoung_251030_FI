@@ -43,7 +43,15 @@
       "Bash(git push:*)",
       "Bash(vercel env ls:*)",
       "Bash(vercel --prod:*)",
-      "Bash(vercel inspect:*)"
+      "Bash(vercel inspect:*)",
+      "Bash(test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint:*)",
+      "Skill(codex)",
+      "Bash(npm run port:check:*)",
+      "Bash(npm run build:*)",
+      "Bash(codex ps:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

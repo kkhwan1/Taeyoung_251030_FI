@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +15,13 @@ type CompanyOption = {
  *
  * 거래처 필터링용 옵션 목록 조회
  * Returns company list for dropdown filtering with caching
+ *
+ * 성능 최적화:
+ * - ETag 기반 캐싱 (304 Not Modified)
+ * - Cache-Control 헤더 (5분 캐싱, 10분 stale-while-revalidate)
+ * - 필요한 필드만 선택 (company_id, company_name, company_code)
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { data, error } = await supabaseAdmin
       .from('companies')
@@ -33,13 +39,32 @@ export async function GET() {
       label: `${company.company_name ?? '미등록 거래처'} (${company.company_code ?? '코드 없음'})`
     }));
 
+    // ETag 생성 (데이터 해시 기반)
+    const dataString = JSON.stringify(companies);
+    const etag = `"${crypto.createHash('md5').update(dataString).digest('hex')}"`;
+
+    // ETag 비교 (304 Not Modified 응답)
+    const clientEtag = request.headers.get('If-None-Match');
+    if (clientEtag === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          'Cache-Control': 'max-age=300, stale-while-revalidate=600',
+          'ETag': etag
+        }
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: companies
     }, {
       headers: {
         // 5분 캐싱, 10분 동안 stale content 허용
-        'Cache-Control': 'max-age=300, stale-while-revalidate=600'
+        'Cache-Control': 'max-age=300, stale-while-revalidate=600',
+        'ETag': etag,
+        // CORS 헤더 (필터 컴포넌트 접근 허용)
+        'Access-Control-Expose-Headers': 'ETag'
       }
     });
   } catch (error) {

@@ -192,19 +192,19 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
     e.preventDefault();
     if (!validate()) return;
 
-    // For batch mode, skip confirmation modal and submit directly
-    if (isBatchMode && batchItems.length > 0) {
-      await handleConfirmProduction();
+    // For batch mode or no BOM data, submit directly with loading
+    if (isBatchMode || !bomCheckData) {
+      setLoading(true);
+      try {
+        await handleConfirmProduction();
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
-    // Show confirmation modal with BOM preview (single mode only)
-    if (!isBatchMode && bomCheckData) {
-      setShowConfirmModal(true);
-    } else {
-      // If no BOM check data, submit directly
-      await handleConfirmProduction();
-    }
+    // For modal confirmation, don't set loading yet - modal handles it
+    setShowConfirmModal(true);
   };
 
   const handleConfirmProduction = async () => {
@@ -218,7 +218,6 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
         
         if (validBatchItems.length === 0) {
           alert('유효한 제품이 없습니다. 제품을 선택하고 수량을 입력해주세요.');
-          setLoading(false);
           return;
         }
 

@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { metricsCollector } from '@/lib/metrics';
 import type { Database, ItemInsert, ItemRow, ItemUpdate } from '@/types/supabase';
 import { type CoatingStatus, normalizeCoatingStatus } from '@/lib/constants/coatingStatus';
+import { extractCompanyId, applyCompanyFilter } from '@/lib/filters';
 
 export const dynamic = 'force-dynamic';
 
@@ -224,6 +225,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .select('*', { count: 'exact' })
       .eq('is_active', true);
 
+    // Apply company filter
+    const companyId = extractCompanyId(searchParams, 'company_id');
+    query = applyCompanyFilter(query, 'items', companyId, 'supplier');
+
     // Apply filters
     if (search) {
       // Use pg_trgm similarity search for better Korean text search
@@ -279,10 +284,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         query = query[operator]('item_code', cursor);
       }
       
-      // Order by created_at (newest first) for cursor-based pagination
-      // Primary sort by created_at (descending), secondary by item_code for consistency
+      // Order by selected column for cursor-based pagination
+      // Primary sort by dynamic column, secondary by item_code for consistency
       query = query
-        .order('created_at', { ascending: false })
+        .order(sortColumn, { ascending: sortAscending })
         .order('item_code', { ascending: true })
         .limit(limit + 1); // +1 to check if there are more items
 
@@ -350,9 +355,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Offset-based pagination (backward compatibility)
       const pageNum = page || 1;
       const offset = (pageNum - 1) * limit;
-      
+
+      // Order by selected column for offset-based pagination
+      // Primary sort by dynamic column, secondary by item_code for consistency
       query = query
-        .order('created_at', { ascending: false })
+        .order(sortColumn, { ascending: sortAscending })
         .order('item_code', { ascending: true })
         .range(offset, offset + limit - 1);
 

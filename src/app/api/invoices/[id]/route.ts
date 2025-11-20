@@ -60,7 +60,7 @@ export async function GET(
           phone,
           email
         ),
-        items:invoice_items(
+        items:invoice_items!fk_invoice_items_sales_transactions(
           invoice_item_id,
           item_id,
           quantity,

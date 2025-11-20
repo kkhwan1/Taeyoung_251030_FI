@@ -18,6 +18,8 @@ import {
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
+import { CompanyFilterSelect } from '@/components/filters/CompanyFilterSelect';
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
 
 const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
 const PurchaseForm = dynamicImport(() => import('@/components/forms/PurchaseForm'), { ssr: false });
@@ -75,21 +77,38 @@ export default function PurchasesPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
 
+  // 새 필터 상태
+  const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { companies, loading: companiesLoading } = useCompanyFilter();
 
   // 매입 거래 목록 조회
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (filterStatus) params.append('payment_status', filterStatus);
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
+
+      // 중앙 집중식 필터 헬퍼 사용
+      const { buildFilteredApiUrl } = await import('@/lib/filters');
+      const additionalParams: Record<string, string> = {};
+      if (searchTerm) additionalParams.search = searchTerm;
+      if (filterStatus) additionalParams.payment_status = filterStatus;
+      if (startDate) additionalParams.start_date = startDate;
+      if (endDate) additionalParams.end_date = endDate;
+      if (minAmount) additionalParams.min_amount = minAmount;
+      if (maxAmount) additionalParams.max_amount = maxAmount;
+
+      const url = buildFilteredApiUrl(
+        '/api/purchases',
+        selectedCompany === 'ALL' ? null : selectedCompany,
+        additionalParams
+      );
 
       const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const result = await safeFetchJson(`/api/purchases?${params}`, {}, {
+      const result = await safeFetchJson(url, {}, {
         timeout: 15000,
         maxRetries: 2,
         retryDelay: 1000
@@ -111,7 +130,7 @@ export default function PurchasesPage() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [searchTerm, filterStatus, startDate, endDate]);
+  }, [searchTerm, filterStatus, startDate, endDate, selectedCompany, minAmount, maxAmount]);
 
   // 매입 거래 추가
   const handleAdd = () => {
@@ -262,7 +281,7 @@ export default function PurchasesPage() {
 
         {/* 필터 콘텐츠 */}
         <div className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* 검색 */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -272,6 +291,18 @@ export default function PurchasesPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+            />
+          </div>
+
+          {/* 공급사 필터 */}
+          <div>
+            <CompanyFilterSelect
+              value={selectedCompany}
+              onChange={(value) => setSelectedCompany(value === '' ? 'ALL' : Number(value))}
+              label=""
+              placeholder="전체 공급사"
+              showAllOption={true}
+              className="w-full"
             />
           </div>
 
@@ -288,7 +319,10 @@ export default function PurchasesPage() {
               </option>
             ))}
           </select>
+        </div>
 
+        {/* 두 번째 행: 날짜 및 금액 필터 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           {/* 시작일 */}
           <input
             type="date"
@@ -302,6 +336,24 @@ export default function PurchasesPage() {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+          />
+
+          {/* 최소 금액 */}
+          <input
+            type="number"
+            value={minAmount}
+            onChange={(e) => setMinAmount(e.target.value)}
+            placeholder="최소 금액"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+          />
+
+          {/* 최대 금액 */}
+          <input
+            type="number"
+            value={maxAmount}
+            onChange={(e) => setMaxAmount(e.target.value)}
+            placeholder="최대 금액"
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
           />
         </div>

@@ -28,6 +28,8 @@ import { useConfirm } from '@/hooks/useConfirm';
 import { BOMExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
 import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Pie } from 'recharts';
+import { CompanyFilterSelect } from '@/components/filters/CompanyFilterSelect';
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
 
 interface BOM {
   bom_id: number;
@@ -70,6 +72,8 @@ interface FilterState {
   itemType: 'all' | 'internal_production' | 'external_purchase';
   minCost: number | null;
   maxCost: number | null;
+  category: string;
+  materialType: string;
 }
 
 type TabType = 'structure' | 'coil-specs' | 'cost-analysis';
@@ -103,9 +107,11 @@ export default function BOMPage() {
   });
   const [showFilters, setShowFilters] = useState(false); // 필터 토글 (모바일용)
   const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set()); // 그룹화 뷰 확장/축소
+  const [selectedCompany, setSelectedCompany] = useState<string>(''); // 거래처 필터
 
   const { success, error, info } = useToast();
   const { warningConfirm, deleteWithToast, ConfirmDialog } = useConfirm();
+  const { companies, loading: companiesLoading } = useCompanyFilter();
 
   // Filters
   const [filters, setFilters] = useState<FilterState>({
@@ -113,7 +119,9 @@ export default function BOMPage() {
     level: null,
     itemType: 'all',
     minCost: null,
-    maxCost: null
+    maxCost: null,
+    category: '',
+    materialType: ''
   });
 
   // Print columns
@@ -150,12 +158,23 @@ export default function BOMPage() {
   const fetchBOMData = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (selectedParentItem) params.append('parent_item_id', selectedParentItem);
-      params.append('price_month', priceMonth + '-01'); // 기준 월 추가
+
+      // 중앙 집중식 필터 헬퍼 사용
+      const { buildFilteredApiUrl } = await import('@/lib/filters');
+      const additionalParams: Record<string, string> = {};
+      if (selectedParentItem) additionalParams.parent_item_id = selectedParentItem;
+      additionalParams.price_month = priceMonth + '-01'; // 기준 월 추가
+      if (filters.category) additionalParams.category = filters.category;
+      if (filters.materialType) additionalParams.material_type = filters.materialType;
+
+      const url = buildFilteredApiUrl(
+        '/api/bom',
+        selectedCompany || null,
+        additionalParams
+      );
 
       const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const data = await safeFetchJson(`/api/bom?${params}`, {}, {
+      const data = await safeFetchJson(url, {}, {
         timeout: 30000, // 30초 타임아웃 (대량 데이터 처리)
         maxRetries: 3,
         retryDelay: 1000
@@ -196,7 +215,7 @@ export default function BOMPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedParentItem, showActiveOnly, priceMonth]);
+  }, [selectedParentItem, showActiveOnly, priceMonth, selectedCompany, filters.category, filters.materialType]);
 
   // Initial fetch
   useEffect(() => {
@@ -1677,6 +1696,50 @@ export default function BOMPage() {
               <option value="external_purchase">외부구매</option>
             </select>
 
+            {/* 거래처 필터 (공급사) */}
+            <div className="flex-shrink-0">
+              <CompanyFilterSelect
+                value={selectedCompany}
+                onChange={setSelectedCompany}
+                label=""
+                placeholder="전체 거래처"
+                className="text-sm"
+                showAllOption={true}
+              />
+            </div>
+
+            {/* 카테고리 필터 */}
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters(prev => ({
+                ...prev,
+                category: e.target.value
+              }))}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
+            >
+              <option value="">전체 카테고리</option>
+              <option value="원자재">원자재</option>
+              <option value="부품">부품</option>
+              <option value="완제품">완제품</option>
+              <option value="반제품">반제품</option>
+              <option value="제품">제품</option>
+            </select>
+
+            {/* 소재유형 필터 */}
+            <select
+              value={filters.materialType}
+              onChange={(e) => setFilters(prev => ({
+                ...prev,
+                materialType: e.target.value
+              }))}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
+            >
+              <option value="">전체 소재유형</option>
+              <option value="COIL">COIL</option>
+              <option value="SHEET">SHEET</option>
+              <option value="OTHER">OTHER</option>
+            </select>
+
             <input
               type="number"
               placeholder="최소 원가"
@@ -1728,13 +1791,18 @@ export default function BOMPage() {
             </div>
 
             <button
-              onClick={() => setFilters({
-                searchTerm: '',
-                level: null,
-                itemType: 'all',
-                minCost: null,
-                maxCost: null
-              })}
+              onClick={() => {
+                setFilters({
+                  searchTerm: '',
+                  level: null,
+                  itemType: 'all',
+                  minCost: null,
+                  maxCost: null,
+                  category: '',
+                  materialType: ''
+                });
+                setSelectedCompany('');
+              }}
               className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
             >
               초기화

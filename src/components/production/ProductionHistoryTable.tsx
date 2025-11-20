@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Loader2,
   Search,
-  Calendar
+  Calendar,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useToastNotification } from '@/hooks/useToast';
 
@@ -39,6 +41,8 @@ export default function ProductionHistoryTable() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const toast = useToastNotification();
 
   useEffect(() => {
@@ -63,16 +67,86 @@ export default function ProductionHistoryTable() {
     }
   };
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch =
-      transaction.items?.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.items?.item_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.reference_number && transaction.reference_number.toLowerCase().includes(searchTerm.toLowerCase()));
+  // TASK-022: Table sorting with useMemo optimization
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        // Reset to no sorting
+        setSortKey(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
 
-    const matchesType = typeFilter === 'all' || transaction.transaction_type === typeFilter;
+  const getSortIcon = (key: string) => {
+    if (sortKey !== key) {
+      return (
+        <div className="inline-flex flex-col ml-1">
+          <ChevronUp className="h-3 w-3 text-gray-400" />
+          <ChevronDown className="h-3 w-3 text-gray-400 -mt-2" />
+        </div>
+      );
+    }
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="h-4 w-4 inline ml-1" />
+    ) : (
+      <ChevronDown className="h-4 w-4 inline ml-1" />
+    );
+  };
 
-    return matchesSearch && matchesType;
-  });
+  const sortedAndFilteredTransactions = useMemo(() => {
+    // Filter first
+    const filtered = transactions.filter(transaction => {
+      const matchesSearch =
+        transaction.items?.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.items?.item_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (transaction.reference_number && transaction.reference_number.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesType = typeFilter === 'all' || transaction.transaction_type === typeFilter;
+
+      return matchesSearch && matchesType;
+    });
+
+    // Sort if sortKey is set
+    if (!sortKey) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      // Handle nested object paths (items.item_name, users.username)
+      if (sortKey.includes('.')) {
+        const keys = sortKey.split('.');
+        aVal = keys.reduce((obj, key) => obj?.[key], a as any);
+        bVal = keys.reduce((obj, key) => obj?.[key], b as any);
+      } else {
+        aVal = (a as any)[sortKey];
+        bVal = (b as any)[sortKey];
+      }
+
+      // Handle null values
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      // Type-specific comparison
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const comparison = aVal.localeCompare(bVal, 'ko-KR');
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      return 0;
+    });
+  }, [transactions, searchTerm, typeFilter, sortKey, sortDirection]);
 
   if (loading) {
     return (
@@ -111,9 +185,9 @@ export default function ProductionHistoryTable() {
       </div>
 
       {/* Table */}
-      {filteredTransactions.length === 0 ? (
+      {sortedAndFilteredTransactions.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          
+
           <p>생산 내역이 없습니다</p>
         </div>
       ) : (
@@ -121,18 +195,82 @@ export default function ProductionHistoryTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">거래일자</TableHead>
-                <TableHead className="w-[100px]">거래유형</TableHead>
-                <TableHead>품목정보</TableHead>
-                <TableHead className="text-right">수량</TableHead>
-                <TableHead className="text-right">단가</TableHead>
-                <TableHead className="text-right">금액</TableHead>
-                <TableHead>참조번호</TableHead>
-                <TableHead>작성자</TableHead>
+                <TableHead className="w-[100px]">
+                  <button
+                    onClick={() => handleSort('transaction_date')}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    거래일자
+                    {getSortIcon('transaction_date')}
+                  </button>
+                </TableHead>
+                <TableHead className="w-[100px]">
+                  <button
+                    onClick={() => handleSort('transaction_type')}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    거래유형
+                    {getSortIcon('transaction_type')}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort('items.item_name')}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    품목정보
+                    {getSortIcon('items.item_name')}
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    onClick={() => handleSort('quantity')}
+                    className="flex items-center ml-auto hover:text-foreground transition-colors"
+                  >
+                    수량
+                    {getSortIcon('quantity')}
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    onClick={() => handleSort('unit_price')}
+                    className="flex items-center ml-auto hover:text-foreground transition-colors"
+                  >
+                    단가
+                    {getSortIcon('unit_price')}
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    onClick={() => handleSort('total_amount')}
+                    className="flex items-center ml-auto hover:text-foreground transition-colors"
+                  >
+                    금액
+                    {getSortIcon('total_amount')}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort('reference_number')}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    참조번호
+                    {getSortIcon('reference_number')}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort('users.username')}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    작성자
+                    {getSortIcon('users.username')}
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.map((transaction) => (
+              {sortedAndFilteredTransactions.map((transaction) => (
                 <TableRow key={transaction.transaction_id}>
                   <TableCell className="text-sm">
                     <div className="flex flex-col gap-0.5">

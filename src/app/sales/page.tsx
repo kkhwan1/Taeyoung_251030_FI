@@ -18,6 +18,8 @@ import {
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
+import { CompanyFilterSelect } from '@/components/filters/CompanyFilterSelect';
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
 
 const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
 const SalesTransactionForm = dynamicImport(() => import('@/components/sales/SalesTransactionForm'), { ssr: false });
@@ -71,24 +73,39 @@ export default function SalesPage() {
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
 
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { companies, loading: companiesLoading } = useCompanyFilter();
 
   // 매출 거래 목록 조회
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (filterStatus) params.append('payment_status', filterStatus);
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
+
+      // 중앙 집중식 필터 헬퍼 사용
+      const { buildFilteredApiUrl } = await import('@/lib/filters');
+      const additionalParams: Record<string, string> = {};
+      if (searchTerm) additionalParams.search = searchTerm;
+      if (filterStatus) additionalParams.payment_status = filterStatus;
+      if (startDate) additionalParams.start_date = startDate;
+      if (endDate) additionalParams.end_date = endDate;
+      if (minAmount) additionalParams.min_amount = minAmount;
+      if (maxAmount) additionalParams.max_amount = maxAmount;
+
+      const url = buildFilteredApiUrl(
+        '/api/sales-transactions',
+        selectedCompany && selectedCompany !== 'ALL' ? selectedCompany : null,
+        additionalParams
+      );
 
       const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const result = await safeFetchJson(`/api/sales-transactions?${params}`, {}, {
+      const result = await safeFetchJson(url, {}, {
         timeout: 15000,
         maxRetries: 2,
         retryDelay: 1000
@@ -110,7 +127,7 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [searchTerm, filterStatus, startDate, endDate]);
+  }, [searchTerm, filterStatus, startDate, endDate, selectedCompany, minAmount, maxAmount]);
 
   // 매출 거래 추가
   const handleAdd = () => {
@@ -233,7 +250,7 @@ export default function SalesPage() {
 
         {/* 필터 콘텐츠 */}
         <div className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {/* 검색 */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -244,6 +261,23 @@ export default function SalesPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
             />
+          </div>
+
+          {/* 고객사 필터 */}
+          <div>
+            <select
+              value={selectedCompany}
+              onChange={(e) => setSelectedCompany(e.target.value)}
+              disabled={companiesLoading}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">전체 고객사</option>
+              {companies.map((company) => (
+                <option key={company.value} value={company.value}>
+                  {company.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* 수금 상태 필터 */}
@@ -273,6 +307,24 @@ export default function SalesPage() {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+          />
+
+          {/* 최소 금액 */}
+          <input
+            type="number"
+            placeholder="최소 금액"
+            value={minAmount}
+            onChange={(e) => setMinAmount(e.target.value)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+          />
+
+          {/* 최대 금액 */}
+          <input
+            type="number"
+            placeholder="최대 금액"
+            value={maxAmount}
+            onChange={(e) => setMaxAmount(e.target.value)}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent"
           />
         </div>

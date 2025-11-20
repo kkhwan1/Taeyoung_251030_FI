@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { VirtualTable, VirtualTableColumn } from '@/components/ui/VirtualTable';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCompanyFilter } from '@/hooks/useCompanyFilter';
 
 interface StockHistory {
   history_id: number;
@@ -18,13 +19,6 @@ interface StockHistory {
   company_id?: number | null;
   company_name?: string | null;
   company_code?: string | null;
-}
-
-interface CompanyOption {
-  company_id: number;
-  company_name: string;
-  company_code: string | null;
-  label: string;
 }
 
 interface Props {
@@ -52,31 +46,14 @@ export default function StockHistoryViewer({ itemId }: Props) {
   const [filter, setFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  // Phase 4: 거래처 필터링 상태 추가
+  // Phase 4: 거래처 필터링 상태 추가 - useCompanyFilter hook 사용
   const [companyFilter, setCompanyFilter] = useState<number | 'ALL'>('ALL');
-  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const { companies: companyOptions, loading: companiesLoading } = useCompanyFilter();
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchHistory();
-    fetchCompanies();
   }, [itemId]);
-
-  // Phase 4: 거래처 목록 조회
-  const fetchCompanies = async () => {
-    setCompaniesLoading(true);
-    try {
-      const res = await fetch('/api/companies/options');
-      const json = await res.json();
-      if (json.success) {
-        setCompanyOptions(json.data || []);
-      }
-    } catch (error) {
-      console.error('거래처 목록 불러오기 실패:', error);
-    } finally {
-      setCompaniesLoading(false);
-    }
-  };
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -103,7 +80,10 @@ export default function StockHistoryViewer({ itemId }: Props) {
   const filteredData = useMemo(() => {
     return data
       .filter(item => filter === 'ALL' ? true : item.movement_type === filter)
-      .filter(item => companyFilter === 'ALL' ? true : item.company_id === companyFilter)
+      .filter(item => {
+        if (companyFilter === 'ALL') return true;
+        return item.company_id === companyFilter;
+      })
       .filter(item => {
         if (!startDate && !endDate) return true;
 
@@ -225,10 +205,60 @@ export default function StockHistoryViewer({ itemId }: Props) {
     }
   ];
 
-  // Export to Excel (placeholder)
-  const handleExport = () => {
-    toast.success('엑셀 내보내기 기능 준비 중입니다');
-    // TODO: Implement Excel export functionality
+  // Export to Excel
+  const handleExport = async () => {
+    setExporting(true);
+
+    try {
+      // Build query parameters from current filter state
+      const params = new URLSearchParams({
+        item_id: itemId.toString()
+      });
+
+      // Add optional filters only if not 'ALL'
+      if (filter !== 'ALL') {
+        params.append('movement_type', filter);
+      }
+
+      if (companyFilter !== 'ALL') {
+        params.append('company_id', companyFilter.toString());
+      }
+
+      if (startDate) {
+        params.append('start_date', startDate);
+      }
+
+      if (endDate) {
+        params.append('end_date', endDate);
+      }
+
+      // Fetch from export API
+      const response = await fetch(`/api/stock-history/export?${params}`);
+
+      // Handle non-OK responses
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '내보내기 실패');
+      }
+
+      // Get blob and trigger download
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ''; // Filename from Content-Disposition header
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('엑셀 파일 내보내기 완료');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error(error instanceof Error ? error.message : '내보내기 중 오류 발생');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -241,37 +271,40 @@ export default function StockHistoryViewer({ itemId }: Props) {
 
         {/* Filters */}
         <div className="space-y-4">
-          {/* Movement type filter */}
-          <div className="flex flex-wrap gap-2">
-            {FILTER_OPTIONS.map(option => (
-              <button
-                key={option.value}
-                onClick={() => setFilter(option.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  filter === option.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Phase 4: Company filter - Dropdown style */}
+          {/* Movement type filter - Dropdown */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              거래처 필터
+            <label htmlFor="movement-type-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              이동 유형
             </label>
             <select
+              id="movement-type-filter"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+            >
+              {FILTER_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Company filter - Unified dropdown style */}
+          <div>
+            <label htmlFor="company-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              거래처
+            </label>
+            <select
+              id="company-filter"
               value={companyFilter === 'ALL' ? 'ALL' : companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
               disabled={companiesLoading}
-              className="w-full sm:w-64 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
             >
               <option value="ALL">전체 거래처</option>
               {companyOptions.map(option => (
-                <option key={option.company_id} value={option.company_id}>
+                <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
@@ -308,11 +341,18 @@ export default function StockHistoryViewer({ itemId }: Props) {
             <div className="flex items-end">
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={exporting}
+                className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors ${
+                  exporting
+                    ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
                 title="엑셀 내보내기"
               >
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">내보내기</span>
+                <span className="hidden sm:inline">
+                  {exporting ? '내보내는 중...' : '내보내기'}
+                </span>
               </button>
             </div>
           </div>

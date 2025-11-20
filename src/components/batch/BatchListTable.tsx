@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, RefreshCw, Eye, CheckCircle, XCircle, Trash2, Filter, Calendar } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, RefreshCw, Eye, CheckCircle, XCircle, Trash2, Filter, Calendar, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface BatchItem {
   batch_item_id: number;
@@ -43,6 +43,8 @@ export default function BatchListTable({ refreshKey }: BatchListTableProps) {
   const [endDate, setEndDate] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     fetchBatches();
@@ -177,6 +179,73 @@ export default function BatchListTable({ refreshKey }: BatchListTableProps) {
     setTimeout(() => fetchBatches(), 0);
   };
 
+  // TASK-023: Table sorting with useMemo optimization
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        // Reset to no sorting
+        setSortKey(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (key: string) => {
+    if (sortKey !== key) {
+      return (
+        <div className="inline-flex flex-col ml-1">
+          <ChevronUp className="h-3 w-3 text-gray-400" />
+          <ChevronDown className="h-3 w-3 text-gray-400 -mt-2" />
+        </div>
+      );
+    }
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="h-4 w-4 inline ml-1" />
+    ) : (
+      <ChevronDown className="h-4 w-4 inline ml-1" />
+    );
+  };
+
+  const sortedBatches = useMemo(() => {
+    if (!sortKey) return batches;
+
+    return [...batches].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      // Handle computed fields
+      if (sortKey === 'items.length') {
+        aVal = a.items?.length || 0;
+        bVal = b.items?.length || 0;
+      } else {
+        aVal = (a as any)[sortKey];
+        bVal = (b as any)[sortKey];
+      }
+
+      // Handle null values
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      // Type-specific comparison
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const comparison = aVal.localeCompare(bVal, 'ko-KR');
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      return 0;
+    });
+  }, [batches, sortKey, sortDirection]);
+
   return (
     <div className="space-y-4">
       {/* Search and Filter Section */}
@@ -280,22 +349,58 @@ export default function BatchListTable({ refreshKey }: BatchListTableProps) {
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    배치 번호
+                    <button
+                      onClick={() => handleSort('batch_number')}
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    >
+                      배치 번호
+                      {getSortIcon('batch_number')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    배치 날짜
+                    <button
+                      onClick={() => handleSort('batch_date')}
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    >
+                      배치 날짜
+                      {getSortIcon('batch_date')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    상태
+                    <button
+                      onClick={() => handleSort('status')}
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    >
+                      상태
+                      {getSortIcon('status')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    품목 수
+                    <button
+                      onClick={() => handleSort('items.length')}
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    >
+                      품목 수
+                      {getSortIcon('items.length')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    메모
+                    <button
+                      onClick={() => handleSort('notes')}
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    >
+                      메모
+                      {getSortIcon('notes')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    등록일시
+                    <button
+                      onClick={() => handleSort('created_at')}
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    >
+                      등록일시
+                      {getSortIcon('created_at')}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     작업
@@ -303,7 +408,7 @@ export default function BatchListTable({ refreshKey }: BatchListTableProps) {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {batches.map((batch) => (
+                {sortedBatches.map((batch) => (
                   <tr key={batch.batch_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       {batch.batch_number}

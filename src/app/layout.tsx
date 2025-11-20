@@ -6,6 +6,7 @@ import { FontSizeProvider } from "@/contexts/FontSizeContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { FilterProvider } from "@/contexts/FilterContext";
 import { ModalProvider } from "@/contexts/ModalContext";
+import { CompanyFilterProvider } from "@/contexts/CompanyFilterContext";
 import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 import "../styles/print.css";
@@ -37,13 +38,15 @@ export default function RootLayout({
         <QueryProvider>
           <UserProvider>
             <FilterProvider>
-              <ModalProvider>
-                <FontSizeProvider>
-                  <ToastProvider>
-                    <MainLayout>{children}</MainLayout>
-                  </ToastProvider>
-                </FontSizeProvider>
-              </ModalProvider>
+              <CompanyFilterProvider>
+                <ModalProvider>
+                  <FontSizeProvider>
+                    <ToastProvider>
+                      <MainLayout>{children}</MainLayout>
+                    </ToastProvider>
+                  </FontSizeProvider>
+                </ModalProvider>
+              </CompanyFilterProvider>
             </FilterProvider>
           </UserProvider>
         </QueryProvider>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { parsePagination, buildPaginatedResponse } from '@/lib/pagination';
+import { extractCompanyId, applyCompanyFilter } from '@/lib/filters';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +40,8 @@ export const GET = async (request: NextRequest) => {
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined
     });
 
+    // 중앙 집중식 company_id 추출
+    const companyId = extractCompanyId(searchParams, 'company_id');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const payment_method = searchParams.get('payment_method');
@@ -66,6 +69,9 @@ export const GET = async (request: NextRequest) => {
         )
       `, { count: 'exact' })
       .eq('is_active', true);
+
+    // 중앙 집중식 거래처 필터 적용 (supplier_id)
+    query = applyCompanyFilter(query, 'payments', companyId, 'supplier');
 
     // Apply filters
     if (startDate) {
