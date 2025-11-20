@@ -1128,7 +1128,6 @@ function InventoryContent() {
                       const dateB = (b as any).created_at ? new Date((b as any).created_at).getTime() : new Date(b.transaction_date || 0).getTime();
                       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
                     })
-                    .slice(0, 10)
                     .map((transaction) => {
                     const shortageTotal = (transaction as any).shortage_total || 0;
                     return (
