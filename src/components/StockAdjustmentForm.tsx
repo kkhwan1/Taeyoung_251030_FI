@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, AlertTriangle } from 'lucide-react';
 import ItemSelect from './ItemSelect';
 import { ItemForComponent } from '@/types/inventory';
 
@@ -227,7 +227,10 @@ export default function StockAdjustmentForm({ onSubmit, onCancel }: StockAdjustm
               <span className={`${selectedItemStock.current_stock - formData.quantity >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
                 → 조정 후 예상 재고: {Math.max(0, selectedItemStock.current_stock - formData.quantity).toLocaleString('ko-KR')} {selectedItemStock.unit}
                 {selectedItemStock.current_stock - formData.quantity < 0 && (
-                  <span className="ml-2 font-medium">⚠️ 재고가 부족합니다!</span>
+                  <span className="ml-2 font-medium flex items-center">
+                    <AlertTriangle className="w-4 h-4 inline mr-1" />
+                    재고가 부족합니다!
+                  </span>
                 )}
               </span>
             )}

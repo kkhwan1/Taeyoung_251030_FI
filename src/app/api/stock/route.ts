@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createValidatedRoute } from '@/lib/validationMiddleware';
 import { getSupabaseClient } from '@/lib/db-unified';
+import { type InventoryType, type QualityStatus } from '@/lib/constants/inventoryTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,10 @@ interface CurrentStock {
   safety_stock?: number;
   stock_value: number;
   is_low_stock: boolean;
+  // Phase 3 - Classification fields
+  inventory_type?: InventoryType | null;
+  warehouse_zone?: string | null;
+  quality_status?: QualityStatus | null;
 }
 
 export const GET = createValidatedRoute(
@@ -25,13 +30,14 @@ export const GET = createValidatedRoute(
     const category = searchParams.get('category');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const supplierId = searchParams.get('supplier_id');
 
     const supabase = getSupabaseClient();
 
-    // Build query - get stock data from items table
+    // Build query - get stock data from items table (Phase 3: includes classification fields)
     let query = supabase
       .from('items')
-      .select('item_id, item_code, item_name, spec, category, unit, current_stock, safety_stock, price, is_active')
+      .select('item_id, item_code, item_name, spec, category, unit, current_stock, safety_stock, price, is_active, inventory_type, warehouse_zone, quality_status, supplier_id')
       .eq('is_active', true);
 
     // Apply filters
@@ -41,6 +47,10 @@ export const GET = createValidatedRoute(
 
     if (search) {
       query = query.or(`item_code.ilike.%${search}%,item_name.ilike.%${search}%`);
+    }
+
+    if (supplierId) {
+      query = query.eq('supplier_id', parseInt(supplierId));
     }
 
     // Apply ordering
@@ -116,7 +126,11 @@ export const GET = createValidatedRoute(
         stock_value: stockValue,
         is_low_stock: isLowStock,
         last_transaction_date: lastTx?.date || null,
-        last_transaction_type: lastTx?.type || null
+        last_transaction_type: lastTx?.type || null,
+        // Phase 3 - Classification fields
+        inventory_type: item.inventory_type || null,
+        warehouse_zone: item.warehouse_zone || null,
+        quality_status: item.quality_status || null
       };
     });
 

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   RefreshCw,
   CheckCircle2,
   XCircle
 } from 'lucide-react';
-import { BOMCheckResponse, BOMCheckItem } from '@/types/inventory';
+import { BOMCheckResponse, BOMCheckItem, ProductionItem } from '@/types/inventory';
 import BOMStatusBadge from './BOMStatusBadge';
 
 interface BOMPreviewPanelProps {
@@ -12,6 +12,10 @@ interface BOMPreviewPanelProps {
   loading: boolean;
   error: string | null;
   onRefresh?: () => void;
+  // Batch mode support
+  batchMode?: boolean;
+  batchItems?: ProductionItem[];
+  batchBomChecks?: Map<number, BOMCheckResponse>; // Map of item_id -> BOMCheckResponse
 }
 
 /**
@@ -42,8 +46,147 @@ export default function BOMPreviewPanel({
   bomCheckData,
   loading,
   error,
-  onRefresh
+  onRefresh,
+  batchMode = false,
+  batchItems = [],
+  batchBomChecks
 }: BOMPreviewPanelProps) {
+  // Tab state for batch mode: -1 = 전체 집계, 0+ = 개별 제품
+  const [activeTabIndex, setActiveTabIndex] = useState(-1);
+
+  // Aggregate all batch BOMs into a single merged response
+  const aggregatedBomData = useMemo(() => {
+    if (!batchMode || !batchBomChecks || batchItems.length === 0) {
+      return null;
+    }
+
+    const allBomChecks = Array.from(batchBomChecks.values());
+    if (allBomChecks.length === 0) {
+      return null;
+    }
+
+    // Merge all BOM items by item_code
+    const mergedItems = new Map<string, {
+      bom_id: number;
+      child_item_id: number;
+      item_code: string;
+      item_name: string;
+      category: string;
+      spec?: string;
+      unit: string;
+      unit_price: number;
+      required_quantity: number;
+      available_stock: number;
+      shortage: number;
+      sufficient: boolean;
+      safety_stock: number;
+      required_value: number;
+      available_value: number;
+      max_producible_by_this_item: number;
+      bom_quantity_per_unit: number;
+    }>();
+
+    let totalProductionQuantity = 0;
+    let totalRequiredValue = 0;
+    let totalAvailableValue = 0;
+    let totalShortage = 0;
+    let maxProducibleQuantity = Infinity;
+    let allCanProduce = true;
+
+    for (const bomCheck of allBomChecks) {
+      totalProductionQuantity += bomCheck.production_quantity;
+      totalRequiredValue += bomCheck.summary.total_required_value;
+      totalAvailableValue += bomCheck.summary.total_available_value;
+      totalShortage += bomCheck.summary.total_shortage;
+      
+      if (!bomCheck.can_produce) {
+        allCanProduce = false;
+      }
+
+      // Merge BOM items
+      for (const item of bomCheck.bom_items) {
+        const existing = mergedItems.get(item.item_code);
+        if (existing) {
+          // Sum quantities for same material
+          existing.required_quantity += item.required_quantity;
+          existing.required_value += item.required_value;
+          existing.shortage += item.shortage;
+          // Take minimum of max producible (bottleneck)
+          existing.max_producible_by_this_item = Math.min(
+            existing.max_producible_by_this_item,
+            item.max_producible_by_this_item
+          );
+          // Update sufficient status
+          existing.sufficient = existing.sufficient && item.sufficient;
+        } else {
+          mergedItems.set(item.item_code, { ...item });
+        }
+      }
+    }
+
+    // Calculate overall max producible (minimum of all materials)
+    const mergedItemsArray = Array.from(mergedItems.values());
+    for (const item of mergedItemsArray) {
+      maxProducibleQuantity = Math.min(maxProducibleQuantity, item.max_producible_by_this_item);
+    }
+
+    // Calculate summary
+    const sufficientItems = mergedItemsArray.filter(item => item.sufficient).length;
+    const insufficientItems = mergedItemsArray.length - sufficientItems;
+
+    const fulfillmentRate = totalRequiredValue > 0
+      ? (totalAvailableValue / totalRequiredValue) * 100
+      : 100;
+
+    const shortageQuantity = Math.max(0, totalProductionQuantity - maxProducibleQuantity);
+
+    // Find bottleneck item
+    const bottleneckItem = mergedItemsArray.find(item => 
+      item.max_producible_by_this_item === maxProducibleQuantity
+    );
+
+    return {
+      product_info: {
+        item_id: 0,
+        item_code: '전체 집계',
+        item_name: `${batchItems.length}개 제품`,
+        category: '배치',
+        unit: allBomChecks[0]?.product_info.unit || 'EA'
+      },
+      production_quantity: totalProductionQuantity,
+      can_produce: allCanProduce && maxProducibleQuantity >= totalProductionQuantity,
+      bom_items: mergedItemsArray,
+      summary: {
+        total_bom_items: mergedItemsArray.length,
+        sufficient_items: sufficientItems,
+        insufficient_items: insufficientItems,
+        total_required_value: totalRequiredValue,
+        total_available_value: totalAvailableValue,
+        total_shortage: totalShortage,
+        fulfillment_rate: fulfillmentRate,
+        max_producible_quantity: maxProducibleQuantity === Infinity ? 0 : maxProducibleQuantity,
+        shortage_quantity: shortageQuantity,
+        bottleneck_item: bottleneckItem ? {
+          bom_id: bottleneckItem.bom_id,
+          item_code: bottleneckItem.item_code,
+          item_name: bottleneckItem.item_name,
+          max_producible: bottleneckItem.max_producible_by_this_item,
+          required_for_requested: bottleneckItem.required_quantity,
+          available_stock: bottleneckItem.available_stock
+        } : null
+      }
+    } as BOMCheckResponse;
+  }, [batchMode, batchBomChecks, batchItems]);
+
+  // Determine current data to display based on mode
+  const currentBomData = batchMode && batchBomChecks
+    ? activeTabIndex === -1
+      ? aggregatedBomData
+      : (activeTabIndex >= 0 && activeTabIndex < batchItems.length && batchItems[activeTabIndex]?.item_id)
+        ? batchBomChecks.get(batchItems[activeTabIndex].item_id) || null
+        : null
+    : bomCheckData;
+
   // Loading state with skeleton loaders
   if (loading) {
     return (
@@ -89,21 +232,41 @@ export default function BOMPreviewPanel({
   }
 
   // Empty state - no BOM check performed yet
-  if (!bomCheckData) {
+  if (!currentBomData) {
+    // If in batch mode and clicked on individual tab but no data, show helpful message
+    if (batchMode && activeTabIndex >= 0 && activeTabIndex < batchItems.length) {
+      const selectedItem = batchItems[activeTabIndex];
+      return (
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-8 bg-gray-50 dark:bg-gray-800/50 text-center">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            BOM 확인 중
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {selectedItem?.item_id && selectedItem?.quantity > 0
+              ? `${selectedItem.item_code || '제품'}의 BOM을 확인하는 중입니다...`
+              : `${selectedItem?.item_code || '제품'}의 제품과 수량을 입력해주세요.`}
+          </p>
+        </div>
+      );
+    }
+    
     return (
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-8 bg-gray-50 dark:bg-gray-800/50 text-center">
-        
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          BOM 자재 확인 대기 중
+          BOM 미리보기
         </h3>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          제품과 생산수량을 선택하면 자재 소요량을 확인할 수 있습니다.
+          {batchMode
+            ? batchItems.length === 0
+              ? '배치 모드에서는 각 제품을 선택하고 탭을 클릭하여 BOM을 확인하세요'
+              : '각 제품을 선택하고 수량을 입력하면 자재 소요량을 확인할 수 있습니다.'
+            : '제품을 선택하면 BOM 정보가 여기에 표시됩니다'}
         </p>
       </div>
     );
   }
 
-  const { product_info, production_quantity, can_produce, bom_items, summary } = bomCheckData;
+  const { product_info, production_quantity, can_produce, bom_items, summary } = currentBomData;
 
   // Determine stock status for badge
   const getStockStatus = (item: BOMCheckItem) => {
@@ -118,10 +281,10 @@ export default function BOMPreviewPanel({
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            BOM 자재 확인
+            BOM 자재 확인 {batchMode && `(${batchItems.length}개 제품)`}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {product_info.item_name} ({product_info.item_code}) - 생산수량: {production_quantity}{product_info.unit}
+            {product_info.item_name} ({product_info.item_code}) - 생산수량: {production_quantity.toLocaleString('ko-KR')}{product_info.unit}
           </p>
         </div>
         {onRefresh && (
@@ -134,6 +297,52 @@ export default function BOMPreviewPanel({
           </button>
         )}
       </div>
+
+      {/* Tabs for batch mode */}
+      {batchMode && batchItems.length > 0 && (
+        <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20">
+          <div className="flex overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+            {/* 전체 집계 탭 */}
+            <button
+              onClick={() => setActiveTabIndex(-1)}
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                activeTabIndex === -1
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">전체 집계</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  ({batchItems.length}개)
+                </span>
+              </div>
+            </button>
+            {/* 개별 제품 탭 */}
+            {batchItems.map((item, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveTabIndex(index)}
+                className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeTabIndex === index
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs">{item.item_code || `제품 ${index + 1}`}</span>
+                  {item.item_name && (
+                    <span className="max-w-[200px] truncate">{item.item_name}</span>
+                  )}
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    ({item.quantity}{currentBomData?.product_info.unit || 'EA'})
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Warning Banner - Only show when cannot produce */}
       {!can_produce && (

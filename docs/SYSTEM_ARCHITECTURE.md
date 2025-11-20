@@ -249,6 +249,42 @@ EXECUTE FUNCTION update_stock_on_transaction();
 - 입고/생산입고: items.current_stock += quantity
 - 출고/생산출고: items.current_stock -= quantity
 
+#### 3. 배치 승인 트리거
+
+**파일**: `migrations/create_process_batch_approval_trigger.sql`
+
+```sql
+CREATE TRIGGER trg_process_batch_approval
+AFTER UPDATE ON production_batch
+FOR EACH ROW
+WHEN (NEW.status = 'APPROVED' AND (OLD.status IS NULL OR OLD.status != 'APPROVED'))
+EXECUTE FUNCTION process_batch_approval();
+```
+
+**동작**:
+1. production_batch.status가 'APPROVED'로 변경될 때 실행
+2. production_batch_items를 기반으로 inventory_transactions 생성
+3. INPUT 타입: 생산투입 거래 생성 (음수 수량)
+4. OUTPUT 타입: 생산입고 거래 생성 (양수 수량)
+5. 불량 수량이 있으면 조정 거래 생성
+
+#### 4. 결제 분할 검증 트리거
+
+**파일**: `migrations/create_validate_payment_splits_trigger.sql`
+
+```sql
+CREATE TRIGGER trg_validate_payment_splits_total
+AFTER INSERT OR UPDATE OR DELETE ON payment_splits
+FOR EACH ROW
+EXECUTE FUNCTION validate_payment_splits_total();
+```
+
+**동작**:
+1. payment_splits INSERT/UPDATE/DELETE 시 실행
+2. transaction_id별 payment_splits 합계 계산
+3. sales_transactions.total_amount와 비교
+4. 불일치 시 EXCEPTION 발생 (0.01원 허용 오차)
+
 ---
 
 ## 5. 핵심 비즈니스 로직

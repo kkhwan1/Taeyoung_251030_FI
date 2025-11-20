@@ -80,6 +80,23 @@ export interface ProcessOperationWithItems {
   created_at: string;
   updated_at: string;
 
+  // LOT Tracking Fields (NEW 2025-02-06)
+  lot_number?: string;              // LOT 번호 (예: BLK-20251117-001)
+  parent_lot_number?: string;       // 부모 LOT 번호
+  child_lot_number?: string;        // 자식 LOT 번호
+
+  // Process Chain Management Fields (NEW 2025-02-06)
+  chain_id?: string;                // 프로세스 체인 식별자
+  chain_sequence?: number;          // 체인 내 순서 (1, 2, 3...)
+  parent_operation_id?: number;     // 부모 공정 ID
+  auto_next_operation?: boolean;    // 완료 시 다음 공정 자동 시작 여부
+  next_operation_type?: string;     // 자동 시작할 다음 공정 타입
+
+  // Quality Control Fields (NEW 2025-02-06)
+  quality_status?: string;          // 품질 상태 (OK, NG, REWORK)
+  scrap_quantity?: number;          // 불량 수량
+  scheduled_date?: string;          // 예정일
+
   // Relations
   input_item: ItemBasicInfo;
   output_item: ItemBasicInfo;

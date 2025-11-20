@@ -69,7 +69,7 @@ export async function GET(
       .single();
 
     if (error) {
-      console.error('❌ Operation retrieval error:', error);
+      console.error('[ERROR] Operation retrieval error:', error);
       return handleSupabaseError('select', 'process_operations', error);
     }
 
@@ -99,6 +99,20 @@ export async function GET(
       notes: data.notes,
       created_at: data.created_at,
       updated_at: data.updated_at,
+      // LOT tracking fields
+      lot_number: data.lot_number,
+      parent_lot_number: data.parent_lot_number,
+      child_lot_number: data.child_lot_number,
+      // Chain management fields
+      chain_id: data.chain_id,
+      chain_sequence: data.chain_sequence,
+      parent_operation_id: data.parent_operation_id,
+      auto_next_operation: data.auto_next_operation,
+      next_operation_type: data.next_operation_type,
+      // Quality control fields
+      quality_status: data.quality_status,
+      scrap_quantity: data.scrap_quantity ? parseFloat(data.scrap_quantity) : undefined,
+      scheduled_date: data.scheduled_date,
       input_item: {
         item_id: data.input_item.item_id,
         item_name: data.input_item.item_name,
@@ -119,7 +133,7 @@ export async function GET(
 
     return createSuccessResponse(operation);
   } catch (error) {
-    console.error('❌ Unexpected error in GET /api/process-operations/[id]:', error);
+    console.error('[ERROR] Unexpected error in GET /api/process-operations/[id]:', error);
     return NextResponse.json(
       {
         success: false,
@@ -283,7 +297,7 @@ export async function PATCH(
       .single();
 
     if (updateError) {
-      console.error('❌ Operation update error:', updateError);
+      console.error('[ERROR] Operation update error:', updateError);
       return handleSupabaseError('update', 'process_operations', updateError);
     }
 
@@ -303,6 +317,20 @@ export async function PATCH(
       notes: updatedOp.notes,
       created_at: updatedOp.created_at,
       updated_at: updatedOp.updated_at,
+      // LOT tracking fields
+      lot_number: updatedOp.lot_number,
+      parent_lot_number: updatedOp.parent_lot_number,
+      child_lot_number: updatedOp.child_lot_number,
+      // Chain management fields
+      chain_id: updatedOp.chain_id,
+      chain_sequence: updatedOp.chain_sequence,
+      parent_operation_id: updatedOp.parent_operation_id,
+      auto_next_operation: updatedOp.auto_next_operation,
+      next_operation_type: updatedOp.next_operation_type,
+      // Quality control fields
+      quality_status: updatedOp.quality_status,
+      scrap_quantity: updatedOp.scrap_quantity ? parseFloat(updatedOp.scrap_quantity) : undefined,
+      scheduled_date: updatedOp.scheduled_date,
       input_item: {
         item_id: updatedOp.input_item.item_id,
         item_name: updatedOp.input_item.item_name,
@@ -321,11 +349,11 @@ export async function PATCH(
       },
     };
 
-    console.log(`✅ Process operation updated: ${operation.operation_id} → ${operation.status}`);
+    console.log(`[INFO] Process operation updated: ${operation.operation_id} → ${operation.status}`);
 
     return createSuccessResponse(operation);
   } catch (error) {
-    console.error('❌ Unexpected error in PATCH /api/process-operations/[id]:', error);
+    console.error('[ERROR] Unexpected error in PATCH /api/process-operations/[id]:', error);
     return NextResponse.json(
       {
         success: false,
@@ -403,11 +431,11 @@ export async function DELETE(
       .eq('operation_id', operationId);
 
     if (deleteError) {
-      console.error('❌ Operation cancellation error:', deleteError);
+      console.error('[ERROR] Operation cancellation error:', deleteError);
       return handleSupabaseError('update', 'process_operations', deleteError);
     }
 
-    console.log(`✅ Process operation cancelled: ${operationId}`);
+    console.log(`[INFO] Process operation cancelled: ${operationId}`);
 
     return NextResponse.json(
       {
@@ -417,7 +445,7 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
-    console.error('❌ Unexpected error in DELETE /api/process-operations/[id]:', error);
+    console.error('[ERROR] Unexpected error in DELETE /api/process-operations/[id]:', error);
     return NextResponse.json(
       {
         success: false,

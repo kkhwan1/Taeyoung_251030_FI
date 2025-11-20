@@ -21,7 +21,10 @@ export async function POST(request: NextRequest) {
   try {
     // Korean UTF-8 support
     const text = await request.text();
+    console.log('[ADJUSTMENT] Raw request text:', text);
     const body = JSON.parse(text);
+    console.log('[ADJUSTMENT] Parsed body:', body);
+    console.log('[ADJUSTMENT] created_by value:', body.created_by, 'type:', typeof body.created_by);
     const {
       item_id,
       adjustment_type,
@@ -31,6 +34,7 @@ export async function POST(request: NextRequest) {
       notes,
       created_by
     } = body;
+    console.log('[ADJUSTMENT] Destructured created_by:', created_by, 'type:', typeof created_by);
 
     // 필수 필드 검증
     if (!item_id || !adjustment_type || quantity === undefined || !reason || !created_by) {

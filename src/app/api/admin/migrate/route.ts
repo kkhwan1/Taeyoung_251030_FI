@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/db-unified';
+import { parseKoreanRequest } from '@/lib/parse-korean-request';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const supabase = getSupabaseClient();
-    const { sql } = await request.json();
+    const { sql } = await parseKoreanRequest<{ sql: string }>(request as any);
 
     if (!sql) {
       return NextResponse.json(

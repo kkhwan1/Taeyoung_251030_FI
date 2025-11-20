@@ -7,7 +7,9 @@ import {
   Calendar,
   CheckCircle,
   Factory,
-  Wrench
+  Wrench,
+  List,
+  Package
 } from 'lucide-react';
 import {
   Product,
@@ -16,14 +18,21 @@ import {
   ProductionFormProps,
   ItemForComponent as Item,
   ProductionResponse,
-  AutoDeduction
+  AutoDeduction,
+  ProductionItem
 } from '@/types/inventory';
 import ItemSelect from '@/components/ItemSelect';
 import { useBomCheck } from '@/lib/hooks/useBomCheck';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import BOMPreviewPanel from '@/components/inventory/BOMPreviewPanel';
+import { BOMCheckResponse } from '@/types/inventory';
 
 export default function ProductionForm({ onSubmit, onCancel }: ProductionFormProps) {
+  // Batch mode state
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchItems, setBatchItems] = useState<ProductionItem[]>([]);
+  const [batchBomChecks, setBatchBomChecks] = useState<Map<number, BOMCheckResponse>>(new Map());
+
   const [formData, setFormData] = useState<ProductionFormData>({
     transaction_date: new Date().toISOString().split('T')[0],
     product_item_id: 0,
@@ -47,16 +56,61 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
   const { data: bomCheckData, loading: bomLoading, error: bomError, checkBom } = useBomCheck();
   const debouncedCheckBom = useDebounce(checkBom, 500);
 
-  // Real-time BOM check when product or quantity changes
+  // Real-time BOM check when product or quantity changes (single mode)
   useEffect(() => {
-    if (selectedProduct && formData.quantity > 0 && formData.use_bom) {
+    if (!isBatchMode && selectedProduct && formData.quantity > 0 && formData.use_bom) {
       const productId = selectedProduct.item_id || selectedProduct.id;
       if (productId > 0) {
         debouncedCheckBom(productId, formData.quantity);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProduct, formData.quantity, formData.use_bom]);
+  }, [selectedProduct, formData.quantity, formData.use_bom, isBatchMode]);
+
+  // Batch mode BOM check - check BOM for each batch item when item or quantity changes
+  useEffect(() => {
+    if (!isBatchMode || !formData.use_bom || batchItems.length === 0) {
+      setBatchBomChecks(new Map());
+      return;
+    }
+
+    let isMounted = true;
+
+    const checkBatchBoms = async () => {
+      const newChecks = new Map<number, BOMCheckResponse>();
+      
+      for (const item of batchItems) {
+        if (item.item_id > 0 && item.quantity > 0) {
+          try {
+            const response = await fetch(
+              `/api/inventory/production/bom-check?product_item_id=${item.item_id}&quantity=${item.quantity}`
+            );
+            if (!isMounted) return;
+            
+            const result = await response.json();
+            if (response.ok && result.success) {
+              newChecks.set(item.item_id, result.data);
+            }
+          } catch (err) {
+            if (isMounted) {
+              console.error(`BOM check failed for item ${item.item_id}:`, err);
+            }
+          }
+        }
+      }
+      
+      if (isMounted) {
+        setBatchBomChecks(newChecks);
+      }
+    };
+
+    // Debounce batch BOM checks
+    const timeoutId = setTimeout(checkBatchBoms, 500);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [batchItems, formData.use_bom, isBatchMode]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -101,16 +155,33 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
       newErrors.transaction_date = '생산일자는 필수입니다';
     }
 
-    if (!formData.product_item_id || formData.product_item_id === 0) {
-      newErrors.product_item_id = '생산할 제품을 선택해주세요';
-    }
+    if (isBatchMode) {
+      // Batch mode validation
+      if (batchItems.length === 0) {
+        newErrors.batchItems = '최소 1개 이상의 제품을 추가해주세요';
+      } else {
+        batchItems.forEach((item, index) => {
+          if (!item.item_id || item.item_id === 0) {
+            newErrors[`batchItem_${index}_product`] = `제품 ${index + 1}: 제품을 선택해주세요`;
+          }
+          if (!item.quantity || item.quantity <= 0) {
+            newErrors[`batchItem_${index}_quantity`] = `제품 ${index + 1}: 생산수량은 0보다 커야 합니다`;
+          }
+        });
+      }
+    } else {
+      // Single mode validation
+      if (!formData.product_item_id || formData.product_item_id === 0) {
+        newErrors.product_item_id = '생산할 제품을 선택해주세요';
+      }
 
-    if (!formData.quantity || formData.quantity <= 0) {
-      newErrors.quantity = '생산수량은 0보다 커야 합니다';
-    }
+      if (!formData.quantity || formData.quantity <= 0) {
+        newErrors.quantity = '생산수량은 0보다 커야 합니다';
+      }
 
-    if (formData.scrap_quantity && formData.scrap_quantity < 0) {
-      newErrors.scrap_quantity = '스크랩 수량은 0 이상이어야 합니다';
+      if (formData.scrap_quantity && formData.scrap_quantity < 0) {
+        newErrors.scrap_quantity = '스크랩 수량은 0 이상이어야 합니다';
+      }
     }
 
     setErrors(newErrors);
@@ -121,8 +192,19 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
     e.preventDefault();
     if (!validate()) return;
 
-    // Show confirmation modal with BOM preview
-    setShowConfirmModal(true);
+    // For batch mode, skip confirmation modal and submit directly
+    if (isBatchMode && batchItems.length > 0) {
+      await handleConfirmProduction();
+      return;
+    }
+
+    // Show confirmation modal with BOM preview (single mode only)
+    if (!isBatchMode && bomCheckData) {
+      setShowConfirmModal(true);
+    } else {
+      // If no BOM check data, submit directly
+      await handleConfirmProduction();
+    }
   };
 
   const handleConfirmProduction = async () => {
@@ -130,6 +212,68 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
     setLoading(true);
 
     try {
+      if (isBatchMode && batchItems.length > 0) {
+        // Batch mode submission
+        const validBatchItems = batchItems.filter(item => item.item_id > 0 && item.quantity > 0);
+        
+        if (validBatchItems.length === 0) {
+          alert('유효한 제품이 없습니다. 제품을 선택하고 수량을 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+
+        const batchData: any = {
+          transaction_date: formData.transaction_date,
+          items: validBatchItems.map(item => ({
+            product_item_id: item.item_id,
+            item_id: item.item_id,
+            quantity: Math.floor(Number(item.quantity)),
+            unit_price: item.unit_price || 0,
+            reference_no: item.reference_no || '',
+            notes: item.notes || ''
+          })),
+          reference_no: formData.reference_no,
+          notes: formData.notes,
+          use_bom: formData.use_bom,
+          created_by: formData.created_by || 1
+        };
+
+        // Remove empty optional fields
+        Object.keys(batchData).forEach(key => {
+          if (batchData[key] === '' || batchData[key] === undefined) {
+            delete batchData[key];
+          }
+        });
+
+        const result = await onSubmit(batchData);
+        
+        // Check if submission was successful
+        if (result && (result.success !== false)) {
+          // Show success message
+          alert(`${validBatchItems.length}개 제품이 성공적으로 등록되었습니다.`);
+          
+          // Reset form
+          setBatchItems([]);
+          setFormData({
+            transaction_date: new Date().toISOString().split('T')[0],
+            product_item_id: 0,
+            quantity: 0,
+            reference_no: '',
+            notes: '',
+            use_bom: true,
+            scrap_quantity: 0,
+            created_by: 1
+          });
+          
+          // Close modal - parent component will refresh stock info
+          onCancel();
+          return;
+        } else {
+          throw new Error(result?.error || '생산 등록에 실패했습니다.');
+        }
+      }
+
+      // Single mode submission
       // API가 기대하는 형식으로 데이터 변환
       const itemId = selectedProduct?.item_id || selectedProduct?.id || formData.product_item_id;
       
@@ -175,10 +319,18 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
 
       const result = await onSubmit(apiData);
 
-      // Show result modal with auto-deduction details
-      setProductionResult(result);
-      setSavedBomCheckData(bomCheckData); // Save BOM check data for result modal
-      setShowResultModal(true);
+      // Check if submission was successful
+      if (result && (result.success !== false)) {
+        // Show result modal with auto-deduction details
+        setProductionResult(result);
+        setSavedBomCheckData(bomCheckData); // Save BOM check data for result modal
+        setShowResultModal(true);
+      } else {
+        throw new Error(result?.error || '생산 등록에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Production submission error:', error);
+      alert('생산 등록 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
     } finally {
       setLoading(false);
     }
@@ -252,7 +404,41 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
           </div>
         </div>
 
+        {/* 배치 모드 토글 */}
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
+            <button
+              type="button"
+              onClick={() => {
+                setIsBatchMode(!isBatchMode);
+                // Clear batch items when switching modes
+                if (isBatchMode) {
+                  setBatchItems([]);
+                } else {
+                  // Clear single product when switching to batch mode
+                  setSelectedProduct(null);
+                  setFormData(prev => ({ ...prev, product_item_id: 0, quantity: 0 }));
+                }
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                isBatchMode
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              {isBatchMode ? <List className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+              {isBatchMode ? '배치 모드' : '단일 모드'}
+            </button>
+            <div className="flex-1 text-sm text-gray-600 dark:text-gray-400">
+              {isBatchMode
+                ? '여러 제품을 한 번에 생산 등록할 수 있습니다'
+                : '한 가지 제품만 생산 등록할 수 있습니다'}
+            </div>
+          </div>
+        </div>
+
         {/* 제품 검색 */}
+        {!isBatchMode && (
         <div className="md:col-span-2">
           <ItemSelect
             value={formData.product_item_id > 0 ? formData.product_item_id : undefined}
@@ -265,8 +451,10 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             itemType="PRODUCT"
           />
         </div>
+        )}
 
         {/* 생산수량 */}
+        {!isBatchMode && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             생산수량 <span className="text-gray-500">*</span>
@@ -290,8 +478,10 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             <p className="mt-1 text-sm text-gray-500">{errors.quantity}</p>
           )}
         </div>
+        )}
 
         {/* 스크랩 수량 */}
+        {!isBatchMode && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             스크랩 수량
@@ -315,6 +505,185 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
             <p className="mt-1 text-sm text-gray-500">{errors.scrap_quantity}</p>
           )}
         </div>
+        )}
+
+        {/* 배치 제품 목록 - 표 형태 */}
+        {isBatchMode && (
+        <div className="md:col-span-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                생산 제품 목록 <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({batchItems.length}개)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  // Add new empty item
+                  const newItem: ProductionItem = {
+                    product_item_id: 0,
+                    item_id: 0,
+                    item_code: '',
+                    item_name: '',
+                    quantity: 0,
+                    unit_price: 0,
+                    reference_no: '',
+                    notes: ''
+                  };
+                  setBatchItems([...batchItems, newItem]);
+                }}
+                className="px-3 py-1.5 bg-gray-800 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors flex items-center gap-1.5 text-sm font-medium"
+              >
+                <Package className="w-4 h-4" />
+                제품 추가
+              </button>
+            </div>
+
+            {batchItems.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <Package className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
+                <p className="text-sm">제품을 추가하여 배치 생산을 시작하세요</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-800/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                        번호
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[300px] border-b border-gray-200 dark:border-gray-700">
+                        제품 <span className="text-red-500 font-normal">*</span>
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[120px] border-b border-gray-200 dark:border-gray-700">
+                        생산수량 <span className="text-red-500 font-normal">*</span>
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[150px] border-b border-gray-200 dark:border-gray-700">
+                        참조번호
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[200px] border-b border-gray-200 dark:border-gray-700">
+                        비고
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider w-[60px] border-b border-gray-200 dark:border-gray-700">
+                        작업
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+                    {batchItems.map((item, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {index + 1}
+                        </td>
+                        <td className="px-4 py-3">
+                          <ItemSelect
+                            value={item.item_id > 0 ? item.item_id : undefined}
+                            onChange={(selectedItem: Item | null) => {
+                              const itemId = selectedItem?.item_id || 0;
+                              const updatedItems = [...batchItems];
+                              updatedItems[index] = {
+                                ...updatedItems[index],
+                                product_item_id: itemId,
+                                item_id: itemId,
+                                item_code: selectedItem?.item_code || '',
+                                item_name: selectedItem?.item_name || '',
+                                unit_price: selectedItem?.unit_price || 0
+                              };
+                              setBatchItems(updatedItems);
+                            }}
+                            placeholder="제품 검색..."
+                            required={true}
+                            showPrice={true}
+                            itemType="PRODUCT"
+                            error={errors[`batchItem_${index}_product`]}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={item.quantity || ''}
+                            onChange={(e) => {
+                              const updatedItems = [...batchItems];
+                              updatedItems[index] = {
+                                ...updatedItems[index],
+                                quantity: parseFloat(e.target.value) || 0
+                              };
+                              setBatchItems(updatedItems);
+                            }}
+                            min="0"
+                            step="0.01"
+                            className={`w-full px-3 py-2 text-sm border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 ${
+                              errors[`batchItem_${index}_quantity`] 
+                                ? 'border-red-500 dark:border-red-500' 
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder="0"
+                          />
+                          {errors[`batchItem_${index}_quantity`] && (
+                            <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errors[`batchItem_${index}_quantity`]}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
+                            value={item.reference_no || ''}
+                            onChange={(e) => {
+                              const updatedItems = [...batchItems];
+                              updatedItems[index] = {
+                                ...updatedItems[index],
+                                reference_no: e.target.value
+                              };
+                              setBatchItems(updatedItems);
+                            }}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400"
+                            placeholder="참조번호..."
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
+                            value={item.notes || ''}
+                            onChange={(e) => {
+                              const updatedItems = [...batchItems];
+                              updatedItems[index] = {
+                                ...updatedItems[index],
+                                notes: e.target.value
+                              };
+                              setBatchItems(updatedItems);
+                            }}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400"
+                            placeholder="비고..."
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedItems = batchItems.filter((_, i) => i !== index);
+                              setBatchItems(updatedItems);
+                            }}
+                            className="px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors text-sm font-medium"
+                            title="제품 제거"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {errors.batchItems && (
+                  <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-red-500 dark:text-red-400">{errors.batchItems}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        )}
 
         {/* BOM 사용 여부 */}
         <div className="md:col-span-2">
@@ -352,13 +721,38 @@ export default function ProductionForm({ onSubmit, onCancel }: ProductionFormPro
       </div>
 
       {/* BOM Preview Panel */}
-      {formData.use_bom && selectedProduct && formData.quantity > 0 && (
-        <BOMPreviewPanel
-          bomCheckData={bomCheckData}
-          loading={bomLoading}
-          error={bomError}
-          onRefresh={handleRefreshBom}
-        />
+      {formData.use_bom && (
+        <>
+          {/* Single mode BOM panel */}
+          {!isBatchMode && selectedProduct && formData.quantity > 0 && (
+            <BOMPreviewPanel
+              bomCheckData={bomCheckData}
+              loading={bomLoading}
+              error={bomError}
+              onRefresh={handleRefreshBom}
+            />
+          )}
+          
+          {/* Batch mode BOM panel */}
+          {isBatchMode && batchItems.length > 0 && (
+            <BOMPreviewPanel
+              bomCheckData={null}
+              loading={false}
+              error={null}
+              batchMode={true}
+              batchItems={batchItems}
+              batchBomChecks={batchBomChecks}
+              onRefresh={() => {
+                // Refresh all batch BOMs
+                batchItems.forEach(item => {
+                  if (item.item_id > 0 && item.quantity > 0) {
+                    checkBom(item.item_id, item.quantity);
+                  }
+                });
+              }}
+            />
+          )}
+        </>
       )}
 
       {/* Stock Error Display */}

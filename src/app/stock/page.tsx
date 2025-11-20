@@ -14,6 +14,7 @@ import {
 import StockAdjustmentForm from '@/components/StockAdjustmentForm';
 import { StockExportButton } from '@/components/ExcelExportButton';
 import CategoryFilter from '@/components/CategoryFilter';
+import CompanySelect from '@/components/CompanySelect';
 
 interface StockItem {
   item_id: number;
@@ -57,6 +58,7 @@ export default function StockPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState<number | null>(null);
   const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortField, setSortField] = useState<string>('last_transaction_date');
@@ -110,7 +112,14 @@ export default function StockPage() {
     setLoading(true);
     }
     try {
-      const response = await fetch('/api/stock', {
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (companyFilter) {
+        params.append('supplier_id', companyFilter.toString());
+      }
+      const url = `/api/stock${params.toString() ? '?' + params.toString() : ''}`;
+
+      const response = await fetch(url, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -228,6 +237,13 @@ export default function StockPage() {
 
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval]);
+
+  // Re-fetch data when company filter changes
+  useEffect(() => {
+    if (activeTab === 'current') {
+      fetchStockItems();
+    }
+  }, [companyFilter]);
 
   // 새로고침 간격 변경 핸들러
   const handleRefreshIntervalChange = (interval: number) => {
@@ -646,6 +662,16 @@ export default function StockPage() {
                 <option value="normal">정상 재고</option>
                 <option value="low">재고 부족</option>
               </select>
+
+              <div className="w-full sm:w-64">
+                <CompanySelect
+                  value={companyFilter}
+                  onChange={setCompanyFilter}
+                  companyType="SUPPLIER"
+                  placeholder="거래처 선택..."
+                  allowClear
+                />
+              </div>
 
               <select
                 value={refreshInterval}

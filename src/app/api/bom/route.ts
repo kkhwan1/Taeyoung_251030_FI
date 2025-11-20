@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
  * - parent_item_id: Filter by parent item
  * - child_item_id: Filter by child item
  * - level_no: Filter by BOM level
+ * - coil_only: If true, filter to only entries where child item is inventory_type='코일' (Track 2C)
  * - limit: Number of records to return (default: 100)
  * - offset: Pagination offset (default: 0)
  */
@@ -22,14 +23,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const parentItemId = searchParams.get('parent_item_id');
     const childItemId = searchParams.get('child_item_id');
     const levelNo = searchParams.get('level_no');
-    const priceMonth = searchParams.get('price_month') || 
+    const coilOnly = searchParams.get('coil_only') === 'true'; // Track 2C: Coil filter
+    const priceMonth = searchParams.get('price_month') ||
       new Date().toISOString().slice(0, 7) + '-01';
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const supabase = getSupabaseClient();
 
-    // 기존 BOM 데이터 조회
+    // 기존 BOM 데이터 조회 (Track 2C: inventory_type 추가)
     let query = supabase
       .from('bom')
       .select(`
@@ -46,7 +48,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           spec,
           unit,
           price,
-          category
+          category,
+          inventory_type
         )
       `)
       .eq('is_active', true)
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (parentItemId) query = query.eq('parent_item_id', parseInt(parentItemId));
     if (childItemId) query = query.eq('child_item_id', parseInt(childItemId));
     if (levelNo) query = query.eq('level_no', parseInt(levelNo));
-    
+
     query = query.range(offset, offset + limit - 1);
 
     const { data: bomEntries, error } = await query;
@@ -69,18 +72,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }, { status: 500 });
     }
 
+    // Track 2C: Filter to coil materials only if coil_only=true
+    let filteredEntries = bomEntries || [];
+    if (coilOnly) {
+      filteredEntries = filteredEntries.filter((entry: any) =>
+        entry.child?.inventory_type === '코일'
+      );
+    }
+
     // Step 1: 월별 단가 및 재료비 계산
     const entriesWithPrice = await Promise.all(
-      (bomEntries || []).map(async (item: any) => {
+      filteredEntries.map(async (item: any) => {
         // 월별 단가 조회 (없으면 items.price 사용)
+        // price_month는 DATE 형식이므로 'YYYY-MM-01' 형식 사용
         const { data: priceData } = await supabase
           .from('item_price_history')
           .select('unit_price')
           .eq('item_id', item.child_item_id)
-          .eq('price_month', priceMonth)
+          .eq('price_month', priceMonth) // priceMonth는 이미 'YYYY-MM-01' 형식
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle(); // single() 대신 maybeSingle() 사용하여 에러 방지
 
         const unitPrice = priceData?.unit_price || item.child?.price || 0;
         const materialCost = item.quantity_required * unitPrice;

@@ -71,7 +71,7 @@ describe('Collections API', () => {
 
     testSalesTransactionId = salesData.data[0].transaction_id;
 
-    console.log(`✅ 테스트 데이터 로드 완료: 매출 거래 ID ${testSalesTransactionId}`);
+    console.log(`[INFO] 테스트 데이터 로드 완료: 매출 거래 ID ${testSalesTransactionId}`);
   });
 
   describe('GET /api/collections', () => {

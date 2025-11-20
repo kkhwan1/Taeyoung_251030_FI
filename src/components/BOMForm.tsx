@@ -19,6 +19,7 @@ interface Item {
   item_name: string;
   category: string;
   unit: string;
+  inventory_type?: string;
 }
 
 interface BOMFormProps {
@@ -43,6 +44,7 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
   const [showChildDropdown, setShowChildDropdown] = useState(false);
   const [selectedParentItem, setSelectedParentItem] = useState<Item | null>(null);
   const [selectedChildItem, setSelectedChildItem] = useState<Item | null>(null);
+  const [showCoilOnly, setShowCoilOnly] = useState(false);
 
 
   useEffect(() => {
@@ -131,11 +133,19 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
      item.item_name.toLowerCase().includes(parentSearchTerm.toLowerCase()))
   ).slice(0, 10);
 
-  const filteredChildItems = items.filter(item =>
-    item.item_id !== formData.parent_item_id && // Prevent self-referencing
-    (item.item_code.toLowerCase().includes(childSearchTerm.toLowerCase()) ||
-     item.item_name.toLowerCase().includes(childSearchTerm.toLowerCase()))
-  ).slice(0, 10);
+  const filteredChildItems = items.filter(item => {
+    // Prevent self-referencing
+    if (item.item_id === formData.parent_item_id) return false;
+
+    // Apply coil filter if checkbox is checked
+    if (showCoilOnly && item.inventory_type !== '코일') return false;
+
+    // Apply search filter
+    return (
+      item.item_code.toLowerCase().includes(childSearchTerm.toLowerCase()) ||
+      item.item_name.toLowerCase().includes(childSearchTerm.toLowerCase())
+    );
+  }).slice(0, 10);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -243,6 +253,21 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             자품목 <span className="text-gray-500">*</span>
           </label>
+
+          <div className="mb-2">
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showCoilOnly}
+                onChange={(e) => setShowCoilOnly(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                코일 자재만 표시
+              </span>
+            </label>
+          </div>
+
           <div className="relative">
             <input
               type="text"
@@ -278,11 +303,20 @@ export default function BOMForm({ bom, items, onSubmit, onCancel }: BOMFormProps
                   }}
                   className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700"
                 >
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {item.item_code}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {item.item_name} ({item.category})
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {item.item_code}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {item.item_name} ({item.category})
+                      </div>
+                    </div>
+                    {item.inventory_type === '코일' && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        코일
+                      </span>
+                    )}
                   </div>
                 </button>
               ))}

@@ -140,18 +140,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             stockShortages
           });
 
-          // 재고가 부족한 경우 에러 (선택적 - 경고만 할 수도 있음)
-          if (stockShortages.length > 0) {
-            const shortageList = stockShortages.map(s => 
-              `${s.item_name} (필요: ${s.required}, 보유: ${s.available})`
-            ).join(', ');
-            validationErrors.push(`품목 ${i + 1} (${productItem.item_name}): 원자재 재고 부족 - ${shortageList}`);
-          }
+          // 재고가 부족한 경우 경고만 표시 (생산 등록은 진행)
+          // 주석 처리: 재고 부족 시에도 생산 등록이 가능하도록 변경
+          // if (stockShortages.length > 0) {
+          //   const shortageList = stockShortages.map(s => 
+          //     `${s.item_name} (필요: ${s.required}, 보유: ${s.available})`
+          //   ).join(', ');
+          //   validationErrors.push(`품목 ${i + 1} (${productItem.item_name}): 원자재 재고 부족 - ${shortageList}`);
+          // }
         }
       }
     }
 
-    // 검증 에러가 있으면 반환
+    // 필수 필드 검증 에러만 반환 (재고 부족은 경고로만 처리)
     if (validationErrors.length > 0) {
       return NextResponse.json({
         success: false,
@@ -214,12 +215,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       transactionCount: insertedTransactions?.length || 0
     });
 
+    // 재고 부족 경고 메시지 생성
+    const stockWarnings: string[] = [];
+    bomValidations.forEach((validation, index) => {
+      if (validation.stockShortages.length > 0) {
+        const productItem = productItemsMap.get(validation.productId);
+        const shortageList = validation.stockShortages.map(s => 
+          `${s.item_name} (필요: ${s.required}, 보유: ${s.available}, 부족: ${s.shortage})`
+        ).join(', ');
+        stockWarnings.push(`품목 ${index + 1} (${productItem?.item_name || validation.productId}): 원자재 재고 부족 - ${shortageList}`);
+      }
+    });
+
+    const message = stockWarnings.length > 0
+      ? `생산 일괄 등록이 완료되었습니다. (경고: 일부 원자재 재고가 부족합니다. ${stockWarnings.length}개 품목)`
+      : '생산 일괄 등록이 완료되었습니다. BOM 자동 차감은 데이터베이스 트리거로 처리되었습니다.';
+
     return NextResponse.json({
       success: true,
       data: {
         transactions: insertedTransactions || [],
         items: updatedItems || [],
         bom_validations: bomValidations,
+        stock_warnings: stockWarnings,
         summary: {
           total_count: insertedTransactions?.length || 0,
           total_quantity: items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
@@ -229,7 +247,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           )
         }
       },
-      message: '생산 일괄 등록이 완료되었습니다. BOM 자동 차감은 데이터베이스 트리거로 처리되었습니다.'
+      message,
+      warnings: stockWarnings.length > 0 ? stockWarnings : undefined
     });
   } catch (error) {
     const duration = Date.now() - startTime;

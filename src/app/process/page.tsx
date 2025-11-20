@@ -30,6 +30,8 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 import ProcessStatusBadge from '@/components/process/ProcessStatusBadge';
+import ProcessCompleteButton from '@/components/process/ProcessCompleteButton';
+import ProcessStartButton from '@/components/process/ProcessStartButton';
 
 const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
 const ProcessOperationForm = dynamicImport(() => import('@/components/process/ProcessOperationForm'), { ssr: false });
@@ -429,6 +431,22 @@ export default function ProcessPage() {
                       </td>
                       <td className="px-3 sm:px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          {/* Quick action buttons based on status */}
+                          {operation.status === 'PENDING' && (
+                            <ProcessStartButton
+                              operationId={operation.operation_id}
+                              onStart={fetchOperations}
+                            />
+                          )}
+
+                          {operation.status === 'IN_PROGRESS' && (
+                            <ProcessCompleteButton
+                              operationId={operation.operation_id}
+                              onComplete={fetchOperations}
+                            />
+                          )}
+
+                          {/* Standard Edit/Delete actions */}
                           <button
                             onClick={() => handleEdit(operation)}
                             className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"

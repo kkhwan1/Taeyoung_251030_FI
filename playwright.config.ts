@@ -10,7 +10,7 @@ export default defineConfig({
 
   /* 병렬 실행 설정 */
   fullyParallel: true,
-  workers: 5, // 5개 에이전트 동시 실행
+  workers: 1, // 단일 워커로 실행 (테스트 간 격리 보장)
 
   /* 실패 시 재시도 */
   retries: process.env.CI ? 2 : 1,

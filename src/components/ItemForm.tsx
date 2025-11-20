@@ -9,6 +9,12 @@ import {
   COATING_STATUS_OPTIONS as SHARED_COATING_STATUS_OPTIONS,
   DEFAULT_COATING_STATUS
 } from '@/lib/constants/coatingStatus';
+import {
+  INVENTORY_TYPE_OPTIONS as SHARED_INVENTORY_TYPE_OPTIONS,
+  QUALITY_STATUS_OPTIONS as SHARED_QUALITY_STATUS_OPTIONS,
+  type InventoryType,
+  type QualityStatus
+} from '@/lib/constants/inventoryTypes';
 
 interface ItemFormProps {
   item?: Partial<ItemFormValues> | null;
@@ -44,6 +50,10 @@ interface ItemFormValues {
   scrap_unit_price?: number;
   yield_rate?: number;
   overhead_rate?: number;
+  // Phase 3 - Inventory Classification
+  inventory_type?: InventoryType;
+  warehouse_zone?: string;
+  quality_status?: QualityStatus;
 }
 
 const ITEM_CATEGORIES: { value: ItemCategory; label: string }[] = [
@@ -70,6 +80,11 @@ const UNIT_OPTIONS = ['EA', 'SET', 'KG', 'M', 'L', 'BOX', 'MM', 'CM'];
 
 // COATING_STATUS_OPTIONS now imported from @/lib/constants/coatingStatus
 const COATING_STATUS_OPTIONS = SHARED_COATING_STATUS_OPTIONS.filter(opt => opt.value !== '');
+
+// Phase 3 - Inventory Classification options
+// Now imported from centralized constants to ensure consistency with database schema
+const INVENTORY_TYPE_OPTIONS = SHARED_INVENTORY_TYPE_OPTIONS;
+const QUALITY_STATUS_OPTIONS = SHARED_QUALITY_STATUS_OPTIONS;
 
 const DEFAULT_VALUES: ItemFormValues = {
   item_code: '',
@@ -428,6 +443,33 @@ export default function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
             onChange={handleInputChange}
             options={COATING_STATUS_OPTIONS}
           />
+          {/* Phase 3 - Inventory Classification */}
+          <FormSelect
+            label="재고 분류"
+            name="inventory_type"
+            value={formData.inventory_type ?? ''}
+            onChange={handleInputChange}
+            options={INVENTORY_TYPE_OPTIONS}
+            error={errors.inventory_type}
+            placeholder="분류 선택"
+          />
+          <FormField
+            label="보관 구역"
+            name="warehouse_zone"
+            value={formData.warehouse_zone ?? ''}
+            onChange={handleInputChange}
+            error={errors.warehouse_zone}
+            placeholder="예: A-01, B-03"
+          />
+          <FormSelect
+            label="품질 상태"
+            name="quality_status"
+            value={formData.quality_status ?? ''}
+            onChange={handleInputChange}
+            options={QUALITY_STATUS_OPTIONS}
+            error={errors.quality_status}
+            placeholder="상태 선택"
+          />
           <FormTextArea
             label="비고"
             name="description"
@@ -592,7 +634,10 @@ function buildSubmitPayload(formData: ItemFormValues): Record<string, unknown> {
     price: parseNumber(formData.price),
     location: formData.location.trim() || null,
     description: formData.description.trim() || null,
-    coating_status: formData.coating_status
+    coating_status: formData.coating_status,
+    inventory_type: formData.inventory_type || null,
+    warehouse_zone: formData.warehouse_zone?.trim() || null,
+    quality_status: formData.quality_status || null
   };
 }
 

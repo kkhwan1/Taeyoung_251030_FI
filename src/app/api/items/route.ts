@@ -31,6 +31,9 @@ type NormalizedItemPayload = {
   location: string | null;
   description: string | null;
   coating_status: CoatingStatus | null;
+  inventory_type: ItemInsert['inventory_type'] | null;
+  warehouse_zone: string | null;
+  quality_status: ItemInsert['quality_status'] | null;
 };
 
 const DEFAULT_LIMIT = 20;
@@ -162,6 +165,9 @@ function buildNormalizedPayload(body: Record<string, unknown>): NormalizedItemPa
     location: normalizeString(body.location),
     description: normalizeString(body.description),
     coating_status: normalizeCoatingStatus(body.coating_status),
+    inventory_type: normalizeString(body.inventory_type) as ItemInsert['inventory_type'] | null,
+    warehouse_zone: normalizeString(body.warehouse_zone),
+    quality_status: normalizeString(body.quality_status) as ItemInsert['quality_status'] | null,
   };
 
   normalized.mm_weight = computeMmWeight({
@@ -462,6 +468,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       current_stock: normalized.current_stock,
       location: normalized.location,
       description: normalized.description,
+      inventory_type: (normalized.inventory_type as ItemInsert['inventory_type']) || '원재료', // 기본값: 원재료
+      warehouse_zone: normalized.warehouse_zone,
+      quality_status: normalized.quality_status,
       is_active: true,
       created_at: now,
       updated_at: now,
@@ -531,7 +540,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       normalized.safety_stock === null &&
       normalized.current_stock === null &&
       normalized.location === null &&
-      normalized.description === null
+      normalized.description === null &&
+      normalized.inventory_type === null &&
+      normalized.warehouse_zone === null &&
+      normalized.quality_status === null
     ) {
       throw new APIError('수정할 값이 없습니다.', 400);
     }
@@ -559,6 +571,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       current_stock: normalized.current_stock ?? undefined,
       location: normalized.location ?? undefined,
       description: normalized.description ?? undefined,
+      inventory_type: normalized.inventory_type ?? undefined,
+      warehouse_zone: normalized.warehouse_zone ?? undefined,
+      quality_status: normalized.quality_status ?? undefined,
       updated_at: now,
     };
 

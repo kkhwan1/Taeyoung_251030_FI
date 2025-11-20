@@ -25,6 +25,31 @@ export const TransactionTypeSchema = z.enum(['입고', '생산입고', '생산�
 export const UserRoleSchema = z.enum(['admin', 'manager', 'operator', 'viewer']);
 export const ContractStatusSchema = z.enum(['ACTIVE', 'EXPIRED', 'TERMINATED']);
 
+// Inventory Classification enum schemas (Phase 3 - 2025-02-02)
+export const InventoryTypeSchema = z.enum(['완제품', '반제품', '고객재고', '원재료', '코일'], {
+  errorMap: () => ({ message: '재고 분류는 완제품/반제품/고객재고/원재료/코일 중 하나여야 합니다' })
+});
+export const QualityStatusSchema = z.enum(['검수중', '합격', '불합격', '보류'], {
+  errorMap: () => ({ message: '품질 상태는 검수중/합격/불합격/보류 중 하나여야 합니다' })
+});
+export const WarehouseZoneSchema = z.string().regex(/^[A-Z]-\d{2}$/, '보관 구역 형식: A-01, B-03').nullable().optional();
+
+export const ItemClassificationUpdateSchema = z.object({
+  item_id: IdSchema,
+  inventory_type: InventoryTypeSchema.optional(),
+  warehouse_zone: WarehouseZoneSchema,
+  quality_status: QualityStatusSchema.optional()
+}).refine((data) => {
+  // Business rule: Customer stock requires warehouse zone
+  if (data.inventory_type === '고객재고' && !data.warehouse_zone) {
+    return false;
+  }
+  return true;
+}, {
+  message: '고객재고는 보관 구역이 필수입니다',
+  path: ['warehouse_zone']
+});
+
 // Item validation schemas (matching actual database schema)
 export const ItemCreateSchema = z.object({
   item_code: EnglishTextSchema.max(50),
@@ -537,6 +562,8 @@ export type ContractDocumentUpload = z.infer<typeof ContractDocumentUploadSchema
 export type NotificationCreate = z.infer<typeof NotificationCreateSchema>;
 export type NotificationUpdate = z.infer<typeof NotificationUpdateSchema>;
 export type NotificationQuery = z.infer<typeof NotificationQuerySchema>;
+
+export type ItemClassificationUpdate = z.infer<typeof ItemClassificationUpdateSchema>;
 export type NotificationPreferences = z.infer<typeof NotificationPreferencesSchema>;
 export type NotificationPreferencesUpdate = z.infer<typeof NotificationPreferencesUpdateSchema>;
 export type TrendAnalysisQuery = z.infer<typeof TrendAnalysisQuerySchema>;

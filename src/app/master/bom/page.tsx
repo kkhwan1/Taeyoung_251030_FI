@@ -539,55 +539,57 @@ export default function BOMPage() {
   const renderBOMRows = (bomList: BOM[]): React.ReactElement[] => {
     return bomList.map((bom) => (
       <tr key={bom.bom_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 whitespace-nowrap overflow-hidden text-ellipsis">
           <div className="flex items-center" style={{ paddingLeft: `${(bom.level || 0) * 20}px` }}>
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
+            <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
               {bom.parent_item_code || '-'}
             </span>
           </div>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4">
-          <span className="text-sm text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 overflow-hidden">
+          <span className="text-sm text-gray-900 dark:text-white block truncate" title={bom.parent_item_name || '-'}>
             {bom.parent_item_name || '-'}
           </span>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 overflow-hidden text-ellipsis">
+          <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
             {bom.child_item_code || '-'}
           </span>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 overflow-hidden">
+          <span className="text-sm text-gray-600 dark:text-gray-400 block truncate" title={bom.child_item_name || '-'}>
             {bom.child_item_name || '-'}
           </span>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
           {parseFloat((bom.quantity || 0).toString()).toLocaleString()}
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-white">
           EA
         </td>
         {/* 원가 정보 추가 */}
-        <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-right text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">
           {bom.unit_price?.toLocaleString() || '-'}
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-right font-semibold text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 text-sm text-right font-semibold text-gray-900 dark:text-white whitespace-nowrap">
           {bom.material_cost?.toLocaleString() || '-'}
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 text-center whitespace-nowrap">
           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300">
             {bom.item_type === 'internal_production' ? '내부생산' : bom.item_type === 'external_purchase' ? '외부구매' : '-'}
           </span>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm text-gray-600 dark:text-gray-400">
-          {bom.notes || '-'}
+        <td className="px-3 sm:px-4 py-3 sm:py-4 text-sm text-gray-600 dark:text-gray-400 overflow-hidden">
+          <span className="block truncate" title={bom.notes || '-'}>
+            {bom.notes || '-'}
+          </span>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 whitespace-nowrap text-center">
           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300">
             {bom.is_active ? '활성' : '비활성'}
           </span>
         </td>
-        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+        <td className="px-3 sm:px-4 py-3 sm:py-4 whitespace-nowrap text-center">
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => handleCopyBOM(bom)}
@@ -713,37 +715,37 @@ export default function BOMPage() {
               {/* BOM 항목 테이블 */}
               {isExpanded && (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <thead className="bg-gray-100 dark:bg-gray-800">
                       <tr>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '12%', minWidth: '100px' }}>
                           자품번
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '18%', minWidth: '150px' }}>
                           자품명
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '8%', minWidth: '70px' }}>
                           소요량
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '6%', minWidth: '50px' }}>
                           단위
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '10%', minWidth: '90px' }}>
                           단가 (₩)
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '11%', minWidth: '100px' }}>
                           재료비 (₩)
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '9%', minWidth: '80px' }}>
                           구분
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '10%', minWidth: '80px' }}>
                           비고
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '7%', minWidth: '60px' }}>
                           상태
                         </th>
-                        <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '9%', minWidth: '80px' }}>
                           작업
                         </th>
                       </tr>
@@ -1404,44 +1406,44 @@ export default function BOMPage() {
         return (
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead className="bg-gray-100 dark:bg-gray-800">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '10%', minWidth: '100px' }}>
                       모품번
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '15%', minWidth: '150px' }}>
                       모품명
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '10%', minWidth: '100px' }}>
                       자품번
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '15%', minWidth: '150px' }}>
                       자품명
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '7%', minWidth: '70px' }}>
                       소요량
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '5%', minWidth: '50px' }}>
                       단위
                     </th>
                     {/* 원가 정보 컬럼 추가 */}
-                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '8%', minWidth: '90px' }}>
                       단가 (₩)
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '9%', minWidth: '100px' }}>
                       재료비 (₩)
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '7%', minWidth: '80px' }}>
                       구분
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '8%', minWidth: '80px' }}>
                       비고
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '6%', minWidth: '60px' }}>
                       상태
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '6%', minWidth: '80px' }}>
                       작업
                     </th>
                   </tr>

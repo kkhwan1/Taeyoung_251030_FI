@@ -118,6 +118,16 @@ const menuItems: MenuItem[] = [
         id: 'process-operations',
         title: '공정 작업',
         href: '/process'
+      },
+      {
+        id: 'coil-tracking',
+        title: '코일 공정 추적',
+        href: '/process/coil-tracking'
+      },
+      {
+        id: 'traceability',
+        title: '추적성 조회',
+        href: '/traceability'
       }
     ]
   },

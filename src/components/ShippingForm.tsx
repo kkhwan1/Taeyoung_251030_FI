@@ -690,100 +690,127 @@ export default function ShippingForm({ onSubmit, onCancel, initialData, isEdit }
             </div>
           )}
 
-          <div className="space-y-3">
-            {formData.items.map((item) => (
-              <div
-                key={item.item_id}
-                className={`p-4 border rounded-lg ${
-                  stockCheckComplete && !item.sufficient_stock
-                    ? 'border-gray-300 bg-gray-50 dark:bg-gray-900/10'
-                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {item.item_code} - {item.item_name}
-                      </span>
-                      {stockCheckComplete && item.sufficient_stock && (
-                        <CheckCircle className="w-4 h-4 text-gray-500" />
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          수량 ({item.unit})
-                        </label>
+          <div className="overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-lg">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-12">
+                    번호
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[100px]">
+                    품번
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[150px]">
+                    품명
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-16">
+                    단위
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-24">
+                    수량
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-32">
+                    단가 (₩)
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-24">
+                    현재고
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-28">
+                    금액 (₩)
+                  </th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-20">
+                    재고상태
+                  </th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-16">
+                    작업
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                {formData.items.map((item, index) => (
+                  <tr
+                    key={item.item_id}
+                    className={`transition-colors ${
+                      stockCheckComplete && !item.sufficient_stock
+                        ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">
+                      {index + 1}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      {item.item_code}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      {item.item_name}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {item.unit}
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleItemQuantityChange(item.item_id, parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
                         <input
                           type="number"
-                          value={item.quantity}
-                          onChange={(e) => handleItemQuantityChange(item.item_id, parseFloat(e.target.value) || 0)}
+                          value={item.unit_price}
+                          onChange={(e) => handleItemUnitPriceChange(item.item_id, parseFloat(e.target.value) || 0)}
                           min="0"
                           step="0.01"
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
+                        {item.isMonthlyPriceApplied && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded whitespace-nowrap">
+                            월별
+                          </span>
+                        )}
                       </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          단가 (₩)
-                        </label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={item.unit_price}
-                            onChange={(e) => handleItemUnitPriceChange(item.item_id, parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
-                            className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                          {item.isMonthlyPriceApplied && (
-                            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded whitespace-nowrap">
-                              월별
-                            </span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {item.current_stock.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
+                      {item.total_amount.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {stockCheckComplete && (
+                        <div className="flex flex-col items-center gap-1">
+                          {item.sufficient_stock ? (
+                            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <>
+                              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                              <span className="text-xs text-red-600 dark:text-red-400 whitespace-nowrap">
+                                부족: {(item.quantity - item.current_stock).toLocaleString()}
+                              </span>
+                            </>
                           )}
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          현재고
-                        </label>
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {item.current_stock.toLocaleString()} {item.unit}
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          합계금액
-                        </label>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          ₩{item.total_amount.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    {stockCheckComplete && !item.sufficient_stock && (
-                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                        재고 부족: 필요 {item.quantity.toLocaleString()}{item.unit},
-                        보유 {item.current_stock.toLocaleString()}{item.unit}
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.item_id)}
-                    className="ml-4 p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.item_id)}
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="품목 제거"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* Total Summary */}

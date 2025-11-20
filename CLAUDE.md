@@ -483,6 +483,23 @@ await supabase
 - **영향**: PATCH /api/batch-registration/[id] 정상 작동, 재고 자동 차감/추가 완료
 - **관련 파일**: `supabase/migrations/20250201_fix_production_trigger.sql`
 
+### 3. 데이터베이스 트리거 안정화 (2025-11-19) - 완료 ✅
+- **구현된 트리거**:
+  - ✅ `auto_production_stock_movement()` - 배치 완료 시 재고 자동 이동
+  - ✅ `process_batch_approval()` - 배치 승인 시 개별 거래 변환 (신규)
+  - ✅ `validate_payment_splits_total()` - 복합 결제 합계 검증 (신규)
+- **마이그레이션 파일 생성**:
+  - ✅ `migrations/create_production_batch_table.sql`
+  - ✅ `migrations/create_production_batch_items_table.sql`
+  - ✅ `migrations/create_invoice_items_table.sql`
+  - ✅ `migrations/create_payment_splits_table.sql`
+- **코드 품질 개선**:
+  - ✅ 한글 인코딩 유틸리티 함수 생성 (`src/lib/parse-korean-request.ts`)
+  - ✅ API 파일 일괄 수정 (`request.json()` → `parseKoreanRequest()`)
+- **관련 파일**: 
+  - `migrations/create_process_batch_approval_trigger.sql`
+  - `migrations/create_validate_payment_splits_trigger.sql`
+
 ### 3. Next.js 빌드 문제 - 해결 ✅
 - **문제**: Next.js 15.5.4 프레임워크 버그로 Production 빌드 실패
 - **해결**: Next.js 15.5.6으로 업그레이드
@@ -824,7 +841,10 @@ export default function MyPage() {
   - 배치 완료 시 재고 자동 차감/추가
   - 공정 흐름 추적
 - **검증 항목**:
-  - ✅ Production Trigger: `auto_production_stock_movement()` 정상 작동
+  - ✅ Production Triggers:
+    - `auto_production_stock_movement()` - 배치 완료 시 재고 자동 이동
+    - `process_batch_approval()` - 배치 승인 시 개별 거래 변환
+    - `validate_payment_splits_total()` - 복합 결제 합계 검증
   - ✅ 컬럼명 수정: `transaction_number` 사용 확인
   - ✅ 모든 API 엔드포인트 작동 확인
   - ✅ 재고 자동 이동 기능 검증

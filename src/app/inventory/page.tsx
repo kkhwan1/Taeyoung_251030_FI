@@ -15,7 +15,8 @@ import {
   Package,
   Factory,
   Truck,
-  Upload
+  Upload,
+  History
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ReceivingForm from '@/components/ReceivingForm';
@@ -35,6 +36,19 @@ import {
   ShippingFormData,
   TRANSACTION_TYPES
 } from '@/types/inventory';
+import StockHistoryViewer from '@/components/stock/StockHistoryViewer';
+import {
+  INVENTORY_TYPE_OPTIONS,
+  type InventoryType
+} from '@/lib/constants/inventoryTypes';
+
+// Company filter interface
+interface CompanyOption {
+  company_id: number;
+  company_name: string;
+  company_code: string | null;
+  label: string;
+}
 
 // Search params를 사용하는 내부 컴포넌트
 function InventoryContent() {
@@ -42,8 +56,12 @@ function InventoryContent() {
   const router = useRouter();
 
   // URL 파라미터에서 탭 가져오기, 기본값은 'receiving'
-  const tabFromUrl = searchParams?.get('tab') as 'receiving' | 'production' | 'shipping' | null;
-  const initialTab = tabFromUrl || 'receiving';
+  // 유효한 탭만 허용하여 'history' 등 잘못된 값 방지
+  const validTabs = ['receiving', 'production', 'shipping'] as const;
+  const tabFromUrl = searchParams?.get('tab');
+  const initialTab = (tabFromUrl && validTabs.includes(tabFromUrl as any))
+    ? (tabFromUrl as 'receiving' | 'production' | 'shipping')
+    : 'receiving';
 
   const [activeTab, setActiveTab] = useState<'receiving' | 'production' | 'shipping'>(initialTab);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
@@ -60,6 +78,14 @@ function InventoryContent() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [stockLastUpdated, setStockLastUpdated] = useState<Date | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showStockHistory, setShowStockHistory] = useState(false);
+  const [selectedItemForHistory, setSelectedItemForHistory] = useState<number | null>(null);
+  // Phase 3 - Inventory Classification filter
+  const [selectedClassification, setSelectedClassification] = useState<InventoryType | null>(null);
+  // Company filter state
+  const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL');
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
 
   const tabs: InventoryTab[] = [
     {
@@ -222,6 +248,27 @@ function InventoryContent() {
     }
   }, [refreshKey]);
 
+  // Fetch companies on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  // Fetch companies function
+  const fetchCompanies = async () => {
+    setCompaniesLoading(true);
+    try {
+      const res = await fetch('/api/companies/options');
+      const json = await res.json();
+      if (json.success) {
+        setCompanyOptions(json.data || []);
+      }
+    } catch (error) {
+      console.error('거래처 목록 불러오기 실패:', error);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
   const handleEdit = (transaction: InventoryTransaction) => {
     setSelectedTransaction(transaction);
     setShowModal(true);
@@ -230,6 +277,11 @@ function InventoryContent() {
   const handleModalClose = () => {
     setShowModal(false);
     setSelectedTransaction(null);
+    // 모달 닫힌 후 재고 정보 새로고침 (추가 보장)
+    setTimeout(() => {
+      fetchStockInfo();
+      fetchTransactions();
+    }, 500);
   };
 
   const handleDelete = (transaction: InventoryTransaction) => {
@@ -520,7 +572,7 @@ function InventoryContent() {
             quantity: productionData.quantity,
             unit_price: selectedProduct?.price || selectedProduct?.unit_price || (productionData as any).unit_price || 0,
             transaction_type: '생산입고',
-            reference_number: productionData.reference_no || productionData.reference_number,
+            reference_number: productionData.reference_no || (productionData as any).reference_number,
             notes: productionData.notes,
             use_bom: productionData.use_bom !== undefined ? productionData.use_bom : true,
             created_by: productionData.created_by || 1
@@ -651,6 +703,11 @@ function InventoryContent() {
     const handleCancel = () => {
       setShowModal(false);
       setSelectedTransaction(null);
+      // 모달 닫힌 후 재고 정보 새로고침 (추가 보장)
+      setTimeout(() => {
+        fetchStockInfo();
+        fetchTransactions();
+      }, 500);
     };
 
     switch (activeTab) {
@@ -862,8 +919,76 @@ function InventoryContent() {
                 </div>
               )}
             </div>
+            {/* Phase 3 - Classification Filter Buttons */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                onClick={() => setSelectedClassification(null)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  selectedClassification === null
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                전체
+              </button>
+              {INVENTORY_TYPE_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedClassification(option.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedClassification === option.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Company filter */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                거래처 필터
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedCompany('ALL')}
+                  disabled={companiesLoading}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedCompany === 'ALL'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  전체 거래처
+                </button>
+                {companyOptions.map(option => (
+                  <button
+                    key={option.company_id}
+                    onClick={() => setSelectedCompany(option.company_id)}
+                    disabled={companiesLoading}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      selectedCompany === option.company_id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {companiesLoading && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">거래처 불러오는 중...</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {stockInfo
+                .filter((item: any) => {
+                  if (!selectedClassification) return true;
+                  return item.inventory_type === selectedClassification;
+                })
                 .sort((a, b) => {
                   const dateA = (a as any).last_transaction_date 
                     ? new Date((a as any).last_transaction_date).getTime() 
@@ -926,7 +1051,17 @@ function InventoryContent() {
                           </div>
                         )}
                       </div>
-                      <div className="ml-2">
+                      <div className="ml-2 flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedItemForHistory(item.item_id);
+                            setShowStockHistory(true);
+                          }}
+                          className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors rounded"
+                          title="재고 이력 보기"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
                         {getStockStatusIcon(status)}
                       </div>
                     </div>
@@ -1286,11 +1421,42 @@ function InventoryContent() {
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         uploadUrl="/api/import/inventory"
-        title={activeTab === 'receiving' ? '입고 데이터 엑셀 업로드' : '출고 데이터 엑셀 업로드'}
+        title={
+          activeTab === 'receiving' ? '입고 데이터 엑셀 업로드' :
+          activeTab === 'production' ? '생산 데이터 엑셀 업로드' :
+          '출고 데이터 엑셀 업로드'
+        }
         templateUrl="/api/import/inventory"
         templateFileName="재고거래_업로드_템플릿.xlsx"
         onUploadSuccess={handleUploadSuccess}
       />
+
+      {/* 재고 이력 모달 */}
+      {showStockHistory && selectedItemForHistory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                재고 이력
+              </h2>
+              <button
+                onClick={() => {
+                  setShowStockHistory(false);
+                  setSelectedItemForHistory(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <StockHistoryViewer itemId={selectedItemForHistory} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

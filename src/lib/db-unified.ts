@@ -499,6 +499,113 @@ export const db = {
       const builder = new SupabaseQueryBuilder();
       return await builder.delete('items', id, 'item_id', true); // Soft delete
     },
+
+    /**
+     * Get items by inventory type
+     * @param inventoryType - 완제품, 반제품, 고객재고, 원재료
+     */
+    getByInventoryType: async (inventoryType: string, options: QueryOptions = {}) => {
+      const builder = new SupabaseQueryBuilder();
+      return await builder.select('items', {
+        ...options,
+        filters: {
+          inventory_type: inventoryType,
+          is_active: true,
+          ...options.filters
+        },
+        orderBy: options.orderBy || 'item_code'
+      });
+    },
+
+    /**
+     * Get inventory classification statistics
+     * Returns count and total stock for each inventory type
+     */
+    getClassificationStats: async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('get_inventory_classification_stats');
+
+        if (error) {
+          // Fallback to manual query if RPC doesn't exist
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('items')
+            .select('inventory_type, current_stock')
+            .eq('is_active', true);
+
+          if (fallbackError) {
+            return {
+              success: false,
+              error: fallbackError.message || 'Failed to get classification stats'
+            };
+          }
+
+          // Group by inventory_type
+          const statsArray = (fallbackData || []).reduce((acc: any[], item: any) => {
+            const existing = acc.find(s => s.type === item.inventory_type);
+            if (existing) {
+              existing.count += 1;
+              existing.total_stock += item.current_stock || 0;
+            } else {
+              acc.push({
+                type: item.inventory_type,
+                count: 1,
+                total_stock: item.current_stock || 0
+              });
+            }
+            return acc;
+          }, []);
+
+          // Calculate totals
+          const total_count = statsArray.reduce((sum, stat) => sum + stat.count, 0);
+          const total_stock = statsArray.reduce((sum, stat) => sum + stat.total_stock, 0);
+
+          return {
+            success: true,
+            data: {
+              stats: statsArray,
+              total_count,
+              total_stock
+            }
+          };
+        }
+
+        // Assume RPC returns the same structure: { stats, total_count, total_stock }
+        return {
+          success: true,
+          data: data
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred'
+        };
+      }
+    },
+
+    /**
+     * Update warehouse zone for an item
+     */
+    updateWarehouseZone: async (id: number, warehouseZone: string | null) => {
+      const builder = new SupabaseQueryBuilder();
+      return await builder.update('items', id, { warehouse_zone: warehouseZone }, 'item_id');
+    },
+
+    /**
+     * Update quality status for an item
+     */
+    updateQualityStatus: async (id: number, qualityStatus: string) => {
+      const validStatuses = ['검수중', '합격', '불합격', '보류'];
+      if (!validStatuses.includes(qualityStatus)) {
+        return {
+          success: false,
+          error: `Invalid quality status. Must be one of: ${validStatuses.join(', ')}`
+        };
+      }
+
+      const builder = new SupabaseQueryBuilder();
+      return await builder.update('items', id, { quality_status: qualityStatus }, 'item_id');
+    },
   },
 
   /**

@@ -7,6 +7,8 @@ import React, { Suspense, lazy } from 'react';
 import { RefreshControls } from './RefreshControls';
 import { KPICards } from './KPICards';
 import { QuickActions } from './QuickActions';
+import { InventoryClassificationWidget } from './InventoryClassificationWidget';
+import { LOTDashboardWidget } from './LOTDashboardWidget';
 import { useDashboardData, type RefreshInterval } from '../../hooks/useDashboardData';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatKoreanNumber } from '../../utils/chartUtils';
@@ -85,6 +87,12 @@ export const RealTimeDashboard: React.FC<RealTimeDashboardProps> = ({
         loading={loading}
         error={error}
       />
+
+      {/* Phase 3 - Inventory Classification Widget */}
+      <InventoryClassificationWidget onRefresh={refresh} />
+
+      {/* Phase 3 - LOT Tracking Dashboard Widget */}
+      <LOTDashboardWidget onRefresh={refresh} limit={10} />
 
       {/* Monthly Trends - Responsive Full Width */}
       <Suspense fallback={<div className="min-h-96 animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg border" />}>

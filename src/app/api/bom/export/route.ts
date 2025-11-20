@@ -270,7 +270,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       query = query.eq('parent_item_id', parseInt(parentItemId));
     }
 
-    // ️ NOTE: Cannot filter by is_active in v_bom_details view (column doesn't exist)
+    // NOTE: Cannot filter by is_active in v_bom_details view (column doesn't exist)
     // Will transform and filter after query
 
     const { data: bomData, error } = await query;

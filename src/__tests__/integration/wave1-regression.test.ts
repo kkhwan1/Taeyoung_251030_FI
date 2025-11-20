@@ -56,7 +56,7 @@ describe('Wave 1 Regression Tests', () => {
 
     it('should read single item successfully', async () => {
       if (!createdIds.item) {
-        console.log('⚠ Skipping - no item created');
+        console.log('[SKIP] No item created');
         return;
       }
 
@@ -71,7 +71,7 @@ describe('Wave 1 Regression Tests', () => {
 
     it('should update item successfully', async () => {
       if (!createdIds.item) {
-        console.log('⚠ Skipping - no item created');
+        console.log('[SKIP] No item created');
         return;
       }
 
@@ -97,7 +97,7 @@ describe('Wave 1 Regression Tests', () => {
 
     it('should delete item successfully (soft delete)', async () => {
       if (!createdIds.item) {
-        console.log('⚠ Skipping - no item created');
+        console.log('[SKIP] No item created');
         return;
       }
 
@@ -152,7 +152,7 @@ describe('Wave 1 Regression Tests', () => {
 
     it('should handle Korean in READ operation', async () => {
       if (!koreanItemId) {
-        console.log('⚠ Skipping - no Korean item created');
+        console.log('[SKIP] No Korean item created');
         return;
       }
 
@@ -168,7 +168,7 @@ describe('Wave 1 Regression Tests', () => {
 
     it('should handle Korean in UPDATE operation', async () => {
       if (!koreanItemId) {
-        console.log('⚠ Skipping - no Korean item created');
+        console.log('[SKIP] No Korean item created');
         return;
       }
 
@@ -194,7 +194,7 @@ describe('Wave 1 Regression Tests', () => {
 
     it('should cleanup Korean test item', async () => {
       if (!koreanItemId) {
-        console.log('⚠ No Korean item to cleanup');
+        console.log('[SKIP] No Korean item to cleanup');
         return;
       }
 
@@ -366,7 +366,7 @@ describe('Wave 1 Regression Tests', () => {
         expect(data.pagination.limit).toBe(5);
         console.log('✓ Pagination working:', data.pagination);
       } else {
-        console.log('⚠ Pagination not implemented');
+        console.log('[INFO] Pagination not implemented');
       }
     });
   });

@@ -30,9 +30,8 @@ export async function GET(request: NextRequest) {
         unit,
         item_type,
         current_stock,
-        min_stock_level,
         safety_stock,
-        unit_price
+        price
       `)
       .eq('is_active', true);
 
@@ -46,8 +45,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (lowStock === 'true') {
-      // Filter for items where current_stock <= min_stock_level
-      query = query.lte('current_stock', 'min_stock_level');
+      // Filter for items where current_stock <= safety_stock
+      // Note: We need to fetch all items and filter in memory since Supabase doesn't support column-to-column comparison in query builder
+      // Alternative: Use raw SQL or filter after fetching
     }
 
     query = query.order('item_code', { ascending: true });
@@ -62,10 +62,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate stock status and summary statistics for each item
-    const enrichedData = stockData.map((item: any) => {
+    let enrichedData = stockData.map((item: any) => {
       const stockStatus =
-        item.current_stock <= (item.min_stock_level || 0) ? 'LOW' :
-        item.current_stock > (item.min_stock_level || 0) * 2 ? 'HIGH' :
+        item.current_stock <= (item.safety_stock || 0) ? 'LOW' :
+        item.current_stock > (item.safety_stock || 0) * 2 ? 'HIGH' :
         'NORMAL';
 
       return {
@@ -74,6 +74,11 @@ export async function GET(request: NextRequest) {
         calculated_stock: item.current_stock // Use current_stock as calculated value
       };
     });
+
+    // Apply low_stock filter after enrichment if requested
+    if (lowStock === 'true') {
+      enrichedData = enrichedData.filter((item: any) => item.stock_status === 'LOW');
+    }
 
     // Calculate summary statistics
     const summary = {

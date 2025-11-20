@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('❌ Process operations query error:', error);
+      console.error('[ERROR] Process operations query error:', error);
       return handleSupabaseError('select', 'process_operations', error);
     }
 
@@ -135,6 +135,20 @@ export async function GET(request: NextRequest) {
       notes: op.notes,
       created_at: op.created_at,
       updated_at: op.updated_at,
+      // LOT tracking fields
+      lot_number: op.lot_number,
+      parent_lot_number: op.parent_lot_number,
+      child_lot_number: op.child_lot_number,
+      // Chain management fields
+      chain_id: op.chain_id,
+      chain_sequence: op.chain_sequence,
+      parent_operation_id: op.parent_operation_id,
+      auto_next_operation: op.auto_next_operation,
+      next_operation_type: op.next_operation_type,
+      // Quality control fields
+      quality_status: op.quality_status,
+      scrap_quantity: op.scrap_quantity ? parseFloat(op.scrap_quantity) : undefined,
+      scheduled_date: op.scheduled_date,
       input_item: {
         item_id: op.input_item.item_id,
         item_name: op.input_item.item_name,
@@ -163,7 +177,7 @@ export async function GET(request: NextRequest) {
       totalCount,
     });
   } catch (error) {
-    console.error('❌ Unexpected error in GET /api/process-operations:', error);
+    console.error('[ERROR] Unexpected error in GET /api/process-operations:', error);
     return NextResponse.json(
       {
         success: false,
@@ -285,20 +299,91 @@ export async function POST(request: NextRequest) {
     // Auto-calculate efficiency if not provided
     const efficiency = body.efficiency ?? calculateEfficiency(body.input_quantity, body.output_quantity);
 
-    // Create operation
+    // Generate LOT number using database function
+    let lotNumber: string;
+    try {
+      const { data: lotResult, error: lotError } = await supabase
+        .rpc('generate_lot_number', {
+          p_operation_type: body.operation_type,
+          p_item_id: body.output_item_id
+        });
+
+      if (lotError) {
+        console.error('[ERROR] LOT number generation error:', lotError);
+        // Fallback: Generate LOT number manually if RPC fails
+        const prefix = body.operation_type === 'BLANKING' ? 'BLK' :
+                      body.operation_type === 'PRESS' ? 'PRS' :
+                      body.operation_type === 'ASSEMBLY' ? 'ASM' : 'OTH';
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+        // Get next sequence for today
+        const { data: existingLots } = await supabase
+          .from('process_operations')
+          .select('lot_number')
+          .like('lot_number', `${prefix}-${dateStr}-%`);
+
+        const maxSeq = existingLots?.reduce((max, op) => {
+          const match = op.lot_number?.match(/-(\d+)$/);
+          return match ? Math.max(max, parseInt(match[1])) : max;
+        }, 0) || 0;
+
+        lotNumber = `${prefix}-${dateStr}-${String(maxSeq + 1).padStart(3, '0')}`;
+        console.log(`[WARN] Using fallback LOT number: ${lotNumber}`);
+      } else {
+        lotNumber = lotResult as string;
+        console.log(`[INFO] Generated LOT number: ${lotNumber}`);
+      }
+    } catch (error) {
+      console.error('[ERROR] LOT number generation exception:', error);
+      // Fallback: Generate LOT number manually
+      const prefix = body.operation_type === 'BLANKING' ? 'BLK' :
+                    body.operation_type === 'PRESS' ? 'PRS' :
+                    body.operation_type === 'ASSEMBLY' ? 'ASM' : 'OTH';
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const timestamp = Date.now().toString().slice(-6);
+      lotNumber = `${prefix}-${dateStr}-${timestamp}`;
+      console.log(`[WARN] Using emergency fallback LOT number: ${lotNumber}`);
+    }
+
+    // Create operation with LOT number
+    // Note: operator_id is integer in DB, but frontend may send string (operator name)
+    // For now, we'll store operator name in notes if operator_id is not a valid integer
+    let operatorId: number | null = null;
+    if (body.operator_id) {
+      const parsedId = typeof body.operator_id === 'string' 
+        ? parseInt(body.operator_id, 10) 
+        : body.operator_id;
+      operatorId = isNaN(parsedId) ? null : parsedId;
+    }
+
+    const insertData: any = {
+      operation_type: body.operation_type,
+      input_item_id: body.input_item_id,
+      output_item_id: body.output_item_id,
+      input_quantity: body.input_quantity,
+      output_quantity: body.output_quantity,
+      efficiency,
+      operator_id: operatorId,
+      notes: body.notes || (typeof body.operator_id === 'string' && !operatorId 
+        ? `작업자: ${body.operator_id}` 
+        : null),
+      status: 'PENDING',
+      lot_number: lotNumber,
+    };
+
+    // Chain management fields (optional) - only include if provided
+    if ((body as any).chain_id) insertData.chain_id = (body as any).chain_id;
+    if ((body as any).chain_sequence) insertData.chain_sequence = (body as any).chain_sequence;
+    if ((body as any).parent_operation_id) insertData.parent_operation_id = (body as any).parent_operation_id;
+    if ((body as any).parent_lot_number) insertData.parent_lot_number = (body as any).parent_lot_number;
+    if ((body as any).auto_next_operation !== undefined) insertData.auto_next_operation = (body as any).auto_next_operation;
+    if ((body as any).next_operation_type) insertData.next_operation_type = (body as any).next_operation_type;
+
+    console.log('[INFO] Inserting process operation:', JSON.stringify(insertData, null, 2));
+
     const { data: newOperation, error: createError } = await supabase
       .from('process_operations')
-      .insert({
-        operation_type: body.operation_type,
-        input_item_id: body.input_item_id,
-        output_item_id: body.output_item_id,
-        input_quantity: body.input_quantity,
-        output_quantity: body.output_quantity,
-        efficiency,
-        operator_id: body.operator_id,
-        notes: body.notes,
-        status: 'PENDING',
-      })
+      .insert(insertData)
       .select(`
         *,
         input_item:items!input_item_id (
@@ -321,7 +406,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
-      console.error('❌ Operation creation error:', createError);
+      console.error('[ERROR] Operation creation error:', createError);
       return handleSupabaseError('insert', 'process_operations', createError);
     }
 
@@ -341,6 +426,20 @@ export async function POST(request: NextRequest) {
       notes: newOperation.notes,
       created_at: newOperation.created_at,
       updated_at: newOperation.updated_at,
+      // LOT tracking fields
+      lot_number: newOperation.lot_number,
+      parent_lot_number: newOperation.parent_lot_number,
+      child_lot_number: newOperation.child_lot_number,
+      // Chain management fields
+      chain_id: newOperation.chain_id,
+      chain_sequence: newOperation.chain_sequence,
+      parent_operation_id: newOperation.parent_operation_id,
+      auto_next_operation: newOperation.auto_next_operation,
+      next_operation_type: newOperation.next_operation_type,
+      // Quality control fields
+      quality_status: newOperation.quality_status,
+      scrap_quantity: newOperation.scrap_quantity ? parseFloat(newOperation.scrap_quantity) : undefined,
+      scheduled_date: newOperation.scheduled_date,
       input_item: {
         item_id: newOperation.input_item.item_id,
         item_name: newOperation.input_item.item_name,
@@ -359,7 +458,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    console.log(`✅ Process operation created: ${operation.operation_id} (${operation.operation_type})`);
+    console.log(`[INFO] Process operation created: ${operation.operation_id} (${operation.operation_type})`);
 
     return NextResponse.json(
       {
@@ -369,7 +468,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('❌ Unexpected error in POST /api/process-operations:', error);
+    console.error('[ERROR] Unexpected error in POST /api/process-operations:', error);
     return NextResponse.json(
       {
         success: false,

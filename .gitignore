@@ -64,6 +64,7 @@ next-env.d.ts
 .env.production.local
 .env.production
 .env.vercel.txt
+.env.test
 
 # Deployment
 .vercel/
@@ -125,6 +126,7 @@ test-results/
 playwright-report/
 .local/
 .cursor/
+coverage/
 
 # Vercel environment files (SECURITY)
 .env.vercel
@@ -148,3 +150,10 @@ test-reports/
 
 # Archive directories
 docs/archive/
+
+# Temporary text files
+*.txt
+!README.txt
+
+# Local documents
+*.docx

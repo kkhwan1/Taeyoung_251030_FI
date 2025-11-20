@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db-unified';
 import { Database } from '@/types/supabase';
 import { protectRoute } from '@/lib/middleware';
+import { parseKoreanRequest } from '@/lib/parse-korean-request';
 
 // Type alias for Company from Supabase generated types
 type Company = Database['public']['Tables']['companies']['Row'];
@@ -213,7 +214,7 @@ export const PUT = withErrorHandler(
         return rateLimitResponse;
       }
 
-      const body = await request.json();
+      const body = await parseKoreanRequest<{ id: number; [key: string]: any }>(request);
       const { id, ...updateData } = body;
 
       if (!id) {

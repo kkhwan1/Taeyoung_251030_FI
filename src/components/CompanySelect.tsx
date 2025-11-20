@@ -240,8 +240,23 @@ export default function CompanySelect({
           <div className="max-h-48 overflow-y-auto">
             {loading ? (
               <div className="p-3 text-center text-gray-500 dark:text-gray-400">검색 중...</div>
-            ) : filteredCompanies.length > 0 ? (
-              filteredCompanies.map((company) => (
+            ) : (
+              <>
+                {/* 전체 옵션 - 선택된 거래처가 있을 때만 표시 */}
+                {selectedCompany && (
+                  <div
+                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-600 font-medium text-blue-600 dark:text-blue-400"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleClear();
+                    }}
+                  >
+                    전체
+                  </div>
+                )}
+                {filteredCompanies.length > 0 ? (
+                  filteredCompanies.map((company) => (
                 <div
                   key={company.company_id}
                   className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
@@ -280,11 +295,13 @@ export default function CompanySelect({
                     </div>
                   )}
                 </div>
-              ))
-            ) : (
-              <div className="p-3 text-center text-gray-500 dark:text-gray-400">
-                {search ? '검색 결과가 없습니다.' : '등록된 거래처가 없습니다.'}
-              </div>
+                  ))
+                ) : (
+                  <div className="p-3 text-center text-gray-500 dark:text-gray-400">
+                    {search ? '검색 결과가 없습니다.' : '등록된 거래처가 없습니다.'}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

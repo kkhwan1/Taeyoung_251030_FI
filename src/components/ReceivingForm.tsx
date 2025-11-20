@@ -411,135 +411,151 @@ export default function ReceivingForm({ onSubmit, onCancel, initialData, isEdit 
             </div>
           )}
 
-          <div className="space-y-3">
-            {formData.items.map((item) => (
-              <div
-                key={item.item_id}
-                className="p-4 border rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {item.item_code} - {item.item_name}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          수량 ({item.unit})
-                        </label>
+          <div className="overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-lg">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-12">
+                    번호
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[100px]">
+                    품번
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[150px]">
+                    품명
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-16">
+                    단위
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-24">
+                    수량
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-32">
+                    단가 (₩)
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-28">
+                    금액 (₩)
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[120px]">
+                    LOT 번호
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-32">
+                    만료일
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider min-w-[100px]">
+                    입고 위치
+                  </th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider w-16">
+                    작업
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                {formData.items.map((item, index) => (
+                  <tr key={item.item_id} className="hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">
+                      {index + 1}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      {item.item_code}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      {item.item_name}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {item.unit}
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleItemQuantityChange(item.item_id, parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
                         <input
                           type="number"
-                          value={item.quantity}
-                          onChange={(e) => handleItemQuantityChange(item.item_id, parseFloat(e.target.value) || 0)}
+                          value={item.unit_price}
+                          onChange={(e) => handleItemUnitPriceChange(item.item_id, parseFloat(e.target.value) || 0)}
                           min="0"
                           step="0.01"
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
+                        {item.isMonthlyPriceApplied && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded whitespace-nowrap">
+                            월별
+                          </span>
+                        )}
                       </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          단가 (₩)
-                        </label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={item.unit_price}
-                            onChange={(e) => handleItemUnitPriceChange(item.item_id, parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
-                            className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                          {item.isMonthlyPriceApplied && (
-                            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded whitespace-nowrap">
-                              월별
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          LOT 번호
-                        </label>
-                        <input
-                          type="text"
-                          value={item.lot_no || ''}
-                          onChange={(e) => {
-                            setFormData(prev => ({
-                              ...prev,
-                              items: prev.items.map(i =>
-                                i.item_id === item.item_id ? { ...i, lot_no: e.target.value } : i
-                              )
-                            }));
-                          }}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          placeholder="예: LOT-20240101"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          만료일
-                        </label>
-                        <input
-                          type="date"
-                          value={item.expiry_date || ''}
-                          onChange={(e) => {
-                            setFormData(prev => ({
-                              ...prev,
-                              items: prev.items.map(i =>
-                                i.item_id === item.item_id ? { ...i, expiry_date: e.target.value } : i
-                              )
-                            }));
-                          }}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          입고 위치
-                        </label>
-                        <input
-                          type="text"
-                          value={item.to_location || ''}
-                          onChange={(e) => {
-                            setFormData(prev => ({
-                              ...prev,
-                              items: prev.items.map(i =>
-                                i.item_id === item.item_id ? { ...i, to_location: e.target.value } : i
-                              )
-                            }));
-                          }}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          placeholder="예: A-01-01"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-2 text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">합계금액: </span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        ₩{(item.quantity * item.unit_price).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.item_id)}
-                    className="ml-4 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    title="품목 제거"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
+                      {(item.quantity * item.unit_price).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="text"
+                        value={item.lot_no || ''}
+                        onChange={(e) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            items: prev.items.map(i =>
+                              i.item_id === item.item_id ? { ...i, lot_no: e.target.value } : i
+                            )
+                          }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="LOT-20240101"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="date"
+                        value={item.expiry_date || ''}
+                        onChange={(e) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            items: prev.items.map(i =>
+                              i.item_id === item.item_id ? { ...i, expiry_date: e.target.value } : i
+                            )
+                          }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="text"
+                        value={item.to_location || ''}
+                        onChange={(e) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            items: prev.items.map(i =>
+                              i.item_id === item.item_id ? { ...i, to_location: e.target.value } : i
+                            )
+                          }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="A-01-01"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.item_id)}
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="품목 제거"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

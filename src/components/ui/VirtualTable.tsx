@@ -9,7 +9,8 @@ import { debounce } from '@/lib/utils';
 // Column definition interface
 export interface VirtualTableColumn<T = any> {
   key: string;
-  title: string;
+  label?: string; // Deprecated: use title instead
+  title?: string;
   render?: (value: unknown, row: T, index: number) => React.ReactNode;
   sortable?: boolean;
   filterable?: boolean;
@@ -18,10 +19,11 @@ export interface VirtualTableColumn<T = any> {
   className?: string;
 }
 
-// Sort configuration
+// Sort configuration - 다중 정렬 지원
 interface SortConfig {
   key: string;
   direction: 'asc' | 'desc';
+  priority: number; // 정렬 우선순위 (1, 2, 3...)
 }
 
 // Filter configuration
@@ -67,8 +69,8 @@ export function VirtualTable<T extends Record<string, any>>({
   overscan = 5,
   stickyHeader = true
 }: VirtualTableProps<T>) {
-  // Local state
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  // Local state - 다중 정렬 지원을 위한 배열
+  const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -111,20 +113,25 @@ export function VirtualTable<T extends Record<string, any>>({
       }
     });
 
-    // Apply sorting
-    if (sortConfig) {
+    // Apply sorting - 다중 정렬 지원 (우선순위 순서대로)
+    if (sortConfigs.length > 0) {
       result.sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
+        // 우선순위 순서대로 정렬 기준 적용
+        for (const config of sortConfigs) {
+          const aVal = a[config.key];
+          const bVal = b[config.key];
 
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+          // 값 비교
+          if (aVal < bVal) return config.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return config.direction === 'asc' ? 1 : -1;
+          // 같으면 다음 정렬 기준으로 계속
+        }
         return 0;
       });
     }
 
     return result;
-  }, [data, searchTerm, filters, sortConfig, columns]);
+  }, [data, searchTerm, filters, sortConfigs, columns]);
 
   // Create virtualizer
   const virtualizer = useVirtualizer({
@@ -134,18 +141,45 @@ export function VirtualTable<T extends Record<string, any>>({
     overscan
   });
 
-  // Handle sorting
-  const handleSort = useCallback((key: string) => {
+  // Handle sorting - 다중 정렬 지원 (Shift+클릭)
+  const handleSort = useCallback((key: string, shiftKey: boolean = false) => {
     if (!sortable) return;
 
-    setSortConfig(current => {
-      if (!current || current.key !== key) {
-        return { key, direction: 'asc' };
+    setSortConfigs(current => {
+      // Shift 없이 클릭: 기존 정렬 모두 제거하고 새로운 정렬 시작
+      if (!shiftKey) {
+        const existing = current.find(c => c.key === key);
+        if (!existing) {
+          return [{ key, direction: 'asc', priority: 1 }];
+        }
+        if (existing.direction === 'asc') {
+          return [{ key, direction: 'desc', priority: 1 }];
+        }
+        // desc → 정렬 제거
+        return [];
       }
-      if (current.direction === 'asc') {
-        return { key, direction: 'desc' };
+
+      // Shift+클릭: 다중 정렬에 추가 또는 업데이트
+      const existingIndex = current.findIndex(c => c.key === key);
+
+      if (existingIndex === -1) {
+        // 새로운 정렬 기준 추가
+        const newPriority = current.length + 1;
+        return [...current, { key, direction: 'asc', priority: newPriority }];
       }
-      return null;
+
+      // 기존 정렬 기준 토글
+      const existing = current[existingIndex];
+      if (existing.direction === 'asc') {
+        // asc → desc
+        return current.map((c, i) =>
+          i === existingIndex ? { ...c, direction: 'desc' as const } : c
+        );
+      }
+
+      // desc → 제거하고 우선순위 재정렬
+      const filtered = current.filter((_, i) => i !== existingIndex);
+      return filtered.map((c, index) => ({ ...c, priority: index + 1 }));
     });
   }, [sortable]);
 
@@ -157,10 +191,11 @@ export function VirtualTable<T extends Record<string, any>>({
     }));
   }, []);
 
-  // Clear all filters
+  // Clear all filters and sorts
   const clearFilters = useCallback(() => {
     setFilters({});
     setSearchTerm('');
+    setSortConfigs([]);
   }, []);
 
   // Render cell content
@@ -183,7 +218,7 @@ export function VirtualTable<T extends Record<string, any>>({
   }, [rowClassName]);
 
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden w-full ${className}`}>
       {/* Search and Filter Controls */}
       {(searchable || filterable) && (
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -236,11 +271,11 @@ export function VirtualTable<T extends Record<string, any>>({
               {columns.filter(col => col.filterable !== false).map(column => (
                 <div key={column.key}>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {column.title}
+                    {column.title || column.label}
                   </label>
                   <input
                     type="text"
-                    placeholder={`${column.title} 필터...`}
+                    placeholder={`${column.title || column.label} 필터...`}
                     value={filters[column.key] || ''}
                     onChange={(e) => handleFilterChange(column.key, e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500"
@@ -260,8 +295,8 @@ export function VirtualTable<T extends Record<string, any>>({
       {/* Virtual Table */}
       <div
         ref={parentRef}
-        className="overflow-auto"
-        style={{ height: `${height}px` }}
+        className="overflow-auto w-full"
+        style={{ height: height ? `${height}px` : '100%' }}
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -285,11 +320,11 @@ export function VirtualTable<T extends Record<string, any>>({
                 className={`sticky top-0 z-10 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 ${headerClassName}`}
                 style={{ height: `${rowHeight}px` }}
               >
-                <div className="flex items-center h-full">
+                <div className="flex items-center h-full w-full">
                   {columns.map((column, columnIndex) => (
                     <div
                       key={column.key}
-                      className={`flex items-center justify-between px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider ${
+                      className={`flex items-center justify-between px-3 sm:px-4 py-2.5 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider ${
                         column.className || ''
                       }`}
                       style={{
@@ -297,24 +332,48 @@ export function VirtualTable<T extends Record<string, any>>({
                         textAlign: column.align || 'left'
                       }}
                     >
-                      <span className="truncate">{column.title}</span>
+                      <span className="truncate uppercase whitespace-nowrap">{column.title || column.label}</span>
                       {sortable && column.sortable !== false && (
                         <button
-                          onClick={() => handleSort(column.key)}
-                          className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          onClick={(e) => handleSort(column.key, e.shiftKey)}
+                          className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1"
                         >
-                          {sortConfig?.key === column.key ? (
-                            sortConfig.direction === 'asc' ? (
+                          {(() => {
+                            const activeSort = sortConfigs.find(c => c.key === column.key);
+
+                            if (!activeSort) {
+                              // No active sort on this column
+                              return (
+                                <div className="w-4 h-4 flex flex-col justify-center">
+                                  <ChevronUp className="w-4 h-2" />
+                                  <ChevronDown className="w-4 h-2" />
+                                </div>
+                              );
+                            }
+
+                            if (sortConfigs.length > 1) {
+                              // Multiple sorts active - show priority number
+                              return (
+                                <>
+                                  {activeSort.direction === 'asc' ? (
+                                    <ChevronUp className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4" />
+                                  )}
+                                  <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                    {activeSort.priority}
+                                  </span>
+                                </>
+                              );
+                            }
+
+                            // Single sort active - show icon only
+                            return activeSort.direction === 'asc' ? (
                               <ChevronUp className="w-4 h-4" />
                             ) : (
                               <ChevronDown className="w-4 h-4" />
-                            )
-                          ) : (
-                            <div className="w-4 h-4 flex flex-col justify-center">
-                              <ChevronUp className="w-4 h-2" />
-                              <ChevronDown className="w-4 h-2" />
-                            </div>
-                          )}
+                            );
+                          })()}
                         </button>
                       )}
                     </div>
@@ -329,11 +388,12 @@ export function VirtualTable<T extends Record<string, any>>({
               return (
                 <div
                   key={virtualRow.index}
-                  className={`absolute top-0 left-0 w-full flex items-center border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                  className={`absolute top-0 left-0 flex items-center border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${
                     onRowClick ? 'cursor-pointer' : ''
                   } ${getRowClassName(row, virtualRow.index)}`}
                   style={{
                     height: `${virtualRow.size}px`,
+                    width: '100%',
                     transform: `translateY(${virtualRow.start + (stickyHeader ? rowHeight : 0)}px)`
                   }}
                   onClick={() => onRowClick?.(row, virtualRow.index)}
@@ -341,7 +401,7 @@ export function VirtualTable<T extends Record<string, any>>({
                   {columns.map((column) => (
                     <div
                       key={column.key}
-                      className={`px-6 py-3 text-sm text-gray-800 dark:text-gray-200 ${
+                      className={`px-3 sm:px-4 py-2.5 text-sm text-gray-800 dark:text-gray-200 ${
                         column.className || ''
                       }`}
                       style={{

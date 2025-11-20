@@ -33,7 +33,7 @@ describe('Purchase API Tests', () => {
 
     testItemId = itemData.data[0].item_id;
 
-    console.log(`✅ 테스트 데이터 로드 완료: 공급사 ID ${testSupplierId}, 품목 ID ${testItemId}`);
+    console.log(`[INFO] 테스트 데이터 로드 완료: 공급사 ID ${testSupplierId}, 품목 ID ${testItemId}`);
   });
 
   describe('GET /api/purchases', () => {
