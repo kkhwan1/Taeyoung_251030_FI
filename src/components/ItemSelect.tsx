@@ -74,10 +74,15 @@ export default function ItemSelect({
   // Handle search filtering
   useEffect(() => {
     if (search.trim()) {
-      let filtered = items.filter(item =>
-        item.item_code.toLowerCase().includes(search.toLowerCase()) ||
-        item.item_name.toLowerCase().includes(search.toLowerCase())
-      );
+      const searchLower = search.toLowerCase().trim();
+      let filtered = items.filter(item => {
+        const codeMatch = item.item_code?.toLowerCase().includes(searchLower) || false;
+        const nameMatch = item.item_name?.toLowerCase().includes(searchLower) || false;
+        // 한글 검색을 위해 원본 텍스트도 확인
+        const codeOriginalMatch = item.item_code?.includes(search) || false;
+        const nameOriginalMatch = item.item_name?.includes(search) || false;
+        return codeMatch || nameMatch || codeOriginalMatch || nameOriginalMatch;
+      });
       
       // 선택된 항목이 검색 결과에 없으면 맨 위에 추가
       if (selectedItem && !filtered.find(i => i.item_id === selectedItem.item_id)) {
@@ -181,7 +186,8 @@ export default function ItemSelect({
       }
     } catch (error) {
       console.error('Failed to fetch items:', error);
-      setLoadError(error instanceof Error ? error.message : '품목 목록을 불러오는데 실패했습니다.');
+      const errorMessage = error instanceof Error ? error.message : '품목 목록을 불러오는데 실패했습니다.';
+      setLoadError(`${errorMessage} (새로고침 버튼을 클릭하여 다시 시도하세요)`);
       setItems([]);
     } finally {
       setLoading(false);
@@ -327,7 +333,16 @@ export default function ItemSelect({
       {isOpen && search && filteredItems.length === 0 && !loading && (
         <div className="absolute z-[9999] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm">
           <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
-            검색 결과가 없습니다.
+            <div className="mb-1">검색 결과가 없습니다.</div>
+            {items.length === 0 ? (
+              <div className="text-xs text-gray-400 mt-1">
+                품목 목록을 불러오지 못했습니다. 새로고침 버튼을 클릭하세요.
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400 mt-1">
+                품목코드 또는 품목명의 일부를 입력하세요. (현재 {items.length}개 품목 로드됨)
+              </div>
+            )}
           </div>
         </div>
       )}
