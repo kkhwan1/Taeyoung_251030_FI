@@ -166,13 +166,62 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
     return Object.keys(newErrors).length === 0;
   };
 
+  const [quickMode, setQuickMode] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
     setLoading(true);
     try {
-      await onSave(formData);
+      // 간편 등록 모드: 바로 완료 처리하여 재고 자동 이동
+      if (quickMode) {
+        const response = await fetch('/api/process-operations/quick', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+          },
+          body: JSON.stringify({
+            operation_type: formData.operation_type,
+            input_item_id: formData.input_item_id,
+            output_item_id: formData.output_item_id,
+            input_quantity: formData.input_quantity,
+            output_quantity: formData.output_quantity,
+            operator_id: formData.operator_id,
+            notes: formData.notes
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || '간편 등록 실패');
+        }
+
+        // 성공 메시지 표시
+        alert(`✅ 공정이 등록되고 재고가 자동으로 이동되었습니다!\n\n` +
+              `LOT: ${result.data.lot_number}\n` +
+              `수율: ${result.data.efficiency.toFixed(2)}%\n\n` +
+              `투입재료 재고: ${result.data.current_stocks.input.current_stock} ${result.data.current_stocks.input.unit}\n` +
+              `산출제품 재고: ${result.data.current_stocks.output.current_stock} ${result.data.current_stocks.output.unit}`);
+
+        // 폼 초기화
+        setFormData({
+          operation_type: 'BLANKING',
+          input_item_id: undefined,
+          output_item_id: undefined,
+          input_quantity: 0,
+          output_quantity: 0,
+          operator_id: '',
+          notes: ''
+        });
+        setErrors({});
+      } else {
+        // 기존 방식: 공정 작업 등록만 (완료 처리는 별도)
+        await onSave(formData);
+      }
+    } catch (error: any) {
+      alert(`오류: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -339,6 +388,22 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
         </div>
       </div>
 
+      {/* 간편 등록 모드 토글 (신규 작업일 때만) */}
+      {!operation && (
+        <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <input
+            type="checkbox"
+            id="quick-mode"
+            checked={quickMode}
+            onChange={(e) => setQuickMode(e.target.checked)}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="quick-mode" className="text-sm font-medium text-blue-900 dark:text-blue-100 cursor-pointer">
+            <span className="font-bold">간편 등록 모드</span>: 입력 즉시 재고 자동 이동 (공정 작업 등록 단계 생략)
+          </label>
+        </div>
+      )}
+
       {/* Buttons */}
       <div className="flex justify-between gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
         <div className="flex gap-2">
@@ -388,17 +453,21 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              quickMode
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-gray-600 text-white hover:bg-gray-700'
+            }`}
           >
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                저장 중...
+                {quickMode ? '처리 중...' : '저장 중...'}
               </>
             ) : (
               <>
                 <Save className="w-5 h-5" />
-                {operation ? '수정' : '등록'}
+                {quickMode ? '간편 등록 (재고 자동 이동)' : (operation ? '수정' : '등록')}
               </>
             )}
           </button>
