@@ -1524,15 +1524,6 @@ function InventoryContent() {
             </table>
           </div>
         </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       {/* Modal for Forms */}

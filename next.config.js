@@ -102,9 +102,7 @@ const nextConfig = {
     return config;
   },
 
-  // Resolve workspace root warning
-  outputFileTracingRoot: __dirname,
-
 };
+
 
 module.exports = nextConfig;
