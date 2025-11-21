@@ -52,6 +52,8 @@ export default function ContractsPage() {
   // 정렬 상태
   const [sortColumn, setSortColumn] = useState<string>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingContractId, setDeletingContractId] = useState<number | null>(null);
   
   // 상세보기 모달 상태
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
@@ -297,6 +299,100 @@ export default function ContractsPage() {
     });
   };
 
+  // 계약 삭제
+  const handleDelete = async (contract: Contract) => {
+    if (!confirm(`계약번호 ${contract.contract_no}를 삭제하시겠습니까?`)) return;
+
+    try {
+      setDeletingContractId(contract.contract_id);
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson(`/api/contracts?id=${contract.contract_id}`, {
+        method: 'DELETE',
+      }, {
+        timeout: 15000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+
+      if (result.success) {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(contract.contract_id);
+          return next;
+        });
+        success('계약이 삭제되었습니다.');
+        fetchContracts();
+      } else {
+        error(result.error || '삭제 실패');
+      }
+    } catch (err) {
+      error('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingContractId(null);
+    }
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredAndSortedContracts.map(c => c.contract_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (contractId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(contractId);
+      } else {
+        next.delete(contractId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    if (!confirm(`선택한 ${selectedIds.size}개 계약을 삭제하시겠습니까?`)) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingContractId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(id =>
+        safeFetchJson(`/api/contracts?id=${id}`, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        error(`${failed.length}개 계약 삭제에 실패했습니다.`);
+      } else {
+        success(`${idsToDelete.length}개 계약이 삭제되었습니다.`);
+      }
+
+      setSelectedIds(new Set());
+      fetchContracts();
+    } catch (err) {
+      error('일괄 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingContractId(null);
+    }
+  };
+
   // 계약 추가 제출
   const handleSubmitContract = async () => {
     if (!formData.company_id || !formData.contract_name || !formData.start_date || !formData.end_date) {
@@ -381,6 +477,22 @@ export default function ContractsPage() {
         </div>
       </div>
 
+      {/* 일괄 삭제 버튼 */}
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+          <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+            {selectedIds.size}개 항목 선택됨
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={deletingContractId === -1}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {deletingContractId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+          </button>
+        </div>
+      )}
+
       {/* 계약 목록 테이블 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         {loading ? (
@@ -392,6 +504,14 @@ export default function ContractsPage() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
                 <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredAndSortedContracts.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('contract_no')}
@@ -505,6 +625,14 @@ export default function ContractsPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredAndSortedContracts.map((contract) => (
                   <tr key={contract.contract_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(contract.contract_id)}
+                        onChange={(e) => handleSelectItem(contract.contract_id, e.target.checked)}
+                        className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {contract.contract_no}
@@ -545,13 +673,27 @@ export default function ContractsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <button
-                        onClick={() => handleViewDetails(contract)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
-                        title="상세"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewDetails(contract)}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          title="상세"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(contract)}
+                          disabled={deletingContractId === contract.contract_id}
+                          className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="삭제"
+                        >
+                          {deletingContractId === contract.contract_id ? (
+                            <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

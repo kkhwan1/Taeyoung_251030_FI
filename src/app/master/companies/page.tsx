@@ -89,6 +89,7 @@ export default function CompaniesPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [deletingCompanyId, setDeletingCompanyId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   
   // Mobile optimization states
   const [showFilters, setShowFilters] = useState(false);
@@ -191,6 +192,76 @@ export default function CompaniesPage() {
       successMessage: '거래처가 성공적으로 삭제되었습니다.',
       errorMessage: '거래처 삭제에 실패했습니다.'
     });
+    
+    // 삭제 후 선택 상태에서 제거
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(company.company_id);
+      return next;
+    });
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredCompanies.map(company => company.company_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (companyId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(companyId);
+      } else {
+        next.delete(companyId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = window.confirm(`선택한 ${selectedIds.size}개 거래처를 삭제하시겠습니까?`);
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingCompanyId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(companyId =>
+        safeFetchJson(`/api/companies?id=${companyId}`, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        error('일부 삭제 실패', `${failed.length}개 거래처 삭제에 실패했습니다.`);
+      } else {
+        success('삭제 완료', `${idsToDelete.length}개 거래처가 삭제되었습니다.`);
+      }
+
+      setSelectedIds(new Set());
+      fetchCompanies(true); // Force cache refresh
+    } catch (err) {
+      error('삭제 실패', '일괄 삭제 중 오류가 발생했습니다.');
+      console.error('Bulk delete error:', err);
+    } finally {
+      setDeletingCompanyId(null);
+    }
   };
 
   const handleSaveCompany = async (companyData: Omit<Company, 'company_id' | 'is_active'>) => {
@@ -515,10 +586,35 @@ export default function CompaniesPage() {
           </button>
         </div>
 
+        {/* 선택된 항목 일괄 삭제 버튼 */}
+        {selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+            <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+              {selectedIds.size}개 항목 선택됨
+            </span>
+            <button
+              onClick={handleBulkDelete}
+              disabled={deletingCompanyId === -1}
+              className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {deletingCompanyId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto -mx-2 sm:mx-0">
           <table className={`w-full divide-y divide-gray-200 dark:divide-gray-700 ${viewMode === 'card' ? 'hidden' : 'table'}`}>
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
+                <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap w-12">
+                  <input
+                    type="checkbox"
+                    checked={filteredCompanies.length > 0 && filteredCompanies.every(company => selectedIds.has(company.company_id))}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    aria-label="전체 선택"
+                  />
+                </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   <button
                     onClick={() => handleSort('company_name')}
@@ -650,19 +746,28 @@ export default function CompaniesPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="p-3 sm:p-6">
-                    <TableSkeleton rows={6} columns={11} showHeader={false} />
+                  <td colSpan={12} className="p-3 sm:p-6">
+                    <TableSkeleton rows={6} columns={12} showHeader={false} />
                   </td>
                 </tr>
               ) : filteredCompanies.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={12} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     등록된 거래처가 없습니다
                   </td>
                 </tr>
               ) : (
                 filteredCompanies.map((company) => (
                   <tr key={company.company_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-3 sm:px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(company.company_id)}
+                        onChange={(e) => handleSelectItem(company.company_id, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        aria-label={`${company.company_name} 선택`}
+                      />
+                    </td>
                     <td className="px-3 sm:px-6 py-4 overflow-hidden">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={company.company_name}>
                         {company.company_name}

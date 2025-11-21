@@ -82,6 +82,8 @@ export default function InvoicesPage() {
   const [expandedInvoices, setExpandedInvoices] = useState<Set<number>>(new Set());
   const [sortColumn, setSortColumn] = useState<string>('transaction_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -174,6 +176,7 @@ export default function InvoicesPage() {
     if (!confirmed) return;
 
     try {
+      setDeletingInvoiceId(invoice.transaction_id);
       const { safeFetchJson } = await import('@/lib/fetch-utils');
       const result = await safeFetchJson(`/api/invoices/${invoice.transaction_id}`, {
         method: 'DELETE',
@@ -184,6 +187,11 @@ export default function InvoicesPage() {
       });
 
       if (result.success) {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(invoice.transaction_id);
+          return next;
+        });
         showToast('계산서가 삭제되었습니다', 'success');
         fetchInvoices();
       } else {
@@ -192,6 +200,77 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Error deleting invoice:', error);
       showToast('삭제 중 오류가 발생했습니다', 'error');
+    } finally {
+      setDeletingInvoiceId(null);
+    }
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredInvoices.map(i => i.transaction_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (invoiceId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(invoiceId);
+      } else {
+        next.delete(invoiceId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = await confirm({
+      title: '일괄 삭제',
+      message: `선택한 ${selectedIds.size}개 계산서를 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      cancelText: '취소'
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingInvoiceId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(id =>
+        safeFetchJson(`/api/invoices/${id}`, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        showToast(`${failed.length}개 계산서 삭제에 실패했습니다`, 'error');
+      } else {
+        showToast(`${idsToDelete.length}개 계산서가 삭제되었습니다`, 'success');
+      }
+
+      setSelectedIds(new Set());
+      fetchInvoices();
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      showToast('일괄 삭제 중 오류가 발생했습니다', 'error');
+    } finally {
+      setDeletingInvoiceId(null);
     }
   };
 
@@ -242,6 +321,62 @@ export default function InvoicesPage() {
     const option = PAYMENT_STATUS_OPTIONS.find(opt => opt.value === status);
     return option?.label || '-';
   };
+
+  // 필터링 및 정렬된 계산서 목록
+  const filteredInvoices = useMemo(() => {
+    let filtered = [...invoices];
+
+    // 정렬 적용
+    filtered.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'transaction_date':
+          aValue = new Date(a.transaction_date || 0).getTime();
+          bValue = new Date(b.transaction_date || 0).getTime();
+          break;
+        case 'transaction_no':
+          aValue = a.transaction_no || '';
+          bValue = b.transaction_no || '';
+          break;
+        case 'customer':
+          aValue = a.customer?.company_name || '';
+          bValue = b.customer?.company_name || '';
+          break;
+        case 'item_count':
+          aValue = a.items?.length || 0;
+          bValue = b.items?.length || 0;
+          break;
+        case 'total_amount':
+          aValue = a.total_amount || 0;
+          bValue = b.total_amount || 0;
+          break;
+        case 'payment_method':
+          aValue = a.payment_method || '';
+          bValue = b.payment_method || '';
+          break;
+        case 'payment_status':
+          aValue = a.payment_status || '';
+          bValue = b.payment_status || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
+    return filtered;
+  }, [invoices, sortColumn, sortOrder]);
+
+  const sortedInvoices = filteredInvoices;
 
   return (
     <div className="space-y-6">
@@ -327,6 +462,22 @@ export default function InvoicesPage() {
         </div>
       </div>
 
+      {/* 일괄 삭제 버튼 */}
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+          <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+            {selectedIds.size}개 항목 선택됨
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={deletingInvoiceId === -1}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {deletingInvoiceId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+          </button>
+        </div>
+      )}
+
       {/* 테이블 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
@@ -337,6 +488,14 @@ export default function InvoicesPage() {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredInvoices.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
                     {/* 확장 아이콘 컬럼 */}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -344,7 +503,7 @@ export default function InvoicesPage() {
                       onClick={() => handleSort('transaction_date')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
-                      계산서일자
+                    계산서일자
                       {sortColumn === 'transaction_date' ? (
                         sortOrder === 'asc' ?
                           <ArrowUp className="w-3 h-3" /> :
@@ -359,7 +518,7 @@ export default function InvoicesPage() {
                       onClick={() => handleSort('transaction_no')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
-                      계산서번호
+                    계산서번호
                       {sortColumn === 'transaction_no' ? (
                         sortOrder === 'asc' ?
                           <ArrowUp className="w-3 h-3" /> :
@@ -452,7 +611,7 @@ export default function InvoicesPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={10} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                       등록된 계산서가 없습니다
                     </td>
                   </tr>
@@ -465,6 +624,17 @@ export default function InvoicesPage() {
                           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
                           onClick={() => toggleExpand(invoice.transaction_id)}
                         >
+                          <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(invoice.transaction_id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleSelectItem(invoice.transaction_id, e.target.checked);
+                              }}
+                              className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                            />
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <button
                               onClick={(e) => {
@@ -526,17 +696,22 @@ export default function InvoicesPage() {
                               e.stopPropagation();
                               handleDelete(invoice);
                             }}
-                            className="text-red-600 hover:text-red-800"
+                            disabled={deletingInvoiceId === invoice.transaction_id}
+                            className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="삭제"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deletingInvoiceId === invoice.transaction_id ? (
+                              <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </td>
                     </tr>
                     {isExpanded && invoice.items && invoice.items.length > 0 && (
                       <tr key={`${invoice.transaction_id}-details`} className="bg-gray-50 dark:bg-gray-800/50">
-                        <td colSpan={9} className="px-6 py-4">
+                        <td colSpan={10} className="px-6 py-4">
                           <div className="transition-all duration-300 ease-in-out">
                             <div className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
                               품목 상세 내역

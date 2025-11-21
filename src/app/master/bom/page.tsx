@@ -26,13 +26,13 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import BOMForm from '@/components/BOMForm';
+import BOMBulkForm from '@/components/BOMBulkForm';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
 import { BOMExportButton } from '@/components/ExcelExportButton';
 import PrintButton from '@/components/PrintButton';
 import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Pie } from 'recharts';
-import { CompanyFilterSelect } from '@/components/filters/CompanyFilterSelect';
-import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
+import { useCompanyFilter } from '@/hooks/useCompanyFilter';
 
 interface BOM {
   bom_id: number;
@@ -96,10 +96,12 @@ export default function BOMPage() {
   const [refreshInterval, setRefreshInterval] = useState(30000);
   const [selectedParentItem, setSelectedParentItem] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingBOM, setEditingBOM] = useState<BOM | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [items, setItems] = useState<any[]>([]);
   const [deletingBomId, setDeletingBomId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedCoilItem, setSelectedCoilItem] = useState<number | null>(null);
@@ -110,7 +112,7 @@ export default function BOMPage() {
   });
   const [showFilters, setShowFilters] = useState(false); // 필터 토글 (모바일용)
   const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set()); // 그룹화 뷰 확장/축소
-  const [selectedCompany, setSelectedCompany] = useState<string>(''); // 거래처 필터
+  const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL'); // 거래처 필터
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortColumn, setSortColumn] = useState<string>('parent_item_code');
 
@@ -174,7 +176,7 @@ export default function BOMPage() {
 
       const url = buildFilteredApiUrl(
         '/api/bom',
-        selectedCompany || null,
+        selectedCompany === 'ALL' ? null : selectedCompany,
         additionalParams
       );
 
@@ -487,6 +489,11 @@ export default function BOMPage() {
           throw new Error(data.error || 'BOM 삭제에 실패했습니다.');
         }
 
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(bom.bom_id);
+          return next;
+        });
         fetchBOMData();
       } catch (err) {
         console.error('Failed to delete BOM item:', err);
@@ -502,6 +509,69 @@ export default function BOMPage() {
       successMessage: 'BOM 항목이 성공적으로 삭제되었습니다.',
       errorMessage: 'BOM 삭제에 실패했습니다.'
     });
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredData.map(bom => bom.bom_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (bomId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(bomId);
+      } else {
+        next.delete(bomId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = window.confirm(`선택한 ${selectedIds.size}개 BOM 항목을 삭제하시겠습니까?`);
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingBomId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(bomId =>
+        safeFetchJson(`/api/bom?id=${bomId}`, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        error('일부 삭제 실패', `${failed.length}개 BOM 항목 삭제에 실패했습니다.`);
+      } else {
+        success('삭제 완료', `${idsToDelete.length}개 BOM 항목이 삭제되었습니다.`);
+      }
+
+      setSelectedIds(new Set());
+      fetchBOMData();
+    } catch (err) {
+      error('삭제 실패', '일괄 삭제 중 오류가 발생했습니다.');
+      console.error('Bulk delete error:', err);
+    } finally {
+      setDeletingBomId(null);
+    }
   };
 
   const handleSaveBOM = async (bomData: Omit<BOM, 'bom_id' | 'is_active' | 'level'>) => {
@@ -549,6 +619,90 @@ export default function BOMPage() {
   const handleCloseModal = () => {
     setShowAddModal(false);
     setEditingBOM(null);
+  };
+
+  const handleCloseBulkModal = () => {
+    setShowBulkModal(false);
+  };
+
+  const handleBulkSubmit = async (entries: Array<{
+    parent_item_id: number;
+    child_item_id: number;
+    quantity: number;
+    notes?: string;
+  }>): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      success_count: number;
+      fail_count: number;
+      validation_errors?: { index: number; errors: string[] }[];
+    };
+  }> => {
+    try {
+      // Convert quantity to quantity_required for API
+      const apiEntries = entries.map(e => ({
+        parent_item_id: e.parent_item_id,
+        child_item_id: e.child_item_id,
+        quantity_required: e.quantity,
+        notes: e.notes
+      }));
+
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const result = await safeFetchJson('/api/bom/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+        body: JSON.stringify({ entries: apiEntries }),
+      }, {
+        timeout: 30000,
+        maxRetries: 2,
+        retryDelay: 1000
+      });
+
+      if (result.success) {
+        const { success_count, fail_count, validation_errors } = result.data || {};
+
+        // If all successful, show toast and refresh
+        if (!fail_count || fail_count === 0) {
+          success('대량 등록 완료', result.message || `${success_count}개 BOM이 등록되었습니다.`);
+          fetchBOMData();
+        } else {
+          // Partial success - show warning
+          warning(
+            '일부 등록 실패',
+            `${success_count}개 등록 성공, ${fail_count}개 실패`
+          );
+          if (success_count > 0) {
+            fetchBOMData();
+          }
+        }
+
+        return {
+          success: true,
+          message: result.message,
+          data: {
+            success_count: success_count || 0,
+            fail_count: fail_count || 0,
+            validation_errors: validation_errors
+          }
+        };
+      } else {
+        error('등록 실패', result.error || '대량 등록에 실패했습니다.');
+        return {
+          success: false,
+          message: result.error || '대량 등록에 실패했습니다.'
+        };
+      }
+    } catch (err) {
+      console.error('Failed to bulk save BOM:', err);
+      error('네트워크 오류', '서버와의 연결에 문제가 발생했습니다.');
+      return {
+        success: false,
+        message: '서버와의 연결에 문제가 발생했습니다.'
+      };
+    }
   };
 
   const handleCopyBOM = async (bom: BOM) => {
@@ -1718,6 +1872,14 @@ export default function BOMPage() {
                 <Plus className="w-3.5 h-3.5" />
                 BOM 등록
               </button>
+
+              <button
+                onClick={() => setShowBulkModal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap text-xs font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                대량 등록
+              </button>
             </div>
 
             {/* 구분선 */}
@@ -1848,16 +2010,24 @@ export default function BOMPage() {
               <option value="external_purchase">외부구매</option>
             </select>
 
-            {/* 거래처 필터 (공급사) */}
+            {/* 거래처 필터 */}
             <div className="flex-shrink-0">
-              <CompanyFilterSelect
+              <label className="sr-only" htmlFor="company-filter">거래처 필터</label>
+              <select
+                id="company-filter"
                 value={selectedCompany}
-                onChange={setSelectedCompany}
-                label=""
-                placeholder="전체 거래처"
-                className="text-sm"
-                showAllOption={true}
-              />
+                onChange={(e) => setSelectedCompany(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+                aria-label="거래처 필터"
+                disabled={companiesLoading}
+                className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+              >
+                <option value="ALL">전체 거래처</option>
+                {companies.map((company) => (
+                  <option key={company.value} value={company.value}>
+                    {company.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 카테고리 필터 */}
@@ -1953,7 +2123,7 @@ export default function BOMPage() {
                   category: '',
                   materialType: ''
                 });
-                setSelectedCompany('');
+                setSelectedCompany('ALL');
               }}
               className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm flex-shrink-0 whitespace-nowrap"
             >
@@ -2128,6 +2298,21 @@ export default function BOMPage() {
           items={items}
           onSubmit={handleSaveBOM}
           onCancel={handleCloseModal}
+        />
+      </Modal>
+
+      {/* Modal for Bulk BOM Registration */}
+      <Modal
+        isOpen={showBulkModal}
+        onClose={handleCloseBulkModal}
+        title="BOM 대량 등록"
+        size="xl"
+        maxHeight="tall"
+      >
+        <BOMBulkForm
+          items={items}
+          onSubmit={handleBulkSubmit}
+          onCancel={handleCloseBulkModal}
         />
       </Modal>
 

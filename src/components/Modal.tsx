@@ -9,6 +9,7 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  maxHeight?: 'auto' | 'tall';
 }
 
 export default function Modal({
@@ -16,7 +17,8 @@ export default function Modal({
   onClose,
   title,
   children,
-  size = 'md'
+  size = 'md',
+  maxHeight = 'auto'
 }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -52,6 +54,16 @@ export default function Modal({
     xl: 'max-w-6xl'
   };
 
+  const heightClasses = {
+    auto: '',
+    tall: 'max-h-[85vh]'
+  };
+
+  const contentHeightClasses = {
+    auto: '',
+    tall: 'max-h-[calc(85vh-80px)] overflow-y-auto'
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop - explicit z-index 1, aria-hidden */}
@@ -69,7 +81,7 @@ export default function Modal({
       >
         {/* Modal Content - pointer-events restored, propagation stopped */}
         <div
-          className={`relative bg-white dark:bg-gray-900 rounded-lg shadow-sm w-full ${sizeClasses[size]} transform transition-all pointer-events-auto`}
+          className={`relative bg-white dark:bg-gray-900 rounded-lg shadow-sm w-full ${sizeClasses[size]} ${heightClasses[maxHeight]} transform transition-all pointer-events-auto flex flex-col`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -95,7 +107,7 @@ export default function Modal({
           </div>
 
           {/* Content */}
-          <div className="p-6">{children}</div>
+          <div className={`p-6 ${contentHeightClasses[maxHeight]}`}>{children}</div>
         </div>
       </div>
     </div>

@@ -79,6 +79,8 @@ export default function CollectionsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortColumn, setSortColumn] = useState<string>('collection_date');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingCollectionId, setDeletingCollectionId] = useState<number | null>(null);
   const [summary, setSummary] = useState({
     totalOutstanding: 0,     // 총 미수금
     overdueCount: 0,          // 30일 이상 미처리
@@ -165,6 +167,7 @@ export default function CollectionsPage() {
     if (!confirmed) return;
 
     try {
+      setDeletingCollectionId(collection.collection_id);
       const { safeFetchJson } = await import('@/lib/fetch-utils');
       const result = await safeFetchJson(`/api/collections?id=${collection.collection_id}`, {
         method: 'DELETE',
@@ -175,6 +178,11 @@ export default function CollectionsPage() {
       });
 
       if (result.success) {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(collection.collection_id);
+          return next;
+        });
         showToast('수금 내역이 삭제되었습니다', 'success');
         fetchCollections();
       } else {
@@ -183,6 +191,77 @@ export default function CollectionsPage() {
     } catch (error) {
       console.error('Error deleting collection:', error);
       showToast('삭제 중 오류가 발생했습니다', 'error');
+    } finally {
+      setDeletingCollectionId(null);
+    }
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredCollections.map(c => c.collection_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (collectionId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(collectionId);
+      } else {
+        next.delete(collectionId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = await confirm({
+      title: '일괄 삭제',
+      message: `선택한 ${selectedIds.size}개 수금 내역을 삭제하시겠습니까?\n매출 거래의 수금 금액이 조정됩니다.`,
+      confirmText: '삭제',
+      cancelText: '취소'
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingCollectionId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(id =>
+        safeFetchJson(`/api/collections?id=${id}`, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        showToast(`${failed.length}개 수금 내역 삭제에 실패했습니다`, 'error');
+      } else {
+        showToast(`${idsToDelete.length}개 수금 내역이 삭제되었습니다`, 'success');
+      }
+
+      setSelectedIds(new Set());
+      fetchCollections();
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      showToast('일괄 삭제 중 오류가 발생했습니다', 'error');
+    } finally {
+      setDeletingCollectionId(null);
     }
   };
 
@@ -495,6 +574,22 @@ export default function CollectionsPage() {
         </div>
       </div>
 
+      {/* 일괄 삭제 버튼 */}
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+          <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+            {selectedIds.size}개 항목 선택됨
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={deletingCollectionId === -1}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {deletingCollectionId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+          </button>
+        </div>
+      )}
+
       {/* Section 3: Data Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         {/* 뷰 전환 토글 (모바일만) */}
@@ -532,6 +627,14 @@ export default function CollectionsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredCollections.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     <button
                       onClick={() => handleSort('collection_date')}
@@ -658,6 +761,14 @@ export default function CollectionsPage() {
                 ) : (
                   filteredCollections.map((collection) => (
                     <tr key={collection.collection_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(collection.collection_id)}
+                          onChange={(e) => handleSelectItem(collection.collection_id, e.target.checked)}
+                          className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 overflow-hidden">
                         <div className="text-sm text-gray-900 dark:text-gray-100">
                           <div className="flex flex-col">

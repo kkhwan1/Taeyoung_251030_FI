@@ -1,6 +1,0 @@
-# Performance Test Endpoints
-/api/dashboard/stats
-/api/items?limit=100
-/api/inventory/transactions?limit=100
-/api/export/sales
-/api/export/purchases

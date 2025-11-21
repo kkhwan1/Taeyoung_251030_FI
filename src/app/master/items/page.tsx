@@ -133,6 +133,7 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [selectedItemForImage, setSelectedItemForImage] = useState<Item | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Mobile optimization states
   const [showFilters, setShowFilters] = useState(false);
@@ -263,6 +264,11 @@ export default function ItemsPage() {
         }
 
         success('삭제 완료', '품목이 비활성화되었습니다.');
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(item.item_id);
+          return next;
+        });
         fetchItems();
       } finally {
         setDeletingItemId(null);
@@ -275,6 +281,71 @@ export default function ItemsPage() {
       successMessage: '품목이 비활성화되었습니다.',
       errorMessage: '품목 삭제 중 오류가 발생했습니다.'
     });
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredItems.map(item => item.item_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (itemId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(itemId);
+      } else {
+        next.delete(itemId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = window.confirm(`선택한 ${selectedIds.size}개 품목을 삭제하시겠습니까?`);
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingItemId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(itemId =>
+        safeFetchJson('/api/items', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ item_id: itemId })
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        error('일부 삭제 실패', `${failed.length}개 품목 삭제에 실패했습니다.`);
+      } else {
+        success('삭제 완료', `${idsToDelete.length}개 품목이 비활성화되었습니다.`);
+      }
+
+      setSelectedIds(new Set());
+      fetchItems();
+    } catch (err) {
+      error('삭제 실패', '일괄 삭제 중 오류가 발생했습니다.');
+      console.error('Bulk delete error:', err);
+    } finally {
+      setDeletingItemId(null);
+    }
   };
 
   const handleSaveItem = async (payload: Record<string, unknown>) => {
@@ -649,10 +720,35 @@ export default function ItemsPage() {
           </button>
         </div>
 
+        {/* 선택된 항목 일괄 삭제 버튼 */}
+        {selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+            <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+              {selectedIds.size}개 항목 선택됨
+            </span>
+            <button
+              onClick={handleBulkDelete}
+              disabled={deletingItemId === -1}
+              className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {deletingItemId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto -mx-2 sm:mx-0">
           <table className={`w-full divide-y divide-gray-200 dark:divide-gray-700 ${viewMode === 'card' ? 'hidden' : 'table'}`}>
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
+                <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap w-12">
+                  <input
+                    type="checkbox"
+                    checked={filteredItems.length > 0 && filteredItems.every(item => selectedIds.has(item.item_id))}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    aria-label="전체 선택"
+                  />
+                </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   <button onClick={() => handleSort('item_code')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
                     품목코드
@@ -781,19 +877,28 @@ export default function ItemsPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
               {loading ? (
                 <tr>
-                  <td colSpan={13} className="p-3 sm:p-6">
-                    <TableSkeleton rows={8} columns={13} showHeader={false} />
+                  <td colSpan={14} className="p-3 sm:p-6">
+                    <TableSkeleton rows={8} columns={14} showHeader={false} />
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={14} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     조건에 맞는 품목이 없습니다.
                   </td>
                 </tr>
               ) : (
                 filteredItems.map((item) => (
                   <tr key={item.item_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-3 sm:px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(item.item_id)}
+                        onChange={(e) => handleSelectItem(item.item_id, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        aria-label={`${item.item_name} 선택`}
+                      />
+                    </td>
                     <td className="px-3 sm:px-6 py-4 overflow-hidden">
                       <button
                         onClick={() => router.push(`/master/items/${item.item_id}`)}

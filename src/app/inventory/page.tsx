@@ -74,6 +74,8 @@ function InventoryContent() {
   // 수정/삭제 관련 상태
   const [selectedTransaction, setSelectedTransaction] = useState<InventoryTransaction | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [stockLastUpdated, setStockLastUpdated] = useState<Date | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showStockHistory, setShowStockHistory] = useState(false);
@@ -288,6 +290,7 @@ function InventoryContent() {
     if (!selectedTransaction) return;
 
     try {
+      setDeletingTransactionId(selectedTransaction.transaction_id);
       let url = '';
       switch (activeTab) {
         case 'receiving':
@@ -313,6 +316,11 @@ function InventoryContent() {
       });
 
       if (result.success) {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(selectedTransaction.transaction_id);
+          return next;
+        });
         setShowDeleteConfirm(false);
         setSelectedTransaction(null);
         setRefreshKey(prev => prev + 1);
@@ -328,6 +336,88 @@ function InventoryContent() {
     } catch (error) {
       console.error('Error deleting transaction:', error);
       alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingTransactionId(null);
+    }
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredTransactions.map(tx => tx.transaction_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (transactionId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(transactionId);
+      } else {
+        next.delete(transactionId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    if (!confirm(`선택한 ${selectedIds.size}개 거래를 삭제하시겠습니까?`)) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingTransactionId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(id => {
+        let url = '';
+        switch (activeTab) {
+          case 'receiving':
+            url = `/api/inventory/receiving?id=${id}`;
+            break;
+          case 'production':
+            url = `/api/inventory/production?id=${id}`;
+            break;
+          case 'shipping':
+            url = `/api/inventory/shipping?id=${id}`;
+            break;
+          default:
+            url = `/api/inventory/transactions?id=${id}`;
+        }
+        return safeFetchJson(url, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        });
+      });
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        alert(`${failed.length}개 거래 삭제에 실패했습니다.`);
+      } else {
+        alert(`${idsToDelete.length}개 거래가 삭제되었습니다.`);
+      }
+
+      setSelectedIds(new Set());
+      setRefreshKey(prev => prev + 1);
+      await Promise.all([
+        fetchStockInfo(),
+        fetchTransactions()
+      ]);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      alert('일괄 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingTransactionId(null);
     }
   };
 
@@ -1086,6 +1176,22 @@ function InventoryContent() {
           </div>
         )}
 
+        {/* 일괄 삭제 버튼 */}
+        {selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+            <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+              {selectedIds.size}개 항목 선택됨
+            </span>
+            <button
+              onClick={handleBulkDelete}
+              disabled={deletingTransactionId === -1}
+              className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {deletingTransactionId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+            </button>
+          </div>
+        )}
+
         {/* Transaction History */}
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -1095,6 +1201,14 @@ function InventoryContent() {
             <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredTransactions.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                    />
+                  </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     <button
                       onClick={() => handleSort('created_at')}
@@ -1223,13 +1337,13 @@ function InventoryContent() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                    <td colSpan={10} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                       데이터를 불러오는 중...
                     </td>
                   </tr>
                 ) : filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                    <td colSpan={10} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                       필터링된 거래 내역이 없습니다
                     </td>
                   </tr>
@@ -1287,6 +1401,14 @@ function InventoryContent() {
                     const shortageTotal = (transaction as any).shortage_total || 0;
                     return (
                       <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-3 sm:px-6 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(transaction.transaction_id)}
+                            onChange={(e) => handleSelectItem(transaction.transaction_id, e.target.checked)}
+                            className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                          />
+                        </td>
                         <td className="px-3 sm:px-6 py-4 overflow-hidden">
                           <div className="text-sm text-gray-900 dark:text-white">
                             {(() => {
@@ -1382,12 +1504,26 @@ function InventoryContent() {
                             </button>
                             <button
                               onClick={() => handleDelete(transaction)}
-                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                              disabled={deletingTransactionId === transaction.transaction_id}
+                              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                               title="삭제"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {deletingTransactionId === transaction.transaction_id ? (
+                                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
                         </td>
                       </tr>
                     );

@@ -91,6 +91,10 @@ export default function ProcessPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingOperationId, setDeletingOperationId] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortColumn, setSortColumn] = useState<string>('created_at');
 
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -157,6 +161,7 @@ export default function ProcessPage() {
     if (!confirmed) return;
 
     try {
+      setDeletingOperationId(operation.operation_id);
       const { safeFetchJson } = await import('@/lib/fetch-utils');
       const result = await safeFetchJson(`/api/process-operations/${operation.operation_id}`, {
         method: 'DELETE',
@@ -167,6 +172,11 @@ export default function ProcessPage() {
       });
 
       if (result.success) {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(operation.operation_id);
+          return next;
+        });
         showToast('공정 작업이 삭제되었습니다', 'success');
         fetchOperations();
       } else {
@@ -175,6 +185,77 @@ export default function ProcessPage() {
     } catch (error) {
       console.error('Error deleting process operation:', error);
       showToast('삭제 중 오류가 발생했습니다', 'error');
+    } finally {
+      setDeletingOperationId(null);
+    }
+  };
+
+  // 전체 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredOperations.map(op => op.operation_id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  // 개별 선택/해제
+  const handleSelectItem = (operationId: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(operationId);
+      } else {
+        next.delete(operationId);
+      }
+      return next;
+    });
+  };
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = await confirm({
+      title: '일괄 삭제',
+      message: `선택한 ${selectedIds.size}개 공정 작업을 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      cancelText: '취소'
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    setDeletingOperationId(-1); // 일괄 삭제 중 표시
+
+    try {
+      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const deletePromises = idsToDelete.map(id =>
+        safeFetchJson(`/api/process-operations/${id}`, {
+          method: 'DELETE'
+        }, {
+          timeout: 15000,
+          maxRetries: 2,
+          retryDelay: 1000
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length > 0) {
+        showToast(`${failed.length}개 공정 작업 삭제에 실패했습니다`, 'error');
+      } else {
+        showToast(`${idsToDelete.length}개 공정 작업이 삭제되었습니다`, 'success');
+      }
+
+      setSelectedIds(new Set());
+      fetchOperations();
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      showToast('일괄 삭제 중 오류가 발생했습니다', 'error');
+    } finally {
+      setDeletingOperationId(null);
     }
   };
 
@@ -429,6 +510,22 @@ export default function ProcessPage() {
         </div>
       </div>
 
+      {/* 일괄 삭제 버튼 */}
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+          <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+            {selectedIds.size}개 항목 선택됨
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={deletingOperationId === -1}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {deletingOperationId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
+          </button>
+        </div>
+      )}
+
       {/* 테이블 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
@@ -438,6 +535,14 @@ export default function ProcessPage() {
             <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredOperations.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                    />
+                  </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('operation_id')}
@@ -581,13 +686,21 @@ export default function ProcessPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {filteredOperations.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-3 sm:px-6 py-12 text-center text-gray-600 dark:text-gray-400">
+                    <td colSpan={11} className="px-3 sm:px-6 py-12 text-center text-gray-600 dark:text-gray-400">
                       공정 작업이 없습니다
                     </td>
                   </tr>
                 ) : (
                   filteredOperations.map((operation) => (
                     <tr key={operation.operation_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-3 sm:px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(operation.operation_id)}
+                          onChange={(e) => handleSelectItem(operation.operation_id, e.target.checked)}
+                          className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
+                        />
+                      </td>
                       <td className="px-3 sm:px-6 py-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {operation.operation_id}
@@ -664,10 +777,15 @@ export default function ProcessPage() {
                           </button>
                           <button
                             onClick={() => handleDelete(operation)}
-                            className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
+                            disabled={deletingOperationId === operation.operation_id}
+                            className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="삭제"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deletingOperationId === operation.operation_id ? (
+                              <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </td>
