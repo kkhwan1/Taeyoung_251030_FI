@@ -59,6 +59,9 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [inputItemStock, setInputItemStock] = useState<number>(0);
   const [outputItemStock, setOutputItemStock] = useState<number>(0);
+  const [suggestedOutputQuantity, setSuggestedOutputQuantity] = useState<number | null>(null);
+  const [suggestedInputQuantity, setSuggestedInputQuantity] = useState<number | null>(null);
+  const [averageEfficiency, setAverageEfficiency] = useState<number | null>(null);
 
   useEffect(() => {
     if (operation) {
@@ -136,6 +139,68 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
     }
     return '0.00';
   };
+
+  // 과거 평균 수율 기반 산출수량 자동 계산
+  useEffect(() => {
+    if (formData.input_item_id && formData.output_item_id && formData.input_quantity > 0) {
+      const fetchAverageEfficiency = async () => {
+        try {
+          const url = `/api/process-operations/average-efficiency?input_item_id=${formData.input_item_id}&output_item_id=${formData.output_item_id}&operation_type=${formData.operation_type}`;
+          const response = await fetch(url);
+          const result = await response.json();
+
+          if (result.success && result.data.average_efficiency) {
+            const avgEff = result.data.average_efficiency;
+            setAverageEfficiency(avgEff);
+            const suggested = formData.input_quantity * (avgEff / 100);
+            setSuggestedOutputQuantity(Math.round(suggested * 100) / 100);
+          } else {
+            setAverageEfficiency(null);
+            setSuggestedOutputQuantity(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch average efficiency:', error);
+          setAverageEfficiency(null);
+          setSuggestedOutputQuantity(null);
+        }
+      };
+
+      fetchAverageEfficiency();
+    } else {
+      setAverageEfficiency(null);
+      setSuggestedOutputQuantity(null);
+    }
+  }, [formData.input_item_id, formData.output_item_id, formData.input_quantity, formData.operation_type]);
+
+  // 코일 스펙 기반 투입수량 자동 계산
+  useEffect(() => {
+    if (formData.input_item_id && formData.operation_type === 'BLANKING') {
+      const fetchCoilSpecs = async () => {
+        try {
+          const response = await fetch(`/api/coil-specs?item_id=${formData.input_item_id}`);
+          const result = await response.json();
+
+          if (result.success && result.data && result.data.length > 0) {
+            const coilSpec = result.data[0];
+            const weightPerPiece = parseFloat(coilSpec.weight_per_piece || '0');
+            
+            if (weightPerPiece > 0 && inputItemStock > 0) {
+              // 현재 재고를 중량으로 가정하고 계산
+              // 실제로는 재고 단위에 따라 다를 수 있음
+              const suggested = Math.floor(inputItemStock / weightPerPiece);
+              setSuggestedInputQuantity(suggested);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch coil specs:', error);
+        }
+      };
+
+      fetchCoilSpecs();
+    } else {
+      setSuggestedInputQuantity(null);
+    }
+  }, [formData.input_item_id, formData.operation_type, inputItemStock]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -323,18 +388,35 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             투입수량 <span className="text-red-500">*</span>
           </label>
-          <input
-            type="number"
-            name="input_quantity"
-            value={formData.input_quantity}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.input_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            }`}
-            required
-          />
+          <div className="relative">
+            <input
+              type="number"
+              name="input_quantity"
+              value={formData.input_quantity}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.input_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              }`}
+              required
+            />
+            {suggestedInputQuantity && suggestedInputQuantity !== formData.input_quantity && (
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, input_quantity: suggestedInputQuantity }))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+                title="코일 스펙 기반 자동 계산값 적용"
+              >
+                {suggestedInputQuantity} 적용
+              </button>
+            )}
+          </div>
+          {suggestedInputQuantity && suggestedInputQuantity !== formData.input_quantity && (
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+              💡 제안: {suggestedInputQuantity.toLocaleString('ko-KR')}개 (코일 스펙 기반 계산)
+            </p>
+          )}
           {errors.input_quantity && (
             <p className="mt-1 text-sm text-red-500">{errors.input_quantity}</p>
           )}
@@ -345,18 +427,35 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             산출수량 <span className="text-red-500">*</span>
           </label>
-          <input
-            type="number"
-            name="output_quantity"
-            value={formData.output_quantity}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
-            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.output_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            }`}
-            required
-          />
+          <div className="relative">
+            <input
+              type="number"
+              name="output_quantity"
+              value={formData.output_quantity}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.output_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              }`}
+              required
+            />
+            {suggestedOutputQuantity && suggestedOutputQuantity !== formData.output_quantity && (
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, output_quantity: suggestedOutputQuantity }))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                title="과거 평균 수율 기반 자동 계산값 적용"
+              >
+                {suggestedOutputQuantity} 적용
+              </button>
+            )}
+          </div>
+          {suggestedOutputQuantity && suggestedOutputQuantity !== formData.output_quantity && averageEfficiency && (
+            <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+              💡 제안: {suggestedOutputQuantity.toLocaleString('ko-KR')}개 (과거 평균 수율 {averageEfficiency.toFixed(2)}% 기반)
+            </p>
+          )}
           {errors.output_quantity && (
             <p className="mt-1 text-sm text-red-500">{errors.output_quantity}</p>
           )}
