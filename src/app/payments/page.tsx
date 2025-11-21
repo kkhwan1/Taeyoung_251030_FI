@@ -14,7 +14,10 @@ import {
   Grid,
   List,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
@@ -74,6 +77,8 @@ export default function PaymentsPage() {
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortColumn, setSortColumn] = useState<string>('payment_date');
   const [summary, setSummary] = useState({
     totalOutstanding: 0,     // 총 미지급금
     overdueCount: 0,          // 30일 이상 미처리
@@ -254,10 +259,71 @@ export default function PaymentsPage() {
     }
   };
 
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // 같은 컬럼 클릭 시 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭 시 해당 컬럼으로 정렬 (기본: 내림차순)
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+
   // 필터링된 지급 목록
   const filteredPayments = useMemo(() => {
-    return payments;
-  }, [payments]);
+    let filtered = [...payments];
+
+    // 정렬 적용
+    filtered.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'payment_date':
+          aValue = new Date(a.created_at || a.payment_date).getTime();
+          bValue = new Date(b.created_at || b.payment_date).getTime();
+          break;
+        case 'payment_no':
+          aValue = a.payment_no || '';
+          bValue = b.payment_no || '';
+          break;
+        case 'purchase_transaction_no':
+          aValue = a.purchase_transaction?.transaction_no || '';
+          bValue = b.purchase_transaction?.transaction_no || '';
+          break;
+        case 'company_name':
+          aValue = a.supplier?.company_name || '';
+          bValue = b.supplier?.company_name || '';
+          break;
+        case 'paid_amount':
+          aValue = a.paid_amount || 0;
+          bValue = b.paid_amount || 0;
+          break;
+        case 'payment_method':
+          aValue = a.payment_method || '';
+          bValue = b.payment_method || '';
+          break;
+        case 'payment_status':
+          aValue = a.purchase_transaction?.payment_status || '';
+          bValue = b.purchase_transaction?.payment_status || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
+    return filtered;
+  }, [payments, sortColumn, sortOrder]);
 
   // 결제방법 색상
   const getPaymentMethodColor = (method?: PaymentMethod) => {
@@ -449,28 +515,112 @@ export default function PaymentsPage() {
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    지급일자
+                    <button
+                      onClick={() => handleSort('payment_date')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      지급일자
+                      {sortColumn === 'payment_date' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    지급번호
+                    <button
+                      onClick={() => handleSort('payment_no')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      지급번호
+                      {sortColumn === 'payment_no' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    매입번호
+                    <button
+                      onClick={() => handleSort('purchase_transaction_no')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      매입번호
+                      {sortColumn === 'purchase_transaction_no' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    공급사명
+                    <button
+                      onClick={() => handleSort('company_name')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      공급사명
+                      {sortColumn === 'company_name' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    지급금액
+                    <button
+                      onClick={() => handleSort('paid_amount')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
+                      지급금액
+                      {sortColumn === 'paid_amount' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    결제방법
+                    <button
+                      onClick={() => handleSort('payment_method')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      결제방법
+                      {sortColumn === 'payment_method' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     결제 정보
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    상태
+                    <button
+                      onClick={() => handleSort('payment_status')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      상태
+                      {sortColumn === 'payment_status' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     비고

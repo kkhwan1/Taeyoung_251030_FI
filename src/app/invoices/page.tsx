@@ -3,7 +3,7 @@
 // Force dynamic rendering to avoid Static Generation errors with React hooks
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import React from 'react';
 import dynamicImport from 'next/dynamic';
 import {
@@ -14,7 +14,10 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
-  ChevronRight
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
@@ -77,6 +80,8 @@ export default function InvoicesPage() {
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<number>>(new Set());
+  const [sortColumn, setSortColumn] = useState<string>('transaction_date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -335,25 +340,109 @@ export default function InvoicesPage() {
                     {/* 확장 아이콘 컬럼 */}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    계산서일자
+                    <button
+                      onClick={() => handleSort('transaction_date')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      계산서일자
+                      {sortColumn === 'transaction_date' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    계산서번호
+                    <button
+                      onClick={() => handleSort('transaction_no')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      계산서번호
+                      {sortColumn === 'transaction_no' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    고객사
+                    <button
+                      onClick={() => handleSort('customer')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      고객사
+                      {sortColumn === 'customer' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    품목 수
+                    <button
+                      onClick={() => handleSort('item_count')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      품목 수
+                      {sortColumn === 'item_count' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    총액
+                    <button
+                      onClick={() => handleSort('total_amount')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
+                      총액
+                      {sortColumn === 'total_amount' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    결제방법
+                    <button
+                      onClick={() => handleSort('payment_method')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      결제방법
+                      {sortColumn === 'payment_method' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    결제상태
+                    <button
+                      onClick={() => handleSort('payment_status')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      결제상태
+                      {sortColumn === 'payment_status' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     작업
@@ -368,7 +457,7 @@ export default function InvoicesPage() {
                     </td>
                   </tr>
                 ) : (
-                  invoices.map((invoice) => {
+                  sortedInvoices.map((invoice) => {
                     const isExpanded = expandedInvoices.has(invoice.transaction_id);
                     return (
                       <React.Fragment key={invoice.transaction_id}>

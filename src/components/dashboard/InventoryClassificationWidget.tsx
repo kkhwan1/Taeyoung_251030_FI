@@ -180,42 +180,43 @@ export const InventoryClassificationWidget: React.FC<InventoryClassificationWidg
       ) : (
         <>
           {/* Classification Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {data?.stats && data.stats.length > 0 ? (
-              data.stats.map((stat) => {
-                const style = getTypeStyle(stat.type);
+          {/* Show all inventory types, including those with 0 count for better UX */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            {['완제품', '반제품', '고객재고', '원재료', '코일'].map((type) => {
+              const stat = data?.stats?.find(s => s.type === type);
+              const displayStat = stat || { type, count: 0, total_stock: 0 };
+              const style = getTypeStyle(displayStat.type);
+              
+              // Use lighter/grayed out style for zero-count types
+              const isZero = displayStat.count === 0;
+              
                 return (
                   <div
-                    key={stat.type}
-                    className={`${style.bgColor} rounded-lg p-3 border ${style.borderColor}`}
+                  key={displayStat.type}
+                  className={`${isZero ? 'bg-gray-50 dark:bg-gray-800/50' : style.bgColor} rounded-lg p-3 border ${isZero ? 'border-gray-200 dark:border-gray-700' : style.borderColor} ${isZero ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-center space-x-2 mb-2">
-                      <Package className={`w-4 h-4 ${style.iconColor}`} />
-                      <span className={`text-sm font-medium ${style.textColor}`}>
-                        {stat.type}
+                    <Package className={`w-4 h-4 ${isZero ? 'text-gray-400 dark:text-gray-500' : style.iconColor}`} />
+                    <span className={`text-sm font-medium ${isZero ? 'text-gray-500 dark:text-gray-400' : style.textColor}`}>
+                      {displayStat.type}
                       </span>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-baseline">
-                        <span className={`text-xl font-bold ${style.textColor}`}>
-                          {formatKoreanNumber(stat.count)}
+                      <span className={`text-xl font-bold ${isZero ? 'text-gray-400 dark:text-gray-500' : style.textColor}`}>
+                        {formatKoreanNumber(displayStat.count)}
                         </span>
                         <span className="text-xs text-gray-600 dark:text-gray-400 ml-1">
                           개
                         </span>
                       </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        재고: {formatKoreanNumber(stat.total_stock)}
+                    <div className={`text-xs ${isZero ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}>
+                      재고: {formatKoreanNumber(displayStat.total_stock)}
                       </div>
                     </div>
                   </div>
                 );
-              })
-            ) : (
-              <div className="col-span-full text-center py-6 text-gray-500 dark:text-gray-400">
-                분류된 재고가 없습니다
-              </div>
-            )}
+            })}
           </div>
 
           {/* Summary */}

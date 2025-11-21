@@ -3,8 +3,8 @@
 // Force dynamic rendering to avoid Static Generation errors with React hooks
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { Users, Plus, Search, Edit2, Trash2, Filter, Mail, Phone, Shield } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Users, Plus, Search, Edit2, Trash2, Filter, Mail, Phone, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
 interface User {
@@ -27,6 +27,8 @@ export default function UsersPage() {
   const [selectedRole, setSelectedRole] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [sortColumn, setSortColumn] = useState<string>('username');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
   const { success, error } = useToast();
 
@@ -153,6 +155,61 @@ export default function UsersPage() {
     }
   };
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedUsers = useMemo(() => {
+    const sorted = [...users].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'username':
+          aValue = a.username || '';
+          bValue = b.username || '';
+          break;
+        case 'name':
+          aValue = a.name || '';
+          bValue = b.name || '';
+          break;
+        case 'role':
+          aValue = getRoleLabel(a.role);
+          bValue = getRoleLabel(b.role);
+          break;
+        case 'department':
+          aValue = a.department || '';
+          bValue = b.department || '';
+          break;
+        case 'phone':
+          aValue = a.phone || '';
+          bValue = b.phone || '';
+          break;
+        case 'is_active':
+          aValue = a.is_active ? 1 : 0;
+          bValue = b.is_active ? 1 : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
+    return sorted;
+  }, [users, sortColumn, sortOrder]);
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -210,22 +267,94 @@ export default function UsersPage() {
               <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    사용자명
+                    <button
+                      onClick={() => handleSort('username')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      사용자명
+                      {sortColumn === 'username' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    이름
+                    <button
+                      onClick={() => handleSort('name')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      이름
+                      {sortColumn === 'name' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    역할
+                    <button
+                      onClick={() => handleSort('role')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      역할
+                      {sortColumn === 'role' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    부서
+                    <button
+                      onClick={() => handleSort('department')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      부서
+                      {sortColumn === 'department' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    연락처
+                    <button
+                      onClick={() => handleSort('phone')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      연락처
+                      {sortColumn === 'phone' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    상태
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSort('is_active')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      상태
+                      {sortColumn === 'is_active' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     작업
@@ -233,7 +362,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <tr key={user.user_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -267,7 +396,7 @@ export default function UsersPage() {
                         <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {user.is_active ? '활성' : '비활성'}
                       </span>

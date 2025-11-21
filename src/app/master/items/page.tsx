@@ -149,7 +149,7 @@ export default function ItemsPage() {
   const { success, error } = useToast();
   const { deleteWithToast, ConfirmDialog } = useConfirm();
   const { canEdit, isAccountant } = useUserRole();
-  const { companies, loading: companiesLoading } = useCompanyFilter();
+  const { companies, loading: companiesLoading, error: companiesError, refetch: refetchCompanies } = useCompanyFilter();
 
   // Pagination handlers
   const handlePageChange = (page: number) => {
@@ -673,8 +673,8 @@ export default function ItemsPage() {
                     )}
                   </button>
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  <button onClick={() => handleSort('category')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                  <button onClick={() => handleSort('category')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100 mx-auto">
                     분류
                     {sortColumn === 'category' ? (
                       sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
@@ -683,8 +683,8 @@ export default function ItemsPage() {
                     )}
                   </button>
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  <button onClick={() => handleSort('item_type')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                  <button onClick={() => handleSort('item_type')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100 mx-auto">
                     타입
                     {sortColumn === 'item_type' ? (
                       sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
@@ -693,8 +693,8 @@ export default function ItemsPage() {
                     )}
                   </button>
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  <button onClick={() => handleSort('material_type')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                  <button onClick={() => handleSort('material_type')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100 mx-auto">
                     소재형태
                     {sortColumn === 'material_type' ? (
                       sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
@@ -714,7 +714,14 @@ export default function ItemsPage() {
                   </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  규격 / 소재
+                  <button onClick={() => handleSort('spec')} className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-100">
+                    규격 / 소재
+                    {sortColumn === 'spec' ? (
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   <button onClick={() => handleSort('mm_weight')} className="flex items-center gap-1 ml-auto hover:text-gray-700 dark:hover:text-gray-100">
@@ -805,17 +812,17 @@ export default function ItemsPage() {
                         {item.item_name}
                       </button>
                     </td>
-                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
                       <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
                         {item.category ?? '-'}
                       </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300 truncate">
                         {formatItemTypeLabel(item.item_type)}
                       </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-4 overflow-hidden">
+                    <td className="px-3 sm:px-6 py-4 overflow-hidden text-center">
                       <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
                         {item.material_type ?? '-'}
                       </div>

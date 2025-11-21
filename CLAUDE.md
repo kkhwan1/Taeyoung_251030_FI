@@ -902,6 +902,240 @@ export default function MyPage() {
 - ⚠️ Next.js 15.5.6 빌드: 개발 서버는 정상, Production 빌드만 이슈 (Workaround 가능)
 - ⏳ 미완료: 인증/권한 시스템 (의도적 연기), 고급 리포팅, 문서 첨부
 
+## 거래처 필터 시스템 (Company Filter System)
+
+### 개요
+전사 통합 거래처 필터 시스템 - React Context 기반 중앙 집중식 필터링
+
+**구현 완료 (2025-02-02)**:
+- ✅ React Context 기반 전역 거래처 데이터 캐싱
+- ✅ 5개 API 엔드포인트 필터 통합 (purchases, sales, collections, payments, items)
+- ✅ 4개 프론트엔드 페이지 업데이트 (purchases, sales, items, bom)
+- ✅ 3개 신규 고급 컴포넌트 (Chips, Search, Multi)
+- ✅ 중앙 집중식 유틸리티 함수 (`src/lib/filters.ts`)
+- ✅ TypeScript FK 제약조건 에러 수정 (invoices)
+- ✅ E2E 테스트 검증 (Playwright)
+
+### 아키텍처
+
+#### 1. React Context Layer (`src/contexts/CompanyFilterContext.tsx`)
+```typescript
+// 전역 거래처 데이터 캐싱 및 공유
+const { companies, loading, error, refetch } = useCompanyFilter();
+
+// 자동 캐싱:
+// - 초기 로드 후 메모리에 캐시
+// - 모든 페이지에서 재사용 (API 호출 최소화)
+// - 에러 발생 시 자동 재시도 가능
+```
+
+#### 2. 중앙 집중식 필터 유틸리티 (`src/lib/filters.ts`)
+```typescript
+// 1. FK 컬럼 매핑 (테이블별 자동 매핑)
+COMPANY_FK_COLUMNS = {
+  items: { supplier: 'supplier_id' },
+  sales_transactions: { customer: 'customer_id' },
+  purchase_transactions: { supplier: 'supplier_id' },
+  // ...
+}
+
+// 2. company_id 추출 및 검증
+const companyId = extractCompanyId(searchParams);
+
+// 3. Supabase 쿼리 필터 적용
+const query = applyCompanyFilter(baseQuery, 'items', companyId);
+
+// 4. API URL 생성 (프론트엔드용)
+const url = buildFilteredApiUrl('/api/items', companyId, { search: 'term' });
+```
+
+#### 3. API 레이어 통합
+**적용된 API 엔드포인트** (5개):
+- `GET /api/purchases` - supplier_id 필터
+- `GET /api/sales-transactions` - customer_id 필터
+- `GET /api/collections` - customer_id 필터
+- `GET /api/payments` - supplier_id 필터
+- `GET /api/items` - supplier_id 필터
+
+**표준 구현 패턴**:
+```typescript
+// src/app/api/[endpoint]/route.ts
+import { extractCompanyId, applyCompanyFilter } from '@/lib/filters';
+
+export async function GET(request: NextRequest) {
+  const companyId = extractCompanyId(request.nextUrl.searchParams);
+
+  let query = supabase.from('table_name').select('*');
+
+  if (companyId) {
+    query = applyCompanyFilter(query, 'table_name', companyId);
+  }
+
+  // ... 추가 필터 및 쿼리 실행
+}
+```
+
+#### 4. 프론트엔드 컴포넌트
+
+**기본 컴포넌트** (`CompanyFilterSelect`):
+```typescript
+// 단순 드롭다운 셀렉트
+<CompanyFilterSelect
+  value={selectedCompany}
+  onChange={setSelectedCompany}
+  placeholder="전체 거래처"
+/>
+```
+
+**고급 컴포넌트 (신규 추가)**:
+
+**a) CompanyFilterChips** - 시각적 칩 표시
+```typescript
+// 선택된 거래처를 칩 형태로 표시, 개별 제거 가능
+<CompanyFilterChips
+  selectedCompanies={['201', '223']}
+  onRemove={(id) => handleRemove(id)}
+  onClearAll={() => setSelectedCompanies([])}
+  maxVisible={5}
+/>
+```
+
+**b) CompanyFilterSearch** - 실시간 검색
+```typescript
+// 300ms 디바운스, 퍼지 매칭, 키보드 네비게이션
+<CompanyFilterSearch
+  value={searchQuery}
+  onChange={setSearchQuery}
+  onSelect={(company) => handleSelect(company)}
+  debounceMs={300}
+  maxResults={10}
+/>
+```
+
+**c) MultiCompanyFilter** - 다중 선택 드롭다운
+```typescript
+// 체크박스 기반 다중 선택, "전체 선택/해제"
+<MultiCompanyFilter
+  selectedCompanies={['201', '202', '223']}
+  onChange={setSelectedCompanies}
+  showSearch={true}
+  showSelectAll={true}
+/>
+```
+
+### 사용 방법
+
+#### Backend API 개발
+```typescript
+// 1. filters.ts import
+import { extractCompanyId, applyCompanyFilter } from '@/lib/filters';
+
+// 2. company_id 추출
+const companyId = extractCompanyId(request.nextUrl.searchParams);
+
+// 3. 필터 적용
+let query = supabase.from('your_table').select('*');
+if (companyId) {
+  query = applyCompanyFilter(query, 'your_table', companyId);
+}
+```
+
+#### Frontend 페이지 개발
+```typescript
+// 1. Context 사용
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
+const { companies, loading } = useCompanyFilter();
+
+// 2. 상태 관리
+const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
+
+// 3. 컴포넌트 렌더링
+<CompanyFilterSelect
+  value={selectedCompany}
+  onChange={setSelectedCompany}
+  placeholder="전체 거래처"
+/>
+
+// 4. API 호출 (중앙 집중식 URL 생성)
+const { buildFilteredApiUrl } = await import('@/lib/filters');
+const url = buildFilteredApiUrl(
+  '/api/endpoint',
+  selectedCompany === 'ALL' ? null : selectedCompany,
+  { /* 추가 파라미터 */ }
+);
+```
+
+### 테이블별 FK 컬럼 매핑
+
+| 테이블 | FK 컬럼 | 타입 | 용도 |
+|--------|---------|------|------|
+| items | supplier_id | supplier | 공급사 필터 |
+| sales_transactions | customer_id | customer | 고객사 필터 |
+| purchase_transactions | supplier_id | supplier | 공급사 필터 |
+| collections | customer_id | customer | 고객사 필터 |
+| payments | supplier_id | supplier | 공급사 필터 |
+| inventory_transactions | company_id | company | 거래처 필터 |
+| customer_bom_templates | customer_id | customer | 고객사 필터 |
+
+### 접근성 (Accessibility)
+
+모든 컴포넌트는 WCAG 2.1 AA 준수:
+- ✅ ARIA 역할 및 속성 (role, aria-label, aria-expanded 등)
+- ✅ 키보드 네비게이션 (Arrow keys, Enter, Escape, Space)
+- ✅ 스크린 리더 지원 (sr-only 상태 메시지)
+- ✅ 포커스 관리 (visible focus indicators)
+- ✅ 의미있는 HTML 구조 (semantic markup)
+
+### 성능 최적화
+
+1. **React Context 캐싱**: 거래처 데이터 한 번만 로드
+2. **Debounced Search**: 300ms 디바운스로 API 호출 최소화
+3. **Memoization**: useMemo로 필터링 결과 캐싱
+4. **Lazy Loading**: 컴포넌트 동적 import
+5. **TypeScript 타입 안전성**: 컴파일 타임 에러 방지
+
+### 테스트
+
+**E2E 테스트 (Playwright)**:
+- ✅ Purchases 페이지: AOS(201) 필터 선택 및 API 호출 검증
+- ✅ API 호출 검증: `GET /api/purchases?company_id=201 200 in 163ms`
+- ✅ 필터 상태 유지 및 URL 파라미터 동기화
+
+### 확장 가능성
+
+**추가 가능한 기능**:
+- 최근 선택 거래처 로컬 스토리지 저장
+- 즐겨찾기 거래처 기능
+- 거래처 그룹별 필터링 (고객사/공급사/협력사)
+- 거래처 타입별 필터 (제조업/도소매업 등)
+- 거래처 검색 히스토리
+
+### 관련 파일
+
+**Core Files**:
+- `src/contexts/CompanyFilterContext.tsx` - React Context Provider
+- `src/lib/filters.ts` - 중앙 집중식 유틸리티
+- `src/components/filters/index.ts` - 컴포넌트 exports
+
+**Components**:
+- `src/components/filters/CompanyFilterSelect.tsx` - 기본 셀렉트
+- `src/components/filters/CompanyFilterChips.tsx` - 칩 표시
+- `src/components/filters/CompanyFilterSearch.tsx` - 검색 컴포넌트
+- `src/components/filters/MultiCompanyFilter.tsx` - 다중 선택
+
+**API Routes** (5개):
+- `src/app/api/purchases/route.ts`
+- `src/app/api/sales-transactions/route.ts`
+- `src/app/api/collections/route.ts`
+- `src/app/api/payments/route.ts`
+- `src/app/api/items/route.ts`
+
+**Pages** (4개):
+- `src/app/purchases/page.tsx`
+- `src/app/sales/page.tsx`
+- `src/app/master/items/page.tsx`
+- `src/app/master/bom/page.tsx`
+
 ## 성능 최적화 팁
 
 ### 데이터베이스

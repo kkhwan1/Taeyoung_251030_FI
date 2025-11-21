@@ -13,8 +13,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient, handleSupabaseError, createSuccessResponse } from '@/lib/db-unified';
+import { getSupabaseClient } from '@/lib/db-unified';
 import { mapExcelHeaders, bomHeaderMapping } from '@/lib/excel-header-mapper';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { Database } from '@/types/database.types';
 import * as XLSX from 'xlsx';
 
 export const dynamic = 'force-dynamic';
@@ -25,8 +27,25 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 interface BOMExcelRow {
+  // Parent item fields
   parent_item_code: string;
+  parent_item_name?: string;
+  parent_spec?: string;
+  parent_unit?: string;
+  parent_category?: string;
+  parent_inventory_type?: string;
+  parent_supplier?: string;
+
+  // Child item fields
   child_item_code: string;
+  child_item_name?: string;
+  child_spec?: string;
+  child_unit?: string;
+  child_category?: string;
+  child_inventory_type?: string;
+  child_supplier?: string;
+
+  // BOM relationship fields
   quantity_required: number;
   level_no?: number;
   notes?: string;
@@ -82,7 +101,7 @@ function parseBOMExcel(buffer: Buffer): ValidationResult {
     }
 
     const worksheet = workbook.Sheets[sheetName];
-    const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+    const rawData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
 
     if (rawData.length === 0) {
       return {
@@ -101,7 +120,7 @@ function parseBOMExcel(buffer: Buffer): ValidationResult {
       const rowNumber = index + 2; // Excel row number (1-indexed + header)
       const rowErrors: ValidationError[] = [];
 
-      // Required fields validation
+      // Required fields validation - Parent item
       if (!row.parent_item_code || String(row.parent_item_code).trim() === '') {
         rowErrors.push({
           row: rowNumber,
@@ -111,12 +130,51 @@ function parseBOMExcel(buffer: Buffer): ValidationResult {
         });
       }
 
+      if (!row.parent_item_name || String(row.parent_item_name).trim() === '') {
+        rowErrors.push({
+          row: rowNumber,
+          field: 'parent_item_name',
+          message: '부모 품목명이 필요합니다',
+          value: row.parent_item_name
+        });
+      }
+
+      // Required fields validation - Child item
       if (!row.child_item_code || String(row.child_item_code).trim() === '') {
         rowErrors.push({
           row: rowNumber,
           field: 'child_item_code',
           message: '자식 품목 코드가 필요합니다',
           value: row.child_item_code
+        });
+      }
+
+      if (!row.child_item_name || String(row.child_item_name).trim() === '') {
+        rowErrors.push({
+          row: rowNumber,
+          field: 'child_item_name',
+          message: '자식 품목명이 필요합니다',
+          value: row.child_item_name
+        });
+      }
+
+      // Optional: Validate inventory_type enum values
+      const validInventoryTypes = ['RAW_MATERIAL', 'SEMI_FINISHED', 'FINISHED_PRODUCT', 'SUPPLIES'];
+      if (row.parent_inventory_type && !validInventoryTypes.includes(row.parent_inventory_type)) {
+        rowErrors.push({
+          row: rowNumber,
+          field: 'parent_inventory_type',
+          message: `부모 품목 재고타입은 ${validInventoryTypes.join(', ')} 중 하나여야 합니다`,
+          value: row.parent_inventory_type
+        });
+      }
+
+      if (row.child_inventory_type && !validInventoryTypes.includes(row.child_inventory_type)) {
+        rowErrors.push({
+          row: rowNumber,
+          field: 'child_inventory_type',
+          message: `자식 품목 재고타입은 ${validInventoryTypes.join(', ')} 중 하나여야 합니다`,
+          value: row.child_inventory_type
         });
       }
 
@@ -162,7 +220,21 @@ function parseBOMExcel(buffer: Buffer): ValidationResult {
           child_item_code: String(row.child_item_code).trim(),
           quantity_required: quantity,
           level_no: level_no,
-          notes: row.notes ? String(row.notes).trim() : undefined
+          notes: row.notes ? String(row.notes).trim() : undefined,
+          // Parent item details (TASK-030: Fix metadata loss bug)
+          parent_item_name: row.parent_item_name ? String(row.parent_item_name).trim() : undefined,
+          parent_spec: row.parent_spec ? String(row.parent_spec).trim() : undefined,
+          parent_unit: row.parent_unit ? String(row.parent_unit).trim() : undefined,
+          parent_category: row.parent_category ? String(row.parent_category).trim() : undefined,
+          parent_inventory_type: row.parent_inventory_type,
+          parent_supplier: row.parent_supplier ? String(row.parent_supplier).trim() : undefined,
+          // Child item details (TASK-030: Fix metadata loss bug)
+          child_item_name: row.child_item_name ? String(row.child_item_name).trim() : undefined,
+          child_spec: row.child_spec ? String(row.child_spec).trim() : undefined,
+          child_unit: row.child_unit ? String(row.child_unit).trim() : undefined,
+          child_category: row.child_category ? String(row.child_category).trim() : undefined,
+          child_inventory_type: row.child_inventory_type,
+          child_supplier: row.child_supplier ? String(row.child_supplier).trim() : undefined
         });
       } else {
         errors.push(...rowErrors);
@@ -263,11 +335,110 @@ function detectCircularDependencies(bomData: BOMExcelRow[]): CircularDependencyC
 }
 
 // ============================================================================
+// SUPPLIER LOOKUP & ITEM UPSERT HELPERS
+// ============================================================================
+
+/**
+ * Find supplier_id by company name or company_code
+ * Returns null if not found
+ */
+async function findSupplierByNameOrCode(
+  supabase: SupabaseClient<Database>,
+  supplierNameOrCode: string
+): Promise<number | null> {
+  if (!supplierNameOrCode || supplierNameOrCode.trim() === '') {
+    return null;
+  }
+
+  const trimmed = supplierNameOrCode.trim();
+
+  // Query companies table by name or code
+  const { data, error } = await supabase
+    .from('companies')
+    .select('company_id')
+    .or(`company_name.eq.${trimmed},company_code.eq.${trimmed}`)
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.company_id;
+}
+
+/**
+ * Upsert item (create or update)
+ * Returns item_id
+ */
+interface ItemPayload {
+  item_code: string;
+  item_name: string;
+  is_active: boolean;
+  spec?: string;
+  unit?: string;
+  category?: string;
+  inventory_type?: string;
+  supplier_id?: number;
+}
+
+async function upsertItem(
+  supabase: SupabaseClient<Database>,
+  itemCode: string,
+  itemName: string,
+  spec?: string,
+  unit?: string,
+  category?: string,
+  inventoryType?: string,
+  supplierNameOrCode?: string
+): Promise<{ item_id: number; item_code: string }> {
+  // Find supplier_id if supplier name/code provided
+  let supplier_id: number | null = null;
+  if (supplierNameOrCode) {
+    supplier_id = await findSupplierByNameOrCode(supabase, supplierNameOrCode);
+  }
+
+  // Prepare item payload
+  const itemPayload: ItemPayload = {
+    item_code: itemCode.trim(),
+    item_name: itemName.trim(),
+    is_active: true
+  };
+
+  if (spec) itemPayload.spec = spec.trim();
+  if (unit) itemPayload.unit = unit.trim();
+  if (category) itemPayload.category = category.trim();
+  if (inventoryType) itemPayload.inventory_type = inventoryType;
+  if (supplier_id) itemPayload.supplier_id = supplier_id;
+
+  // Upsert item (INSERT ... ON CONFLICT UPDATE)
+  const { data, error } = await supabase
+    .from('items')
+    .upsert(itemPayload, {
+      onConflict: 'item_code',
+      ignoreDuplicates: false // Update if exists
+    })
+    .select('item_id, item_code')
+    .single();
+
+  if (error) {
+    throw new Error(`품목 생성/업데이트 실패 (${itemCode}): ${error.message}`);
+  }
+
+  return data;
+}
+
+// ============================================================================
 // MAIN HANDLER
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // TODO: Add authentication middleware check
+    // Example: const session = await getServerSession(request);
+    // if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     // 1. Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -282,13 +453,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate file type
+    // Validate file type and size
     const fileName = file.name.toLowerCase();
     if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
       return NextResponse.json(
         {
           success: false,
           error: 'Excel 파일만 업로드 가능합니다 (.xlsx, .xls)'
+        },
+        { status: 400 }
+      );
+    }
+
+    // File size limit: 5MB
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `파일 크기는 ${MAX_FILE_SIZE / 1024 / 1024}MB를 초과할 수 없습니다`
         },
         { status: 400 }
       );
@@ -310,56 +493,104 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 3. Validate item codes exist in database
+    // 3. Upsert all unique items (parent and child)
     const supabase = getSupabaseClient();
 
-    const itemCodes = new Set([
-      ...parseResult.data.map(row => row.parent_item_code),
-      ...parseResult.data.map(row => row.child_item_code)
-    ]);
+    /**
+     * TASK-031: Transaction Handling Limitation
+     *
+     * ⚠️ KNOWN LIMITATION: Supabase JavaScript client does not support traditional BEGIN/COMMIT transactions.
+     *
+     * Current implementation uses sequential operations:
+     * 1. Upsert items sequentially (errors cause immediate failure and rollback of entire operation)
+     * 2. Upsert BOM entries (single batch operation)
+     *
+     * Risk: If BOM insert fails after items are upserted, orphaned items may remain in database.
+     *
+     * Mitigation strategies applied:
+     * - Items use upsert (idempotent) so re-running upload won't create duplicates
+     * - BOM entries also use upsert so re-running upload is safe
+     * - Comprehensive validation before any database operation
+     * - Detailed error logging for troubleshooting
+     *
+     * Future improvement: Create PostgreSQL stored procedure with proper transaction handling
+     * and call it via Supabase RPC for atomic operations.
+     */
 
-    const { data: items, error: itemError } = await supabase
-      .from('items')
-      .select('item_code, item_id, item_name')
-      .in('item_code', Array.from(itemCodes))
-      .eq('is_active', true) as any;
+    // 3. Upsert items and collect item ID mappings
+    // Collect unique items with all their details
+    const uniqueItems = new Map<string, {
+      item_code: string;
+      item_name: string;
+      spec?: string;
+      unit?: string;
+      category?: string;
+      inventory_type?: string;
+      supplier?: string;
+    }>();
 
-    if (itemError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: '품목 조회 실패',
-          details: itemError.message
-        },
-        { status: 500 }
-      );
-    }
-
-    // Build item code to ID mapping
-    const itemCodeMap = new Map<string, { item_id: number; item_name: string }>(
-      items?.map((i: any) => [i.item_code, { item_id: i.item_id, item_name: i.item_name }]) || []
-    );
-
-    // Check for missing item codes
-    const missingCodes: string[] = [];
-    itemCodes.forEach(code => {
-      if (!itemCodeMap.has(code)) {
-        missingCodes.push(code);
+    // Add parent items
+    parseResult.data.forEach(row => {
+      if (!uniqueItems.has(row.parent_item_code)) {
+        if (!row.parent_item_name) {
+          throw new Error(`부모 품목명이 없습니다: ${row.parent_item_code}`);
+        }
+        uniqueItems.set(row.parent_item_code, {
+          item_code: row.parent_item_code,
+          item_name: row.parent_item_name,
+          spec: row.parent_spec,
+          unit: row.parent_unit,
+          category: row.parent_category,
+          inventory_type: row.parent_inventory_type,
+          supplier: row.parent_supplier
+        });
       }
     });
 
-    if (missingCodes.length > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: '존재하지 않는 품목 코드',
-          details: {
-            missing_codes: missingCodes,
-            message: `다음 품목 코드가 데이터베이스에 없습니다: ${missingCodes.join(', ')}`
-          }
-        },
-        { status: 400 }
-      );
+    // Add child items
+    parseResult.data.forEach(row => {
+      if (!uniqueItems.has(row.child_item_code)) {
+        if (!row.child_item_name) {
+          throw new Error(`자식 품목명이 없습니다: ${row.child_item_code}`);
+        }
+        uniqueItems.set(row.child_item_code, {
+          item_code: row.child_item_code,
+          item_name: row.child_item_name,
+          spec: row.child_spec,
+          unit: row.child_unit,
+          category: row.child_category,
+          inventory_type: row.child_inventory_type,
+          supplier: row.child_supplier
+        });
+      }
+    });
+
+    // Upsert all items and build item_code → item_id mapping
+    // Performance: Batch upserts with concurrency limit (50 at a time)
+    const itemCodeMap = new Map<string, number>();
+    const itemEntries = Array.from(uniqueItems.entries());
+    const BATCH_SIZE = 50;
+
+    for (let i = 0; i < itemEntries.length; i += BATCH_SIZE) {
+      const batch = itemEntries.slice(i, i + BATCH_SIZE);
+      const upsertPromises = batch.map(async ([item_code, itemDetails]) => {
+        const upsertedItem = await upsertItem(
+          supabase,
+          itemDetails.item_code,
+          itemDetails.item_name,
+          itemDetails.spec,
+          itemDetails.unit,
+          itemDetails.category,
+          itemDetails.inventory_type,
+          itemDetails.supplier
+        );
+        return { item_code, item_id: upsertedItem.item_id };
+      });
+
+      const results = await Promise.all(upsertPromises);
+      results.forEach(({ item_code, item_id }) => {
+        itemCodeMap.set(item_code, item_id);
+      });
     }
 
     // 4. Check for circular dependencies
@@ -380,13 +611,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // 5. Prepare BOM entries for database insertion
-    const bomInserts = parseResult.data.map(row => ({
-      parent_item_id: itemCodeMap.get(row.parent_item_code)!.item_id,
-      child_item_id: itemCodeMap.get(row.child_item_code)!.item_id,
-      quantity_required: row.quantity_required,
-      level_no: row.level_no || 1,
-      is_active: true
-    }));
+    interface BOMInsert {
+      parent_item_id: number;
+      child_item_id: number;
+      quantity_required: number;
+      level_no: number;
+      is_active: boolean;
+    }
+
+    const bomInserts: BOMInsert[] = parseResult.data.map(row => {
+      const parentId = itemCodeMap.get(row.parent_item_code);
+      const childId = itemCodeMap.get(row.child_item_code);
+
+      if (!parentId || !childId) {
+        throw new Error(
+          `품목 ID를 찾을 수 없습니다: ${!parentId ? row.parent_item_code : ''} ${!childId ? row.child_item_code : ''}`
+        );
+      }
+
+      return {
+        parent_item_id: parentId,
+        child_item_id: childId,
+        quantity_required: row.quantity_required,
+        level_no: row.level_no ?? 1, // Use nullish coalescing to preserve 0
+        is_active: true
+      };
+    });
 
     // 6. Insert BOM entries with upsert (update on conflict)
     const { data: insertedBOMs, error: insertError } = await supabase
@@ -406,10 +656,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         level_no,
         parent_item:items!bom_parent_item_id_fkey(item_code, item_name, spec, unit),
         child_item:items!bom_child_item_id_fkey(item_code, item_name, spec, unit)
-      `) as any;
+      `);
 
     if (insertError) {
-      console.error('Database insert error:', insertError);
+      // Log error for debugging (consider using proper logger in production)
+      // console.error('Database insert error:', insertError);
       return NextResponse.json(
         {
           success: false,
@@ -435,11 +686,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   } catch (error) {
     console.error('BOM upload error:', error);
+
+    // Enhanced error messages with phase context
+    let errorMessage = 'BOM 업로드 실패';
+    let errorDetails = error instanceof Error ? error.message : '알 수 없는 오류';
+
+    // Detect error phase based on error message or type
+    if (errorDetails.includes('parse') || errorDetails.includes('파싱') || errorDetails.includes('Excel')) {
+      errorMessage = 'Excel 파일 처리 실패';
+      errorDetails = `파일을 읽거나 파싱하는 중 오류가 발생했습니다. ${errorDetails}`;
+    } else if (errorDetails.includes('item') || errorDetails.includes('품목') || errorDetails.includes('upsert')) {
+      errorMessage = '품목 등록 실패';
+      errorDetails = `품목 데이터를 데이터베이스에 저장하는 중 오류가 발생했습니다. ${errorDetails}`;
+    } else if (errorDetails.includes('BOM') || errorDetails.includes('insert') || errorDetails.includes('foreign key')) {
+      errorMessage = 'BOM 관계 등록 실패';
+      errorDetails = `BOM 관계를 데이터베이스에 저장하는 중 오류가 발생했습니다. ${errorDetails}`;
+    } else if (errorDetails.includes('supplier') || errorDetails.includes('company') || errorDetails.includes('공급사')) {
+      errorMessage = '공급사 조회 실패';
+      errorDetails = `지정된 공급사를 찾을 수 없습니다. 공급사 코드 또는 이름을 확인하세요. ${errorDetails}`;
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error: 'BOM 업로드 실패',
-        details: error instanceof Error ? error.message : '알 수 없는 오류'
+        error: errorMessage,
+        details: errorDetails,
+        help: '문제가 지속되면 Excel 템플릿을 다시 다운로드하여 형식을 확인하거나, 데이터베이스 연결 상태를 확인하세요.'
       },
       { status: 500 }
     );

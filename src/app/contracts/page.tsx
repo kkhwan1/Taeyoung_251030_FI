@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Search, Edit2, Trash2, Building2, File, Download, X, Calendar, Save, XCircle } from 'lucide-react';
+import { FileText, Plus, Search, Edit2, Trash2, Building2, File, Download, X, Calendar, Save, XCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/Modal';
 import CompanySelect from '@/components/CompanySelect';
@@ -48,6 +48,10 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  
+  // 정렬 상태
+  const [sortColumn, setSortColumn] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // 상세보기 모달 상태
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
@@ -137,6 +141,77 @@ export default function ContractsPage() {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ko-KR');
   };
+
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // 같은 컬럼 클릭 시 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭 시 해당 컬럼으로 정렬 (기본: 내림차순)
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+
+  // 필터링 및 정렬된 계약 목록
+  const filteredAndSortedContracts = contracts
+    .filter(contract => {
+      const matchesSearch = !searchTerm || 
+        contract.contract_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.contract_name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = !selectedType || contract.contract_type === selectedType;
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'contract_no':
+          aValue = a.contract_no || '';
+          bValue = b.contract_no || '';
+          break;
+        case 'contract_name':
+          aValue = a.contract_name || '';
+          bValue = b.contract_name || '';
+          break;
+        case 'contract_type':
+          aValue = a.contract_type || '';
+          bValue = b.contract_type || '';
+          break;
+        case 'company_name':
+          aValue = a.company?.company_name || '';
+          bValue = b.company?.company_name || '';
+          break;
+        case 'start_date':
+          aValue = new Date(a.start_date || 0).getTime();
+          bValue = new Date(b.start_date || 0).getTime();
+          break;
+        case 'total_amount':
+          aValue = a.total_amount || 0;
+          bValue = b.total_amount || 0;
+          break;
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        case 'created_at':
+          aValue = new Date(a.created_at || 0).getTime();
+          bValue = new Date(b.created_at || 0).getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
 
   // 상세보기 핸들러
   const handleViewDetails = async (contract: Contract) => {
@@ -310,7 +385,7 @@ export default function ContractsPage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">로딩 중...</div>
-        ) : contracts.length === 0 ? (
+        ) : filteredAndSortedContracts.length === 0 ? (
           <div className="p-8 text-center text-gray-500">계약이 없습니다.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -318,25 +393,109 @@ export default function ContractsPage() {
               <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    계약번호
+                    <button
+                      onClick={() => handleSort('contract_no')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      계약번호
+                      {sortColumn === 'contract_no' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    계약명
+                    <button
+                      onClick={() => handleSort('contract_name')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      계약명
+                      {sortColumn === 'contract_name' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    타입
+                    <button
+                      onClick={() => handleSort('contract_type')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      타입
+                      {sortColumn === 'contract_type' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    거래처
+                    <button
+                      onClick={() => handleSort('company_name')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      거래처
+                      {sortColumn === 'company_name' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    계약기간
+                    <button
+                      onClick={() => handleSort('start_date')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      계약기간
+                      {sortColumn === 'start_date' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    계약금액
+                    <button
+                      onClick={() => handleSort('total_amount')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
+                      계약금액
+                      {sortColumn === 'total_amount' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    상태
+                    <button
+                      onClick={() => handleSort('status')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      상태
+                      {sortColumn === 'status' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     작업
@@ -344,7 +503,7 @@ export default function ContractsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {contracts.map((contract) => (
+                {filteredAndSortedContracts.map((contract) => (
                   <tr key={contract.contract_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -356,7 +515,7 @@ export default function ContractsPage() {
                         {contract.contract_name}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeBadgeColor(contract.contract_type)}`}>
                         {contract.contract_type}
                       </span>
@@ -380,12 +539,12 @@ export default function ContractsPage() {
                         {formatCurrency(contract.total_amount)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(contract.status)}`}>
                         {contract.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                       <button
                         onClick={() => handleViewDetails(contract)}
                         className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"

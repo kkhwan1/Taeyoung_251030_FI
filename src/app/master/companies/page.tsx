@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import dynamicImport from 'next/dynamic';
-import { Building2, Plus, Search, Edit2, Trash2, Filter, Phone, Mail, Upload, Download, ChevronDown, ChevronUp, Grid, List } from 'lucide-react';
+import { Building2, Plus, Search, Edit2, Trash2, Filter, Phone, Mail, Upload, Download, ChevronDown, ChevronUp, Grid, List, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -93,6 +93,10 @@ export default function CompaniesPage() {
   // Mobile optimization states
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  
+  // 정렬 상태
+  const [sortColumn, setSortColumn] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   const { success, error } = useToast();
   const { deleteWithToast, ConfirmDialog } = useConfirm();
@@ -308,11 +312,77 @@ export default function CompaniesPage() {
     return 'border-2 border-gray-800 text-gray-800 bg-transparent dark:border-gray-300 dark:text-gray-300';
   };
 
-  const filteredCompanies = companies.filter(company =>
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // 같은 컬럼 클릭 시 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭 시 해당 컬럼으로 정렬 (기본: 내림차순)
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+
+  const filteredCompanies = companies
+    .filter(company =>
     company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     company.business_registration_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     company.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    )
+    .sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'company_name':
+          aValue = a.company_name || '';
+          bValue = b.company_name || '';
+          break;
+        case 'company_type':
+          aValue = a.company_type || '';
+          bValue = b.company_type || '';
+          break;
+        case 'business_registration_no':
+          aValue = a.business_registration_no || '';
+          bValue = b.business_registration_no || '';
+          break;
+        case 'contact_person':
+          aValue = a.contact_person || '';
+          bValue = b.contact_person || '';
+          break;
+        case 'phone':
+          aValue = a.phone || a.mobile || '';
+          bValue = b.phone || b.mobile || '';
+          break;
+        case 'email':
+          aValue = a.email || '';
+          bValue = b.email || '';
+          break;
+        case 'address':
+          aValue = a.address || '';
+          bValue = b.address || '';
+          break;
+        case 'payment_terms':
+          aValue = a.payment_terms || 0;
+          bValue = b.payment_terms || 0;
+          break;
+        case 'created_at':
+          aValue = new Date((a as any).created_at || 0).getTime();
+          bValue = new Date((b as any).created_at || 0).getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
 
   // 인쇄용 데이터 변환 (타입 라벨 변환)
   const printableCompanies = filteredCompanies.map(company => ({
@@ -450,31 +520,127 @@ export default function CompaniesPage() {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  거래처명
+                  <button
+                    onClick={() => handleSort('company_name')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    거래처명
+                    {sortColumn === 'company_name' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  타입
+                  <button
+                    onClick={() => handleSort('company_type')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    타입
+                    {sortColumn === 'company_type' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                  <button
+                    onClick={() => handleSort('business_registration_no')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
                   사업자번호
+                    {sortColumn === 'business_registration_no' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  담당자
+                  <button
+                    onClick={() => handleSort('contact_person')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    담당자
+                    {sortColumn === 'contact_person' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  연락처
+                  <button
+                    onClick={() => handleSort('phone')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    연락처
+                    {sortColumn === 'phone' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   팩스
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  이메일
+                  <button
+                    onClick={() => handleSort('email')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    이메일
+                    {sortColumn === 'email' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  주소
+                  <button
+                    onClick={() => handleSort('address')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    주소
+                    {sortColumn === 'address' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                  결제조건
+                  <button
+                    onClick={() => handleSort('payment_terms')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    결제조건
+                    {sortColumn === 'payment_terms' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   작업

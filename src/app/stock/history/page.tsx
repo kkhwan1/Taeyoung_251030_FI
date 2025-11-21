@@ -11,7 +11,10 @@ import {
   Download,
   History,
   RotateCcw,
-  Trash2
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 
 interface StockHistoryItem {
@@ -50,6 +53,7 @@ export default function StockHistoryPage() {
   const [dateTo, setDateTo] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortColumn, setSortColumn] = useState<string>('transaction_date');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
@@ -137,6 +141,18 @@ export default function StockHistoryPage() {
     return () => clearInterval(interval);
   }, [dateFrom, dateTo, selectedItem]);
 
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // 같은 컬럼 클릭 시 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭 시 해당 컬럼으로 정렬 (기본: 내림차순)
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+
   // Filter history by search term (expanded to include reference_number and notes)
   const filteredHistory = stockHistory
     .filter(item =>
@@ -147,16 +163,61 @@ export default function StockHistoryPage() {
       (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .sort((a, b) => {
-      const dateA = a.transaction_date || a.created_at;
-      const dateB = b.transaction_date || b.created_at;
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      
-      const timeA = new Date(dateA).getTime();
-      const timeB = new Date(dateB).getTime();
-      
-      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'transaction_date':
+          aValue = new Date(a.transaction_date || a.created_at || 0).getTime();
+          bValue = new Date(b.transaction_date || b.created_at || 0).getTime();
+          break;
+        case 'item_code':
+          aValue = a.item_code || '';
+          bValue = b.item_code || '';
+          break;
+        case 'item_name':
+          aValue = a.item_name || '';
+          bValue = b.item_name || '';
+          break;
+        case 'quantity_change':
+          aValue = a.quantity_change || 0;
+          bValue = b.quantity_change || 0;
+          break;
+        case 'stock_balance':
+          aValue = a.stock_balance || 0;
+          bValue = b.stock_balance || 0;
+          break;
+        case 'unit_price':
+          aValue = a.unit_price || 0;
+          bValue = b.unit_price || 0;
+          break;
+        case 'total_amount':
+          aValue = a.total_amount || 0;
+          bValue = b.total_amount || 0;
+          break;
+        case 'company_name':
+          aValue = a.company_name || '';
+          bValue = b.company_name || '';
+          break;
+        case 'reference_number':
+          aValue = a.reference_number || a.reference_no || '';
+          bValue = b.reference_number || b.reference_no || '';
+          break;
+        case 'transaction_type':
+          aValue = a.transaction_type || '';
+          bValue = b.transaction_type || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
     });
 
   // 페이지네이션 계산
@@ -383,37 +444,125 @@ export default function StockHistoryPage() {
           <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th
-                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
-                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                >
-                  <div className="flex items-center gap-1">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
+                  <button
+                    onClick={() => handleSort('transaction_date')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
                     거래일자
-                    <span className="ml-1">
-                      {sortOrder === 'desc' ? '↓' : '↑'}
-                    </span>
-                  </div>
+                    {sortColumn === 'transaction_date' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  구분
+                  <button
+                    onClick={() => handleSort('transaction_type')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    구분
+                    {sortColumn === 'transaction_type' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  품번/품명
+                  <button
+                    onClick={() => handleSort('item_code')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    품번/품명
+                    {sortColumn === 'item_code' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  수량
+                  <button
+                    onClick={() => handleSort('quantity_change')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                  >
+                    수량
+                    {sortColumn === 'quantity_change' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  단가
+                  <button
+                    onClick={() => handleSort('unit_price')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                  >
+                    단가
+                    {sortColumn === 'unit_price' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  금액
+                  <button
+                    onClick={() => handleSort('total_amount')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                  >
+                    금액
+                    {sortColumn === 'total_amount' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  거래처
+                  <button
+                    onClick={() => handleSort('company_name')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    거래처
+                    {sortColumn === 'company_name' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                  참조번호
+                  <button
+                    onClick={() => handleSort('reference_number')}
+                    className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    참조번호
+                    {sortColumn === 'reference_number' ? (
+                      sortOrder === 'asc' ?
+                        <ArrowUp className="w-3 h-3" /> :
+                        <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                    )}
+                  </button>
                 </th>
               </tr>
             </thead>
@@ -482,7 +631,7 @@ export default function StockHistoryPage() {
                           <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-3 sm:px-6 py-4 overflow-hidden align-middle">
+                      <td className="px-3 sm:px-6 py-4 overflow-hidden align-middle text-center">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full truncate ${typeInfo.color}`}>
                           {typeInfo.label}
                         </span>

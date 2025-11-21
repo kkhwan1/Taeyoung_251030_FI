@@ -83,7 +83,7 @@ export const itemsHeaderMapping: HeaderMapping = {
  * BOM 엑셀 헤더 매핑
  */
 export const bomHeaderMapping: HeaderMapping = {
-  // 한글 헤더 → 영문 필드명
+  // 한글 헤더 → 영문 필드명 (기존)
   '모품목코드': 'parent_item_code',
   '부모품목코드': 'parent_item_code',
   '상위품목코드': 'parent_item_code',  // import-map.ts 호환성
@@ -96,15 +96,58 @@ export const bomHeaderMapping: HeaderMapping = {
   '레벨': 'level_no',
   '비고': 'notes',
   'remarks': 'notes',  // import-map.ts 호환성
-  // 영문 헤더는 그대로 유지
+
+  // Enhanced BOM template - Parent item details (Phase 3)
+  '모품목명': 'parent_item_name',
+  '부모품목명': 'parent_item_name',
+  '모품목규격': 'parent_spec',
+  '부모품목규격': 'parent_spec',
+  '모품목단위': 'parent_unit',
+  '부모품목단위': 'parent_unit',
+  '모품목카테고리': 'parent_category',
+  '부모품목카테고리': 'parent_category',
+  '모품목재고타입': 'parent_inventory_type',
+  '부모품목재고타입': 'parent_inventory_type',
+  '모품목공급사': 'parent_supplier',
+  '부모품목공급사': 'parent_supplier',
+
+  // Enhanced BOM template - Child item details (Phase 3)
+  '자품목명': 'child_item_name',
+  '자식품목명': 'child_item_name',
+  '자품목규격': 'child_spec',
+  '자식품목규격': 'child_spec',
+  '자품목단위': 'child_unit',
+  '자식품목단위': 'child_unit',
+  '자품목카테고리': 'child_category',
+  '자식품목카테고리': 'child_category',
+  '자품목재고타입': 'child_inventory_type',
+  '자식품목재고타입': 'child_inventory_type',
+  '자품목공급사': 'child_supplier',
+  '자식품목공급사': 'child_supplier',
+
+  // 영문 헤더는 그대로 유지 (기존)
   'parent_item_code': 'parent_item_code',
   'child_item_code': 'child_item_code',
   'quantity_required': 'quantity_required',
   // 'quantity': 'quantity_required', // Already defined above on line 94
   'unit': 'unit',
-  'level_no': 'level_no'
+  'level_no': 'level_no',
   // 'notes': 'notes', // Already defined above on line 97
   // 'remarks': 'notes' // Already defined above on line 98
+
+  // 영문 헤더는 그대로 유지 (Phase 3 추가)
+  'parent_item_name': 'parent_item_name',
+  'parent_spec': 'parent_spec',
+  'parent_unit': 'parent_unit',
+  'parent_category': 'parent_category',
+  'parent_inventory_type': 'parent_inventory_type',
+  'parent_supplier': 'parent_supplier',
+  'child_item_name': 'child_item_name',
+  'child_spec': 'child_spec',
+  'child_unit': 'child_unit',
+  'child_category': 'child_category',
+  'child_inventory_type': 'child_inventory_type',
+  'child_supplier': 'child_supplier'
 };
 
 /**

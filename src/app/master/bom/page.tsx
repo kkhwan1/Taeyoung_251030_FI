@@ -19,7 +19,10 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutGrid,
-  List
+  List,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import BOMForm from '@/components/BOMForm';
@@ -108,6 +111,8 @@ export default function BOMPage() {
   const [showFilters, setShowFilters] = useState(false); // 필터 토글 (모바일용)
   const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set()); // 그룹화 뷰 확장/축소
   const [selectedCompany, setSelectedCompany] = useState<string>(''); // 거래처 필터
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortColumn, setSortColumn] = useState<string>('parent_item_code');
 
   const { success, error, info } = useToast();
   const { warningConfirm, deleteWithToast, ConfirmDialog } = useConfirm();
@@ -324,7 +329,70 @@ export default function BOMPage() {
     });
   };
 
-  const filteredData = useMemo(() => applyFilters(bomData), [bomData, filters]);
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // 같은 컬럼 클릭 시 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭 시 해당 컬럼으로 정렬 (기본: 내림차순)
+      setSortColumn(column);
+      setSortOrder('desc');
+    }
+  };
+
+  const filteredData = useMemo(() => {
+    let filtered = applyFilters(bomData);
+
+    // 정렬 적용
+    filtered.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'parent_item_code':
+          aValue = a.parent_item_code || '';
+          bValue = b.parent_item_code || '';
+          break;
+        case 'parent_item_name':
+          aValue = a.parent_item_name || '';
+          bValue = b.parent_item_name || '';
+          break;
+        case 'child_item_code':
+          aValue = a.child_item_code || '';
+          bValue = b.child_item_code || '';
+          break;
+        case 'child_item_name':
+          aValue = a.child_item_name || '';
+          bValue = b.child_item_name || '';
+          break;
+        case 'quantity':
+          aValue = a.quantity || 0;
+          bValue = b.quantity || 0;
+          break;
+        case 'unit_price':
+          aValue = a.unit_price || 0;
+          bValue = b.unit_price || 0;
+          break;
+        case 'material_cost':
+          aValue = a.material_cost || 0;
+          bValue = b.material_cost || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
+    return filtered;
+  }, [bomData, filters, sortColumn, sortOrder]);
 
   // 모품목별 그룹화 함수
   const groupBOMByParent = useCallback((bomList: BOM[]): Map<number, BOM[]> => {
@@ -1429,29 +1497,113 @@ export default function BOMPage() {
                 <thead className="bg-gray-100 dark:bg-gray-800">
                   <tr>
                     <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '10%', minWidth: '100px' }}>
-                      모품번
+                      <button
+                        onClick={() => handleSort('parent_item_code')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        모품번
+                        {sortColumn === 'parent_item_code' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '15%', minWidth: '150px' }}>
-                      모품명
+                      <button
+                        onClick={() => handleSort('parent_item_name')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        모품명
+                        {sortColumn === 'parent_item_name' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '10%', minWidth: '100px' }}>
-                      자품번
+                      <button
+                        onClick={() => handleSort('child_item_code')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        자품번
+                        {sortColumn === 'child_item_code' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider" style={{ width: '15%', minWidth: '150px' }}>
-                      자품명
+                      <button
+                        onClick={() => handleSort('child_item_name')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        자품명
+                        {sortColumn === 'child_item_name' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '7%', minWidth: '70px' }}>
-                      소요량
+                      <button
+                        onClick={() => handleSort('quantity')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
+                        소요량
+                        {sortColumn === 'quantity' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '5%', minWidth: '50px' }}>
                       단위
                     </th>
                     {/* 원가 정보 컬럼 추가 */}
                     <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '8%', minWidth: '90px' }}>
+                      <button
+                        onClick={() => handleSort('unit_price')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
                       단가 (₩)
+                        {sortColumn === 'unit_price' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '9%', minWidth: '100px' }}>
+                      <button
+                        onClick={() => handleSort('material_cost')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
                       재료비 (₩)
+                        {sortColumn === 'material_cost' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap" style={{ width: '7%', minWidth: '80px' }}>
                       구분

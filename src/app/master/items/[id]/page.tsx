@@ -10,7 +10,10 @@ import {
   ArrowLeft,
   Edit2,
   ImageIcon,
-  History
+  History,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { ImageUploadZone } from '@/components/ImageUploadZone';
 import { ItemImageGallery } from '@/components/ItemImageGallery';
@@ -105,10 +108,126 @@ export default function ItemDetailPage() {
   const [stockHistory, setStockHistory] = useState<StockHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'info' | 'images' | 'bom' | 'history'>('info');
+  
+  // BOM 테이블 정렬 상태
+  const [childSortColumn, setChildSortColumn] = useState<string>('');
+  const [childSortOrder, setChildSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [parentSortColumn, setParentSortColumn] = useState<string>('');
+  const [parentSortOrder, setParentSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     loadItemDetails();
   }, [itemId]);
+
+  // 자식 품목 정렬 핸들러
+  const handleChildSort = (column: string) => {
+    if (childSortColumn === column) {
+      setChildSortOrder(childSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setChildSortColumn(column);
+      setChildSortOrder('asc');
+    }
+  };
+
+  // 부모 품목 정렬 핸들러
+  const handleParentSort = (column: string) => {
+    if (parentSortColumn === column) {
+      setParentSortOrder(parentSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setParentSortColumn(column);
+      setParentSortOrder('asc');
+    }
+  };
+
+  // 정렬된 자식 품목 목록
+  const sortedChildBOM = bomData?.as_child ? [...bomData.as_child].sort((a, b) => {
+    if (!childSortColumn) return 0;
+    
+    let aValue: any;
+    let bValue: any;
+
+    switch (childSortColumn) {
+      case 'item_code':
+        aValue = a.child_item?.item_code || '';
+        bValue = b.child_item?.item_code || '';
+        break;
+      case 'item_name':
+        aValue = a.child_item?.item_name || '';
+        bValue = b.child_item?.item_name || '';
+        break;
+      case 'quantity_required':
+        aValue = a.quantity_required || 0;
+        bValue = b.quantity_required || 0;
+        break;
+      case 'current_stock':
+        aValue = a.child_item?.current_stock || 0;
+        bValue = b.child_item?.current_stock || 0;
+        break;
+      case 'price':
+        aValue = a.child_item?.price || 0;
+        bValue = b.child_item?.price || 0;
+        break;
+      case 'level_no':
+        aValue = a.level_no || 0;
+        bValue = b.level_no || 0;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return childSortOrder === 'asc' 
+        ? aValue.localeCompare(bValue, 'ko')
+        : bValue.localeCompare(aValue, 'ko');
+    } else {
+      return childSortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    }
+  }) : [];
+
+  // 정렬된 부모 품목 목록
+  const sortedParentBOM = bomData?.as_parent ? [...bomData.as_parent].sort((a, b) => {
+    if (!parentSortColumn) return 0;
+    
+    let aValue: any;
+    let bValue: any;
+
+    switch (parentSortColumn) {
+      case 'item_code':
+        aValue = a.parent_item?.item_code || '';
+        bValue = b.parent_item?.item_code || '';
+        break;
+      case 'item_name':
+        aValue = a.parent_item?.item_name || '';
+        bValue = b.parent_item?.item_name || '';
+        break;
+      case 'quantity_required':
+        aValue = a.quantity_required || 0;
+        bValue = b.quantity_required || 0;
+        break;
+      case 'current_stock':
+        aValue = a.parent_item?.current_stock || 0;
+        bValue = b.parent_item?.current_stock || 0;
+        break;
+      case 'price':
+        aValue = a.parent_item?.price || 0;
+        bValue = b.parent_item?.price || 0;
+        break;
+      case 'level_no':
+        aValue = a.level_no || 0;
+        bValue = b.level_no || 0;
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return parentSortOrder === 'asc' 
+        ? aValue.localeCompare(bValue, 'ko')
+        : bValue.localeCompare(aValue, 'ko');
+    } else {
+      return parentSortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    }
+  }) : [];
 
   const loadItemDetails = async () => {
     setLoading(true);
@@ -391,18 +510,102 @@ export default function ItemDetailPage() {
                   <table className="min-w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">품목코드</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">품목명</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">필요수량</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleChildSort('item_code')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            품목코드
+                            {childSortColumn === 'item_code' ? (
+                              childSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleChildSort('item_name')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            품목명
+                            {childSortColumn === 'item_name' ? (
+                              childSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleChildSort('quantity_required')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            필요수량
+                            {childSortColumn === 'quantity_required' ? (
+                              childSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">단위</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">현재고</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">단가</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">레벨</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleChildSort('current_stock')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            현재고
+                            {childSortColumn === 'current_stock' ? (
+                              childSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleChildSort('price')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            단가
+                            {childSortColumn === 'price' ? (
+                              childSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleChildSort('level_no')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            레벨
+                            {childSortColumn === 'level_no' ? (
+                              childSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">비고</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {bomData.as_child.map((bom) => (
+                      {sortedChildBOM.map((bom) => (
                         <tr key={bom.bom_id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-600">
                             {bom.child_item?.item_code}
@@ -443,18 +646,102 @@ export default function ItemDetailPage() {
                   <table className="min-w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">품목코드</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">품목명</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">사용수량</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleParentSort('item_code')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            품목코드
+                            {parentSortColumn === 'item_code' ? (
+                              parentSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleParentSort('item_name')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            품목명
+                            {parentSortColumn === 'item_name' ? (
+                              parentSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleParentSort('quantity_required')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            사용수량
+                            {parentSortColumn === 'quantity_required' ? (
+                              parentSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">단위</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">현재고</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">단가</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">레벨</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleParentSort('current_stock')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            현재고
+                            {parentSortColumn === 'current_stock' ? (
+                              parentSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleParentSort('price')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            단가
+                            {parentSortColumn === 'price' ? (
+                              parentSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                          <button
+                            onClick={() => handleParentSort('level_no')}
+                            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            레벨
+                            {parentSortColumn === 'level_no' ? (
+                              parentSortOrder === 'asc' ?
+                                <ArrowUp className="w-3 h-3" /> :
+                                <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">비고</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {bomData.as_parent.map((bom) => (
+                      {sortedParentBOM.map((bom) => (
                         <tr key={bom.bom_id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-600">
                             {bom.parent_item?.item_code}

@@ -1111,7 +1111,19 @@ function InventoryContent() {
                     </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    구분
+                    <button
+                      onClick={() => handleSort('transaction_type')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      구분
+                      {sortColumn === 'transaction_type' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     <button
@@ -1189,7 +1201,19 @@ function InventoryContent() {
                     </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                    참조번호
+                    <button
+                      onClick={() => handleSort('reference_no')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      참조번호
+                      {sortColumn === 'reference_no' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     작업
@@ -1212,9 +1236,52 @@ function InventoryContent() {
                 ) : (
                   filteredTransactions
                     .sort((a, b) => {
-                      const dateA = (a as any).created_at ? new Date((a as any).created_at).getTime() : new Date(a.transaction_date || 0).getTime();
-                      const dateB = (b as any).created_at ? new Date((b as any).created_at).getTime() : new Date(b.transaction_date || 0).getTime();
-                      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                      let aValue: any;
+                      let bValue: any;
+
+                      switch (sortColumn) {
+                        case 'created_at':
+                          aValue = (a as any).created_at ? new Date((a as any).created_at).getTime() : new Date(a.transaction_date || 0).getTime();
+                          bValue = (b as any).created_at ? new Date((b as any).created_at).getTime() : new Date(b.transaction_date || 0).getTime();
+                          break;
+                        case 'transaction_type':
+                          aValue = (a as any).transaction_type || '';
+                          bValue = (b as any).transaction_type || '';
+                          break;
+                        case 'item_name':
+                          aValue = a.item_name || (a as any).items?.item_name || '';
+                          bValue = b.item_name || (b as any).items?.item_name || '';
+                          break;
+                        case 'quantity':
+                          aValue = a.quantity || 0;
+                          bValue = b.quantity || 0;
+                          break;
+                        case 'unit_price':
+                          aValue = (a as any).unit_price || 0;
+                          bValue = (b as any).unit_price || 0;
+                          break;
+                        case 'total_amount':
+                          aValue = (a as any).total_amount || 0;
+                          bValue = (b as any).total_amount || 0;
+                          break;
+                        case 'company_name':
+                          aValue = (a as any).company_name || '';
+                          bValue = (b as any).company_name || '';
+                          break;
+                        default:
+                          // 기본: 날짜로 정렬
+                          aValue = (a as any).created_at ? new Date((a as any).created_at).getTime() : new Date(a.transaction_date || 0).getTime();
+                          bValue = (b as any).created_at ? new Date((b as any).created_at).getTime() : new Date(b.transaction_date || 0).getTime();
+                          break;
+                      }
+
+                      if (typeof aValue === 'string' && typeof bValue === 'string') {
+                        return sortOrder === 'asc' 
+                          ? aValue.localeCompare(bValue, 'ko')
+                          : bValue.localeCompare(aValue, 'ko');
+                      } else {
+                        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+                      }
                     })
                     .map((transaction) => {
                     const shortageTotal = (transaction as any).shortage_total || 0;

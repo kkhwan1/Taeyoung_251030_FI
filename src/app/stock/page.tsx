@@ -9,11 +9,15 @@ import {
   Search,
   Plus,
   History,
-  Settings
+  Settings,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import StockAdjustmentForm from '@/components/StockAdjustmentForm';
 import { StockExportButton } from '@/components/ExcelExportButton';
 import CategoryFilter from '@/components/CategoryFilter';
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
 
 interface StockItem {
   item_id: number;
@@ -50,6 +54,7 @@ interface StockHistory {
 
 export default function StockPage() {
   const router = useRouter();
+  const { companies, loading: companiesLoading, error: companiesError, refetch: refetchCompanies } = useCompanyFilter();
   const [activeTab, setActiveTab] = useState('current');
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [stockHistory, setStockHistory] = useState<StockHistory[]>([]);
@@ -57,8 +62,7 @@ export default function StockPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [companyFilter, setCompanyFilter] = useState<number | null>(null);
-  const [supplierOptions, setSupplierOptions] = useState<Array<{company_id: number, company_name: string}>>([]);
+  const [companyFilter, setCompanyFilter] = useState<string>('ALL');
   const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortField, setSortField] = useState<string>('last_transaction_date');
@@ -111,19 +115,6 @@ export default function StockPage() {
     }
   };
 
-  // 공급사 목록 조회
-  const fetchSuppliers = async () => {
-    try {
-      const response = await fetch('/api/companies?type=SUPPLIER');
-      const result = await response.json();
-      if (result.success && result.data) {
-        setSupplierOptions(result.data.data || []);
-      }
-    } catch (error) {
-      console.error('공급사 목록 조회 실패:', error);
-    }
-  };
-
   // 실시간 재고 현황 조회 (재시도 로직 포함)
   const fetchStockItems = async (showLoading = true, retryCount = 0) => {
     const MAX_RETRIES = 3;
@@ -133,8 +124,11 @@ export default function StockPage() {
     try {
       // Build query parameters
       const params = new URLSearchParams();
-      if (companyFilter) {
-        params.append('supplier_id', companyFilter.toString());
+      if (companyFilter && companyFilter !== 'ALL') {
+        const parsed = parseInt(companyFilter);
+        if (!Number.isNaN(parsed)) {
+          params.append('supplier_id', parsed.toString());
+        }
       }
       const url = `/api/stock${params.toString() ? '?' + params.toString() : ''}`;
 
@@ -257,11 +251,6 @@ export default function StockPage() {
     return () => clearInterval(interval);
   }, [activeTab, refreshInterval]);
 
-  // 공급사 목록 초기 로드
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
-
   // Re-fetch data when company filter changes
   useEffect(() => {
     if (activeTab === 'current') {
@@ -368,11 +357,20 @@ export default function StockPage() {
         return sortOrderStock === 'asc' ? aDate - bDate : bDate - aDate;
       }
       
+      // Boolean 처리 (is_low_stock)
+      if (sortField === 'is_low_stock') {
+        const aBool = Boolean(aVal) ? 1 : 0;
+        const bBool = Boolean(bVal) ? 1 : 0;
+        return sortOrderStock === 'asc' ? aBool - bBool : bBool - aBool;
+      }
+      
       // 문자열 처리
       if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const aStr = aVal || '';
+        const bStr = bVal || '';
         return sortOrderStock === 'asc' 
-          ? aVal.localeCompare(bVal) 
-          : bVal.localeCompare(aVal);
+          ? aStr.localeCompare(bStr, 'ko') 
+          : bStr.localeCompare(aStr, 'ko');
       }
       
       // 숫자 처리
@@ -727,14 +725,15 @@ export default function StockPage() {
               </select>
 
               <select
-                value={companyFilter || ''}
-                onChange={(e) => setCompanyFilter(e.target.value ? parseInt(e.target.value) : null)}
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value || 'ALL')}
                 className="w-full sm:w-64 px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-600"
+                disabled={companiesLoading}
               >
-                <option value="">전체</option>
-                {supplierOptions.map(supplier => (
-                  <option key={supplier.company_id} value={supplier.company_id}>
-                    {supplier.company_name}
+                <option value="ALL">전체 거래처</option>
+                {companies.map(company => (
+                  <option key={company.value} value={company.value}>
+                    {company.label}
                   </option>
                 ))}
               </select>
@@ -761,77 +760,139 @@ export default function StockPage() {
                 <tr>
                   <th 
                     className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
-                    onClick={() => handleSort('last_transaction_date')}
                   >
-                    <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleSort('last_transaction_date')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
                       거래일자
-                      {sortField === 'last_transaction_date' && (
-                        <span className="ml-1">
-                          {sortOrderStock === 'asc' ? '↑' : '↓'}
-                        </span>
+                      {sortField === 'last_transaction_date' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
                       )}
-                    </div>
+                    </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                    구분
+                  <th 
+                    className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
+                  >
+                    <button
+                      onClick={() => handleSort('last_transaction_type')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      구분
+                      {sortField === 'last_transaction_type' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th 
                     className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
-                    onClick={() => handleSort('item_code')}
                   >
-                    <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleSort('item_code')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
                       품번/품명
-                      {sortField === 'item_code' && (
-                        <span className="ml-1">
-                          {sortOrderStock === 'asc' ? '↑' : '↓'}
-                        </span>
+                      {sortField === 'item_code' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
                       )}
-                    </div>
+                    </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                    규격
+                  <th 
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
+                  >
+                    <button
+                      onClick={() => handleSort('spec')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      규격
+                      {sortField === 'spec' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th 
                     className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
-                    onClick={() => handleSort('current_stock')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => handleSort('current_stock')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
                       수량
-                      {sortField === 'current_stock' && (
-                        <span className="ml-1">
-                          {sortOrderStock === 'asc' ? '↑' : '↓'}
-                        </span>
+                      {sortField === 'current_stock' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
                       )}
-                    </div>
+                    </button>
                   </th>
                   <th 
                     className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
-                    onClick={() => handleSort('unit_price')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => handleSort('unit_price')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
                       단가
-                      {sortField === 'unit_price' && (
-                        <span className="ml-1">
-                          {sortOrderStock === 'asc' ? '↑' : '↓'}
-                        </span>
+                      {sortField === 'unit_price' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
                       )}
-                    </div>
+                    </button>
                   </th>
                   <th 
                     className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
-                    onClick={() => handleSort('stock_value')}
                   >
-                    <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => handleSort('stock_value')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
                       금액
-                      {sortField === 'stock_value' && (
-                        <span className="ml-1">
-                          {sortOrderStock === 'asc' ? '↑' : '↓'}
-                        </span>
+                      {sortField === 'stock_value' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
                       )}
-                    </div>
+                    </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider align-middle whitespace-nowrap">
-                    상태
+                  <th 
+                    className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors align-middle whitespace-nowrap"
+                  >
+                    <button
+                      onClick={() => handleSort('is_low_stock')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      상태
+                      {sortField === 'is_low_stock' ? (
+                        sortOrderStock === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                 </tr>
               </thead>

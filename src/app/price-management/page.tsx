@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 interface PriceHistoryItem {
   price_history_id: number | null; // null이면 아직 저장 안됨
@@ -86,6 +87,10 @@ export default function PriceManagementPage() {
 
   // BOM 원가 조회 옵션 (기본값: false = 빠른 로딩)
   const [includeBomCost, setIncludeBomCost] = useState<boolean>(false);
+  
+  // 정렬 상태
+  const [sortColumn, setSortColumn] = useState<string>('item_code');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -181,6 +186,16 @@ export default function PriceManagementPage() {
 
   // 서버에서 이미 페이지네이션된 데이터를 사용
   // 클라이언트 사이드 필터링은 현재 페이지 데이터에만 적용
+  // 정렬 핸들러
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortOrder('asc');
+    }
+  };
+
   const filteredData = useMemo(() => {
     let filtered = priceHistory;
 
@@ -199,8 +214,75 @@ export default function PriceManagementPage() {
       );
     }
 
+    // 정렬 적용
+    filtered = [...filtered].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'item_code':
+          aValue = a.item?.item_code || '';
+          bValue = b.item?.item_code || '';
+          break;
+        case 'item_name':
+          aValue = a.item?.item_name || '';
+          bValue = b.item?.item_name || '';
+          break;
+        case 'spec':
+          aValue = a.item?.spec || '';
+          bValue = b.item?.spec || '';
+          break;
+        case 'category':
+          aValue = a.item?.category || '';
+          bValue = b.item?.category || '';
+          break;
+        case 'vehicle_model':
+          aValue = a.item?.vehicle_model || '';
+          bValue = b.item?.vehicle_model || '';
+          break;
+        case 'current_stock':
+          aValue = a.item?.current_stock || 0;
+          bValue = b.item?.current_stock || 0;
+          break;
+        case 'unit_price':
+          aValue = a.unit_price || 0;
+          bValue = b.unit_price || 0;
+          break;
+        case 'stock_value':
+          aValue = (a.item?.current_stock || 0) * (a.unit_price || 0);
+          bValue = (b.item?.current_stock || 0) * (b.unit_price || 0);
+          break;
+        case 'bom_cost':
+          aValue = a.bom_cost || (a.bom_cost_breakdown?.net_cost || 0);
+          bValue = b.bom_cost || (b.bom_cost_breakdown?.net_cost || 0);
+          break;
+        case 'actual_profit':
+          // 실제 수익 = (단가 - BOM 원가) × 재고수량
+          const aStock = a.item?.current_stock || 0;
+          const aUnitPrice = a.unit_price || 0;
+          const aBomCost = a.bom_cost || (a.bom_cost_breakdown?.net_cost || 0);
+          aValue = (a.has_bom && aBomCost > 0) ? (aUnitPrice - aBomCost) * aStock : 0;
+          
+          const bStock = b.item?.current_stock || 0;
+          const bUnitPrice = b.unit_price || 0;
+          const bBomCost = b.bom_cost || (b.bom_cost_breakdown?.net_cost || 0);
+          bValue = (b.has_bom && bBomCost > 0) ? (bUnitPrice - bBomCost) * bStock : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
     return filtered;
-  }, [priceHistory, filters.showUnsavedOnly, filters.category, filters.search]);
+  }, [priceHistory, filters.showUnsavedOnly, filters.category, filters.search, sortColumn, sortOrder]);
 
   // paginatedData는 이제 filteredData와 동일 (서버가 이미 페이지네이션했으므로)
   const paginatedData = filteredData;
@@ -798,39 +880,159 @@ export default function PriceManagementPage() {
                       />
                     </th>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      품목코드
+                      <button
+                        onClick={() => handleSort('item_code')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        품목코드
+                        {sortColumn === 'item_code' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      품목명
+                      <button
+                        onClick={() => handleSort('item_name')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        품목명
+                        {sortColumn === 'item_name' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="hidden md:table-cell px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      규격
+                      <button
+                        onClick={() => handleSort('spec')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        규격
+                        {sortColumn === 'spec' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       단위
                     </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      분류
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                      <button
+                        onClick={() => handleSort('category')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                      >
+                        분류
+                        {sortColumn === 'category' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
-                    <th className="hidden lg:table-cell px-2 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      차종
+                    <th className="hidden lg:table-cell px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                      <button
+                        onClick={() => handleSort('vehicle_model')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                      >
+                        차종
+                        {sortColumn === 'vehicle_model' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      현재고
+                      <button
+                        onClick={() => handleSort('current_stock')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
+                        현재고
+                        {sortColumn === 'current_stock' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      단가 (₩)
+                      <button
+                        onClick={() => handleSort('unit_price')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
+                        단가 (₩)
+                        {sortColumn === 'unit_price' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      재고금액 (₩)
+                      <button
+                        onClick={() => handleSort('stock_value')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
+                        재고금액 (₩)
+                        {sortColumn === 'stock_value' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     {/* BOM 원가 컬럼 추가 */}
                     <th className="hidden xl:table-cell px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      BOM 원가 (₩)
+                      <button
+                        onClick={() => handleSort('bom_cost')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
+                        BOM 원가 (₩)
+                        {sortColumn === 'bom_cost' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     {/* 실제 수익 컬럼 추가 */}
                     <th className="hidden xl:table-cell px-2 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
-                      실제 수익 (₩)
+                      <button
+                        onClick={() => handleSort('actual_profit')}
+                        className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                      >
+                        실제 수익 (₩)
+                        {sortColumn === 'actual_profit' ? (
+                          sortOrder === 'asc' ?
+                            <ArrowUp className="w-3 h-3" /> :
+                            <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                       작업
@@ -890,10 +1092,10 @@ export default function PriceManagementPage() {
                       <td className="px-2 py-4 text-sm text-center text-muted-foreground">
                         {(item.item?.current_stock || 0).toLocaleString('ko-KR')}{item.item?.unit || '개'}
                       </td>
-                      <td className="px-2 py-4 truncate text-sm text-muted-foreground">
+                      <td className="px-2 py-4 truncate text-sm text-center text-muted-foreground">
                         {item.item?.category || '-'}
                       </td>
-                      <td className="hidden lg:table-cell px-2 py-4 truncate text-sm text-muted-foreground">
+                      <td className="hidden lg:table-cell px-2 py-4 truncate text-sm text-center text-muted-foreground">
                         {item.item?.vehicle_model || '-'}
                       </td>
                       <td className="px-2 py-4 whitespace-nowrap text-sm text-right font-medium text-foreground">

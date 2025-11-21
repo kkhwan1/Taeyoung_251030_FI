@@ -70,28 +70,50 @@ export const GET = createValidatedRoute(
     const itemIds = (items || []).map(i => i.item_id);
 
     // 3. 월별 단가 배치 조회 (생산관리와 동일한 로직)
-    const { data: monthlyPrices } = await supabase
-      .from('item_price_history')
-      .select('item_id, unit_price')
-      .in('item_id', itemIds.length > 0 ? itemIds : [])
-      .eq('price_month', currentMonth);
+    // Fix: 빈 배열일 때는 쿼리 실행하지 않음 (Supabase .in()은 빈 배열을 허용하지 않음)
+    let monthlyPrices: any[] = [];
+    if (itemIds.length > 0) {
+      const { data, error: priceError } = await supabase
+        .from('item_price_history')
+        .select('item_id, unit_price')
+        .in('item_id', itemIds)
+        .eq('price_month', currentMonth);
+      
+      if (priceError) {
+        console.error('Error fetching monthly prices:', priceError);
+        // Continue with empty prices if error occurs
+      } else {
+        monthlyPrices = data || [];
+      }
+    }
 
     // 4. 각 품목의 마지막 거래 조회 (배치)
-    const { data: lastTransactions } = await supabase
-      .from('inventory_transactions')
-      .select('item_id, transaction_date, created_at, transaction_type')
-      .in('item_id', itemIds.length > 0 ? itemIds : [])
-      .order('created_at', { ascending: false });
+    // Fix: 빈 배열일 때는 쿼리 실행하지 않음
+    let lastTransactions: any[] = [];
+    if (itemIds.length > 0) {
+      const { data, error: txError } = await supabase
+        .from('inventory_transactions')
+        .select('item_id, transaction_date, created_at, transaction_type')
+        .in('item_id', itemIds)
+        .order('created_at', { ascending: false });
+      
+      if (txError) {
+        console.error('Error fetching last transactions:', txError);
+        // Continue with empty transactions if error occurs
+      } else {
+        lastTransactions = data || [];
+      }
+    }
 
     // 5. Map으로 빠른 조회
     const priceMap = new Map(
-      (monthlyPrices || []).map(p => [p.item_id, p.unit_price])
+      monthlyPrices.map(p => [p.item_id, p.unit_price])
     );
 
     // 각 품목의 첫 번째(최신) 거래만 저장
     // created_at을 우선 사용 (시간 정보 포함), 없으면 transaction_date 사용
     const lastTxMap = new Map();
-    (lastTransactions || []).forEach((tx: any) => {
+    lastTransactions.forEach((tx: any) => {
       if (!lastTxMap.has(tx.item_id)) {
         lastTxMap.set(tx.item_id, {
           date: tx.created_at || tx.transaction_date, // created_at 우선 (시간 정보 포함)

@@ -541,20 +541,49 @@ export const db = {
           }
 
           // Group by inventory_type
-          const statsArray = (fallbackData || []).reduce((acc: any[], item: any) => {
-            const existing = acc.find(s => s.type === item.inventory_type);
+          const statsMap = new Map<string, { count: number; total_stock: number }>();
+          
+          (fallbackData || []).forEach((item: any) => {
+            // Handle null or undefined inventory_type
+            const type = item.inventory_type || null;
+            const key = type || '_null_'; // Use special key for null values
+            
+            const existing = statsMap.get(key);
             if (existing) {
               existing.count += 1;
               existing.total_stock += item.current_stock || 0;
             } else {
-              acc.push({
-                type: item.inventory_type,
+              statsMap.set(key, {
                 count: 1,
                 total_stock: item.current_stock || 0
               });
             }
-            return acc;
-          }, []);
+          });
+
+          // Ensure all inventory types are included (even if count is 0)
+          const allTypes: string[] = ['완제품', '반제품', '고객재고', '원재료', '코일'];
+          const statsArray = allTypes.map(type => {
+            const stat = statsMap.get(type);
+            return {
+              type,
+              count: stat?.count || 0,
+              total_stock: stat?.total_stock || 0
+            };
+          });
+
+          // Add null/undefined items if any
+          const nullStat = statsMap.get('_null_');
+          if (nullStat && nullStat.count > 0) {
+            statsArray.push({
+              type: null, // or '미분류'
+              count: nullStat.count,
+              total_stock: nullStat.total_stock
+            });
+          }
+
+          // Filter out types with 0 count for display (optional - can show all)
+          // For now, we'll show all types including zeros
+          // const statsArrayFiltered = statsArray.filter(stat => stat.count > 0);
 
           // Calculate totals
           const total_count = statsArray.reduce((sum, stat) => sum + stat.count, 0);
@@ -563,7 +592,7 @@ export const db = {
           return {
             success: true,
             data: {
-              stats: statsArray,
+              stats: statsArray.filter(stat => stat.count > 0), // Only show types with data
               total_count,
               total_stock
             }

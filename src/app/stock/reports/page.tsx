@@ -3,10 +3,13 @@
 // Force dynamic rendering to avoid Static Generation errors with React hooks
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Download,
-  Calendar
+  Calendar,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import {
   XAxis,
@@ -62,6 +65,14 @@ export default function StockReportsPage() {
   const [lowStockItems, setLowStockItems] = useState<TopItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [reportDate, setReportDate] = useState<string>('');
+  
+  // 정렬 상태 (고가 품목 TOP 10)
+  const [topValueSortColumn, setTopValueSortColumn] = useState<string>('stock_value');
+  const [topValueSortOrder, setTopValueSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // 정렬 상태 (재고 부족 품목)
+  const [lowStockSortColumn, setLowStockSortColumn] = useState<string>('current_stock');
+  const [lowStockSortOrder, setLowStockSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Initialize report date to today
   useEffect(() => {
@@ -323,19 +334,55 @@ export default function StockReportsPage() {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        품목코드
+                        <button
+                          onClick={() => handleTopValueSort('item_code')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          품목코드
+                          {topValueSortColumn === 'item_code' ? (
+                            topValueSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        품목명
+                        <button
+                          onClick={() => handleTopValueSort('item_name')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          품목명
+                          {topValueSortColumn === 'item_name' ? (
+                            topValueSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        재고금액
+                        <button
+                          onClick={() => handleTopValueSort('stock_value')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                        >
+                          재고금액
+                          {topValueSortColumn === 'stock_value' ? (
+                            topValueSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {topValueItems.length > 0 ? (
-                      topValueItems.map((item) => (
+                    {sortedTopValueItems.length > 0 ? (
+                      sortedTopValueItems.map((item) => (
                         <tr key={item.item_code} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                             {item.item_code}
@@ -371,22 +418,70 @@ export default function StockReportsPage() {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        품목코드
+                        <button
+                          onClick={() => handleLowStockSort('item_code')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          품목코드
+                          {lowStockSortColumn === 'item_code' ? (
+                            lowStockSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        품목명
+                        <button
+                          onClick={() => handleLowStockSort('item_name')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          품목명
+                          {lowStockSortColumn === 'item_name' ? (
+                            lowStockSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        현재고
+                        <button
+                          onClick={() => handleLowStockSort('current_stock')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                        >
+                          현재고
+                          {lowStockSortColumn === 'current_stock' ? (
+                            lowStockSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        안전재고
+                        <button
+                          onClick={() => handleLowStockSort('safety_stock')}
+                          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                        >
+                          안전재고
+                          {lowStockSortColumn === 'safety_stock' ? (
+                            lowStockSortOrder === 'asc' ?
+                              <ArrowUp className="w-3 h-3" /> :
+                              <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-50" />
+                          )}
+                        </button>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {lowStockItems.length > 0 ? (
-                      lowStockItems.map((item) => (
+                    {sortedLowStockItems.length > 0 ? (
+                      sortedLowStockItems.map((item) => (
                         <tr key={item.item_code} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                             {item.item_code}

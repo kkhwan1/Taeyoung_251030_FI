@@ -24,7 +24,10 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
-  Calendar
+  Calendar,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
@@ -219,10 +222,107 @@ export default function ProcessPage() {
     return '0.00';
   };
 
-  // 필터링된 작업 목록
+  const [sortColumn, setSortColumn] = useState<string>('operation_id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortOrder('asc');
+    }
+  };
+
+  // 필터링 및 정렬된 작업 목록
   const filteredOperations = useMemo(() => {
-    return operations;
-  }, [operations]);
+    let filtered = [...operations];
+
+    // 검색 필터
+    if (searchTerm) {
+      filtered = filtered.filter(op => 
+        op.operation_id.toString().includes(searchTerm) ||
+        op.input_item?.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        op.output_item?.item_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // 공정 유형 필터
+    if (filterType) {
+      filtered = filtered.filter(op => op.operation_type === filterType);
+    }
+
+    // 날짜 필터
+    if (startDate) {
+      filtered = filtered.filter(op => {
+        const opDate = op.started_at || op.created_at || '';
+        return opDate >= startDate;
+      });
+    }
+    if (endDate) {
+      filtered = filtered.filter(op => {
+        const opDate = op.started_at || op.created_at || '';
+        return opDate <= endDate;
+      });
+    }
+
+    // 정렬
+    filtered.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'operation_id':
+          aValue = a.operation_id;
+          bValue = b.operation_id;
+          break;
+        case 'operation_type':
+          aValue = OPERATION_TYPE_LABELS[a.operation_type];
+          bValue = OPERATION_TYPE_LABELS[b.operation_type];
+          break;
+        case 'input_item':
+          aValue = a.input_item?.item_name || '';
+          bValue = b.input_item?.item_name || '';
+          break;
+        case 'output_item':
+          aValue = a.output_item?.item_name || '';
+          bValue = b.output_item?.item_name || '';
+          break;
+        case 'input_quantity':
+          aValue = a.input_quantity || 0;
+          bValue = b.input_quantity || 0;
+          break;
+        case 'output_quantity':
+          aValue = a.output_quantity || 0;
+          bValue = b.output_quantity || 0;
+          break;
+        case 'efficiency':
+          aValue = a.input_quantity > 0 ? (a.output_quantity / a.input_quantity) * 100 : 0;
+          bValue = b.input_quantity > 0 ? (b.output_quantity / b.input_quantity) * 100 : 0;
+          break;
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        case 'operator':
+          aValue = a.operator_id || '';
+          bValue = b.operator_id || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue, 'ko')
+          : bValue.localeCompare(aValue, 'ko');
+      } else {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
+    return filtered;
+  }, [operations, searchTerm, filterType, startDate, endDate, sortColumn, sortOrder]);
 
   return (
     <div className="space-y-6">
@@ -339,31 +439,139 @@ export default function ProcessPage() {
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700">
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    공정번호
+                    <button
+                      onClick={() => handleSort('operation_id')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      공정번호
+                      {sortColumn === 'operation_id' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    공정유형
+                    <button
+                      onClick={() => handleSort('operation_type')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      공정유형
+                      {sortColumn === 'operation_type' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    투입재료
+                    <button
+                      onClick={() => handleSort('input_item')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      투입재료
+                      {sortColumn === 'input_item' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    산출제품
+                    <button
+                      onClick={() => handleSort('output_item')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      산출제품
+                      {sortColumn === 'output_item' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    투입수량
+                    <button
+                      onClick={() => handleSort('input_quantity')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
+                      투입수량
+                      {sortColumn === 'input_quantity' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    산출수량
-                  </th>
-                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    수율
+                    <button
+                      onClick={() => handleSort('output_quantity')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
+                    >
+                      산출수량
+                      {sortColumn === 'output_quantity' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    상태
+                    <button
+                      onClick={() => handleSort('efficiency')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      수율
+                      {sortColumn === 'efficiency' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSort('status')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                    >
+                      상태
+                      {sortColumn === 'status' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    작업자
+                    <button
+                      onClick={() => handleSort('operator')}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      작업자
+                      {sortColumn === 'operator' ? (
+                        sortOrder === 'asc' ?
+                          <ArrowUp className="w-3 h-3" /> :
+                          <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     작업
@@ -416,7 +624,7 @@ export default function ProcessPage() {
                           {operation.output_quantity.toLocaleString('ko-KR')}
                         </div>
                       </td>
-                      <td className="px-3 sm:px-6 py-4 text-right">
+                      <td className="px-3 sm:px-6 py-4 text-center">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {calculateEfficiency(operation.input_quantity, operation.output_quantity)}%
                         </div>
