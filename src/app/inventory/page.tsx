@@ -976,7 +976,7 @@ function InventoryContent() {
                 />
                 <button
                   onClick={() => setShowUploadModal(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
                   title="엑셀 파일로 대량 생산 등록"
                 >
                   <Upload className="w-3.5 h-3.5" />
@@ -998,7 +998,7 @@ function InventoryContent() {
             {(activeTab === 'receiving' || activeTab === 'shipping') && (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs font-medium whitespace-nowrap flex-shrink-0"
                 title="엑셀 파일로 대량 입고/출고 등록"
               >
                 <Upload className="w-3.5 h-3.5" />

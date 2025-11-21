@@ -51,7 +51,8 @@
       "Bash(npm run port:check:*)",
       "Bash(npm run build:*)",
       "Bash(codex ps:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(vercel logs:*)"
     ],
     "deny": [],
     "ask": []

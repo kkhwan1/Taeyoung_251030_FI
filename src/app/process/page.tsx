@@ -303,9 +303,6 @@ export default function ProcessPage() {
     return '0.00';
   };
 
-  const [sortColumn, setSortColumn] = useState<string>('operation_id');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');

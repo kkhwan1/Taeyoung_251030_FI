@@ -19,6 +19,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "태창 ERP 시스템",
   description: "태창 자동차 부품 제조 ERP 시스템",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 // Force dynamic rendering for all pages due to client-side contexts
