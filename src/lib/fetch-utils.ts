@@ -124,7 +124,7 @@ export async function safeFetch(
 
 /**
  * JSON 응답을 파싱하는 안전한 fetch 함수
- * 
+ *
  * @param url - 요청 URL
  * @param options - fetch 옵션
  * @param config - 설정 옵션
@@ -136,12 +136,84 @@ export async function safeFetchJson<T = any>(
   config: FetchConfig = {}
 ): Promise<T> {
   const response = await safeFetch(url, options, config);
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
   }
-  
+
   return response.json();
+}
+
+/**
+ * API 응답 인터페이스 (ERP 표준 응답 형식)
+ *
+ * 모든 ERP API는 이 형식으로 응답합니다:
+ * - success: true/false
+ * - data: 성공 시 데이터
+ * - error: 실패 시 에러 메시지
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    totalCount: number;
+  };
+}
+
+/**
+ * ERP API 응답을 처리하는 fetch 함수 (권장)
+ *
+ * safeFetchJson과 달리:
+ * - HTTP 4xx/5xx 응답도 JSON 파싱 후 에러 메시지 추출
+ * - API가 반환하는 상세 에러 메시지 보존
+ * - {success, data, error} 패턴의 응답 처리에 최적화
+ *
+ * @param url - 요청 URL
+ * @param options - fetch 옵션
+ * @param config - 설정 옵션
+ * @returns Promise<ApiResponse<T>>
+ */
+export async function fetchApi<T = any>(
+  url: string,
+  options: RequestInit = {},
+  config: FetchConfig = {}
+): Promise<ApiResponse<T>> {
+  const response = await safeFetch(url, options, config);
+
+  try {
+    // 모든 응답에서 JSON 파싱 시도 (4xx/5xx 포함)
+    const json = await response.json() as ApiResponse<T>;
+
+    // API 응답 형식이 아닌 경우 변환
+    if (typeof json.success !== 'boolean') {
+      // 레거시 API 또는 직접 데이터 반환하는 경우
+      if (response.ok) {
+        return { success: true, data: json as unknown as T };
+      } else {
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${response.statusText}`
+        };
+      }
+    }
+
+    return json;
+  } catch (parseError) {
+    // JSON 파싱 실패 시
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    // 성공 응답이지만 JSON이 아닌 경우
+    throw new Error('서버 응답을 파싱할 수 없습니다.');
+  }
 }
 
 /**

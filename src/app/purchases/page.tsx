@@ -16,12 +16,14 @@ import {
   ChevronUp,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown
+  ArrowUpDown,
+  RotateCcw
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '@/hooks/useConfirm';
-import { useCompanyFilter } from '@/hooks/useCompanyFilter';
+import { CompanyFilterSelect } from '@/components/filters/CompanyFilterSelect';
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
 
 const Modal = dynamicImport(() => import('@/components/Modal'), { ssr: false });
 const PurchaseForm = dynamicImport(() => import('@/components/forms/PurchaseForm'), { ssr: false });
@@ -80,8 +82,6 @@ export default function PurchasesPage() {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortColumn, setSortColumn] = useState<string>('transaction_date');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
 
   // 새 필터 상태
   const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL');
@@ -162,7 +162,6 @@ export default function PurchasesPage() {
     if (!confirmed) return;
 
     try {
-      setDeletingTransactionId(transaction.transaction_id);
       const { safeFetchJson } = await import('@/lib/fetch-utils');
       const result = await safeFetchJson(`/api/purchases?id=${transaction.transaction_id}`, {
         method: 'DELETE',
@@ -173,11 +172,6 @@ export default function PurchasesPage() {
       });
 
       if (result.success) {
-        setSelectedIds(prev => {
-          const next = new Set(prev);
-          next.delete(transaction.transaction_id);
-          return next;
-        });
         showToast('매입 거래가 삭제되고 재고가 조정되었습니다', 'success');
         fetchTransactions();
       } else {
@@ -186,78 +180,18 @@ export default function PurchasesPage() {
     } catch (error) {
       console.error('Error deleting purchase transaction:', error);
       showToast('삭제 중 오류가 발생했습니다', 'error');
-    } finally {
-      setDeletingTransactionId(null);
     }
   };
 
-  // 전체 선택/해제
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(filteredTransactions.map(t => t.transaction_id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  };
-
-  // 개별 선택/해제
-  const handleSelectItem = (transactionId: number, checked: boolean) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(transactionId);
-      } else {
-        next.delete(transactionId);
-      }
-      return next;
-    });
-  };
-
-  // 일괄 삭제
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-
-    const confirmed = await confirm({
-      title: '일괄 삭제',
-      message: `선택한 ${selectedIds.size}개 매입 거래를 삭제하시겠습니까?\n재고가 자동으로 조정됩니다.`,
-      confirmText: '삭제',
-      cancelText: '취소'
-    });
-
-    if (!confirmed) return;
-
-    const idsToDelete = Array.from(selectedIds);
-    setDeletingTransactionId(-1); // 일괄 삭제 중 표시
-
-    try {
-      const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const deletePromises = idsToDelete.map(id =>
-        safeFetchJson(`/api/purchases?id=${id}`, {
-          method: 'DELETE'
-        }, {
-          timeout: 15000,
-          maxRetries: 2,
-          retryDelay: 1000
-        })
-      );
-
-      const results = await Promise.allSettled(deletePromises);
-      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-
-      if (failed.length > 0) {
-        showToast(`${failed.length}개 매입 거래 삭제에 실패했습니다`, 'error');
-      } else {
-        showToast(`${idsToDelete.length}개 매입 거래가 삭제되었습니다`, 'success');
-      }
-
-      setSelectedIds(new Set());
-      fetchTransactions();
-    } catch (error) {
-      console.error('Bulk delete error:', error);
-      showToast('일괄 삭제 중 오류가 발생했습니다', 'error');
-    } finally {
-      setDeletingTransactionId(null);
-    }
+  // 필터 초기화
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('');
+    setStartDate('');
+    setEndDate('');
+    setSelectedCompany('ALL');
+    setMinAmount('');
+    setMaxAmount('');
   };
 
   // 폼 저장
@@ -442,22 +376,14 @@ export default function PurchasesPage() {
 
           {/* 공급사 필터 */}
           <div>
-            <label className="sr-only" htmlFor="company-filter">공급사 필터</label>
-            <select
-              id="company-filter"
+            <CompanyFilterSelect
               value={selectedCompany}
-              onChange={(e) => setSelectedCompany(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-              aria-label="공급사 필터"
-              disabled={companiesLoading}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
-            >
-              <option value="ALL">전체 공급사</option>
-              {companies.map((company) => (
-                <option key={company.value} value={company.value}>
-                  {company.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setSelectedCompany(value === '' ? 'ALL' : Number(value))}
+              label=""
+              placeholder="전체 공급사"
+              showAllOption={true}
+              className="w-full"
+            />
           </div>
 
           {/* 지급 상태 필터 */}
@@ -512,7 +438,14 @@ export default function PurchasesPage() {
           />
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-1.5">
+          <button
+            onClick={handleResetFilters}
+            className="flex items-center gap-1 px-2 py-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs whitespace-nowrap"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            필터 초기화
+          </button>
           <button
             onClick={handleAdd}
             className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap"
@@ -523,22 +456,6 @@ export default function PurchasesPage() {
         </div>
         </div>
       </div>
-
-      {/* 일괄 삭제 버튼 */}
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
-          <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-            {selectedIds.size}개 항목 선택됨
-          </span>
-          <button
-            onClick={handleBulkDelete}
-            disabled={deletingTransactionId === -1}
-            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            {deletingTransactionId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
-          </button>
-        </div>
-      )}
 
       {/* 테이블 */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -577,14 +494,6 @@ export default function PurchasesPage() {
             <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size > 0 && selectedIds.size === filteredTransactions.length}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
-                    />
-                  </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('transaction_date')}
@@ -713,21 +622,13 @@ export default function PurchasesPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-3 sm:px-6 py-12 text-center text-gray-600 dark:text-gray-400">
+                    <td colSpan={9} className="px-3 sm:px-6 py-12 text-center text-gray-600 dark:text-gray-400">
                       매입 거래가 없습니다
                     </td>
                   </tr>
                 ) : (
                   filteredTransactions.map((transaction) => (
                     <tr key={transaction.transaction_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-3 sm:px-6 py-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(transaction.transaction_id)}
-                          onChange={(e) => handleSelectItem(transaction.transaction_id, e.target.checked)}
-                          className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
-                        />
-                      </td>
                       <td className="px-3 sm:px-6 py-4 overflow-hidden">
                         <div className="text-sm text-gray-900 dark:text-white">
                           <div className="flex flex-col">

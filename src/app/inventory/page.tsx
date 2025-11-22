@@ -45,7 +45,9 @@ import {
   INVENTORY_TYPE_OPTIONS,
   type InventoryType
 } from '@/lib/constants/inventoryTypes';
-import { useCompanyFilter } from '@/hooks/useCompanyFilter';
+import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
+import { CompanyFilterSelect } from '@/components/filters';
+import { useToast } from '@/contexts/ToastContext';
 
 // Search params를 사용하는 내부 컴포넌트
 function InventoryContent() {
@@ -85,6 +87,8 @@ function InventoryContent() {
   // Company filter state using shared hook
   const [selectedCompany, setSelectedCompany] = useState<number | 'ALL'>('ALL');
   const { companies: companyOptions, loading: companiesLoading } = useCompanyFilter();
+  // Toast notifications for non-blocking UX
+  const { success: showSuccess, error: showError } = useToast();
   // TASK-001: Comprehensive search filter state
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -174,7 +178,7 @@ function InventoryContent() {
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [activeTab, sortColumn, sortOrder, refreshKey]);
+  }, [activeTab, sortColumn, sortOrder, refreshKey, selectedCompany]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -198,6 +202,11 @@ function InventoryContent() {
       // 정렬 파라미터 추가
       params.append('sort_column', sortColumn);
       params.append('sort_order', sortOrder);
+
+      // 거래처 필터 추가
+      if (selectedCompany !== 'ALL') {
+        params.append('company_id', selectedCompany.toString());
+      }
 
       switch (activeTab) {
         case 'receiving':
@@ -329,13 +338,13 @@ function InventoryContent() {
           fetchStockInfo(),
           fetchTransactions()
         ]);
-        alert('거래가 삭제되었습니다.');
+        showSuccess('거래가 삭제되었습니다.');
       } else {
-        alert(result.error || '삭제에 실패했습니다.');
+        showError(result.error || '삭제에 실패했습니다.');
       }
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+      showError('삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingTransactionId(null);
     }
@@ -402,9 +411,9 @@ function InventoryContent() {
       const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
 
       if (failed.length > 0) {
-        alert(`${failed.length}개 거래 삭제에 실패했습니다.`);
+        showError(`${failed.length}개 거래 삭제에 실패했습니다.`);
       } else {
-        alert(`${idsToDelete.length}개 거래가 삭제되었습니다.`);
+        showSuccess(`${idsToDelete.length}개 거래가 삭제되었습니다.`);
       }
 
       setSelectedIds(new Set());
@@ -415,7 +424,7 @@ function InventoryContent() {
       ]);
     } catch (error) {
       console.error('Bulk delete error:', error);
-      alert('일괄 삭제 중 오류가 발생했습니다.');
+      showError('일괄 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingTransactionId(null);
     }
@@ -449,7 +458,7 @@ function InventoryContent() {
       setShowShortageModal(true);
     } catch (error) {
       console.error('Failed to fetch shortage details:', error);
-      alert('부족 상세 정보를 불러올 수 없습니다.');
+      showError('부족 상세 정보를 불러올 수 없습니다.');
     }
   };
 
@@ -528,7 +537,7 @@ function InventoryContent() {
               fetchStockInfo(),
               fetchTransactions()
             ]);
-            alert(`${multiItemData.items.length}개 품목이 일괄 등록되었습니다.`);
+            showSuccess(`${multiItemData.items.length}개 품목이 일괄 등록되었습니다.`);
             return;
           } else {
             throw new Error(result.error || '일괄 등록에 실패했습니다.');
@@ -591,7 +600,7 @@ function InventoryContent() {
           fetchStockInfo(),
           fetchTransactions()
         ]);
-        alert(`${activeTabInfo.label} 처리가 완료되었습니다.`);
+        showSuccess(`${activeTabInfo.label} 처리가 완료되었습니다.`);
         return { success: true };
       } else {
         // Handle production form - check for batch items
@@ -633,7 +642,7 @@ function InventoryContent() {
               fetchStockInfo(),
               fetchTransactions()
             ]);
-            alert(`${productionData.items!.length}개 품목 생산이 일괄 등록되었습니다.`);
+            showSuccess(`${productionData.items!.length}개 품목 생산이 일괄 등록되었습니다.`);
             return;
           } else {
             throw new Error(result.error || '생산 일괄 등록에 실패했습니다.');
@@ -704,16 +713,16 @@ function InventoryContent() {
           ]);
 
           // Show success notification
-          alert(`${selectedTransaction ? '수정' : '등록'}이 완료되었습니다.`);
+          showSuccess(`${selectedTransaction ? '수정' : '등록'}이 완료되었습니다.`);
           return data; // Return the response data
         } else {
-          alert(`오류: ${data.error || '처리에 실패했습니다'}`);
+          showError(`오류: ${data.error || '처리에 실패했습니다'}`);
           throw new Error(data.error || '처리에 실패했습니다');
         }
       }
     } catch (error) {
       console.error('Failed to submit form:', error);
-      alert('처리 중 오류가 발생했습니다');
+      showError('처리 중 오류가 발생했습니다');
       throw error;
     }
   };
@@ -724,7 +733,7 @@ function InventoryContent() {
     await fetchData();
     
     // 성공 메시지 표시
-    alert('엑셀 업로드가 완료되었습니다. 데이터가 반영되었습니다.');
+    showSuccess('엑셀 업로드가 완료되었습니다. 데이터가 반영되었습니다.');
   };
 
   const getTransactionTypeColor = (type: string) => {
@@ -1054,29 +1063,16 @@ function InventoryContent() {
                 </select>
               </div>
 
-              {/* Company Filter Dropdown */}
-              <div className="flex-1">
-                <label htmlFor="company-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  거래처
-                </label>
-                <select
-                  id="company-filter"
-                  value={selectedCompany === 'ALL' ? '' : selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value ? parseInt(e.target.value) : 'ALL')}
-                  disabled={companiesLoading}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
-                >
-                  <option value="">전체 거래처</option>
-                  {companyOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {companiesLoading && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">거래처 불러오는 중...</p>
-                )}
-              </div>
+              {/* Company Filter Dropdown - Using shared component */}
+              <CompanyFilterSelect
+                value={selectedCompany}
+                onChange={(value) => setSelectedCompany(value === 'ALL' ? 'ALL' : Number(value))}
+                showLabel={true}
+                label="거래처"
+                showLoadingMessage={true}
+                width="auto"
+                testId="inventory-company-filter"
+              />
             </div>
 
             {/* TASK-003: Comprehensive Search Filter UI */}

@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamicImport from 'next/dynamic';
 import {
   Plus,
@@ -75,18 +76,33 @@ const OPERATION_TYPE_LABELS: Record<OperationType, string> = {
 };
 
 const TAB_OPTIONS = [
-  { value: 'IN_PROGRESS', label: '진행중' },
-  { value: 'COMPLETED', label: '완료' },
-  { value: 'ALL', label: '전체' }
+  { value: 'PENDING', label: '대기', description: '등록만 된 공정 작업' },
+  { value: 'IN_PROGRESS', label: '진행중', description: '작업이 시작된 공정' },
+  { value: 'COMPLETED', label: '완료', description: '완료된 공정 작업' },
+  { value: 'ALL', label: '전체', description: '모든 상태의 공정 작업' }
 ];
 
+// 데이터 소스 타입 (공정 작업 vs 코일 추적)
+type DataSource = 'process_operations' | 'coil_tracking';
+
 export default function ProcessPage() {
+  const searchParams = useSearchParams();
   const [operations, setOperations] = useState<ProcessOperation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState<ProcessOperation | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('IN_PROGRESS');
+  const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({
+    PENDING: 0,
+    IN_PROGRESS: 0,
+    COMPLETED: 0,
+    CANCELLED: 0,
+    ALL: 0
+  });
+  // URL 파라미터에서 데이터 소스 확인
+  const initialDataSource = (searchParams?.get('source') === 'coil_tracking' ? 'coil_tracking' : 'process_operations') as DataSource;
+  const [dataSource, setDataSource] = useState<DataSource>(initialDataSource);
   const [filterType, setFilterType] = useState<OperationType | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -105,6 +121,102 @@ export default function ProcessPage() {
       setIsLoading(true);
       const params = new URLSearchParams();
 
+      // 데이터 소스에 따라 다른 API 호출
+      if (dataSource === 'coil_tracking') {
+        // 코일 추적 데이터 조회
+        if (activeTab !== 'ALL') {
+          params.append('status', activeTab);
+        }
+        // 공정 유형 필터 (코일 추적용)
+        if (filterType) {
+          const processTypeMap: Record<OperationType, string> = {
+            'BLANKING': '블랭킹',
+            'PRESS': '전단',
+            'ASSEMBLY': '용접'
+          };
+          if (processTypeMap[filterType]) {
+            params.append('process_type', processTypeMap[filterType]);
+          }
+        }
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+
+        const response = await fetch(`/api/coil/process?${params.toString()}`);
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || '코일 공정 목록을 불러올 수 없습니다.');
+        }
+
+        // 코일 추적 데이터를 공정 작업 형식으로 변환
+        const processTypeToOperationType: Record<string, OperationType> = {
+          '블랭킹': 'BLANKING',
+          '전단': 'PRESS',
+          '절곡': 'PRESS',
+          '용접': 'ASSEMBLY'
+        };
+
+        const convertedOperations: ProcessOperation[] = (result.data || []).map((cp: any) => ({
+          operation_id: cp.process_id,
+          operation_type: processTypeToOperationType[cp.process_type] || 'BLANKING' as OperationType,
+          input_item_id: cp.source_item_id,
+          output_item_id: cp.target_item_id,
+          input_quantity: cp.input_quantity,
+          output_quantity: cp.output_quantity,
+          efficiency: cp.yield_rate,
+          operator_id: cp.operator_id,
+          started_at: cp.started_at || cp.process_date,
+          completed_at: cp.completed_at,
+          status: cp.status as OperationStatus,
+          notes: cp.notes,
+          created_at: cp.created_at,
+          updated_at: cp.updated_at || cp.created_at,
+          lot_number: null,
+          // 코일 추적 정보 저장 (표시용)
+          coil_process_type: cp.process_type,
+          input_item: cp.source_item ? {
+            item_id: cp.source_item.item_id,
+            item_name: cp.source_item.item_name,
+            item_code: cp.source_item.item_code,
+            current_stock: cp.source_item.current_stock || 0,
+            unit: null,
+            spec: cp.source_item.spec
+          } : null,
+          output_item: cp.target_item ? {
+            item_id: cp.target_item.item_id,
+            item_name: cp.target_item.item_name,
+            item_code: cp.target_item.item_code,
+            current_stock: cp.target_item.current_stock || 0,
+            unit: null,
+            spec: cp.target_item.spec
+          } : null
+        }));
+
+        setOperations(convertedOperations);
+        
+        // 상태별 개수 설정
+        if (result.statusCounts) {
+          setStatusCounts(result.statusCounts);
+        } else {
+          const counts: Record<string, number> = {
+            PENDING: 0,
+            IN_PROGRESS: 0,
+            COMPLETED: 0,
+            CANCELLED: 0,
+            ALL: convertedOperations.length
+          };
+          convertedOperations.forEach((op: ProcessOperation) => {
+            if (op.status in counts) {
+              counts[op.status as keyof typeof counts]++;
+            }
+          });
+          setStatusCounts(counts);
+        }
+        return;
+      }
+
+      // 기본: 공정 작업 데이터 조회
+      // 탭별 상태 필터링 (명확하게 구분)
       if (activeTab !== 'ALL') {
         params.append('status', activeTab);
       }
@@ -113,15 +225,38 @@ export default function ProcessPage() {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const result = await safeFetchJson(`/api/process-operations?${params}`, {}, {
+      const { fetchApi } = await import('@/lib/fetch-utils');
+      const result = await fetchApi(`/api/process-operations?${params}`, {}, {
         timeout: 15000,
         maxRetries: 2,
         retryDelay: 1000
       });
 
       if (result.success) {
-        setOperations(result.data?.operations || result.data || []);
+        const operationsData = result.data?.operations || result.data || [];
+        setOperations(operationsData);
+        
+        // API에서 받은 상태별 개수 사용 (없으면 로컬 계산)
+        if (result.data?.statusCounts) {
+          setStatusCounts(result.data.statusCounts);
+        } else {
+          // 폴백: 로컬에서 계산
+          const counts: Record<string, number> = {
+            PENDING: 0,
+            IN_PROGRESS: 0,
+            COMPLETED: 0,
+            CANCELLED: 0,
+            ALL: operationsData.length
+          };
+          
+          operationsData.forEach((op: ProcessOperation) => {
+            if (op.status in counts) {
+              counts[op.status as keyof typeof counts]++;
+            }
+          });
+          
+          setStatusCounts(counts);
+        }
       } else {
         showToast(result.error || '공정 작업 조회 실패', 'error');
       }
@@ -135,7 +270,7 @@ export default function ProcessPage() {
 
   useEffect(() => {
     fetchOperations();
-  }, [activeTab, searchTerm, filterType, startDate, endDate]);
+  }, [activeTab, searchTerm, filterType, startDate, endDate, dataSource]);
 
   // 공정 작업 추가
   const handleAdd = () => {
@@ -162,8 +297,8 @@ export default function ProcessPage() {
 
     try {
       setDeletingOperationId(operation.operation_id);
-      const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const result = await safeFetchJson(`/api/process-operations/${operation.operation_id}`, {
+      const { fetchApi } = await import('@/lib/fetch-utils');
+      const result = await fetchApi(`/api/process-operations/${operation.operation_id}`, {
         method: 'DELETE',
       }, {
         timeout: 15000,
@@ -229,9 +364,9 @@ export default function ProcessPage() {
     setDeletingOperationId(-1); // 일괄 삭제 중 표시
 
     try {
-      const { safeFetchJson } = await import('@/lib/fetch-utils');
+      const { fetchApi } = await import('@/lib/fetch-utils');
       const deletePromises = idsToDelete.map(id =>
-        safeFetchJson(`/api/process-operations/${id}`, {
+        fetchApi(`/api/process-operations/${id}`, {
           method: 'DELETE'
         }, {
           timeout: 15000,
@@ -268,8 +403,8 @@ export default function ProcessPage() {
 
       const method = selectedOperation ? 'PATCH' : 'POST';
 
-      const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const result = await safeFetchJson(url, {
+      const { fetchApi } = await import('@/lib/fetch-utils');
+      const result = await fetchApi(url, {
         method,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         body: JSON.stringify(data),
@@ -406,28 +541,88 @@ export default function ProcessPage() {
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">공정 관리</h1>
         <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-          제조 공정 작업 내역을 관리합니다 (Blanking, Press, 조립)
+              {dataSource === 'coil_tracking' 
+                ? '코일 공정 추적 내역을 관리합니다 (블랭킹, 전단, 절곡, 용접)'
+                : '제조 공정 작업 내역을 관리합니다 (Blanking, Press, 조립)'}
         </p>
+          </div>
+          {/* 데이터 소스 선택 */}
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setDataSource('process_operations')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                dataSource === 'process_operations'
+                  ? 'bg-gray-800 dark:bg-gray-700 text-white border-gray-900 dark:border-gray-600'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'
+              }`}
+              title="일반 공정 작업"
+            >
+              공정 작업
+            </button>
+            <button
+              onClick={() => setDataSource('coil_tracking')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                dataSource === 'coil_tracking'
+                  ? 'bg-gray-800 dark:bg-gray-700 text-white border-gray-900 dark:border-gray-600'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'
+              }`}
+              title="코일 공정 추적"
+            >
+              코일 추적
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 탭 필터 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-        <div className="flex gap-2 overflow-x-auto">
-          {TAB_OPTIONS.map((tab) => (
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+        <div className="flex gap-1.5 overflow-x-auto">
+          {TAB_OPTIONS.map((tab) => {
+            // 상태별 색상 구분
+            const getTabColors = (value: string, isActive: boolean) => {
+              if (isActive) {
+                switch (value) {
+                  case 'PENDING':
+                    return 'bg-gray-600 dark:bg-gray-500 text-white border-gray-700 dark:border-gray-400';
+                  case 'IN_PROGRESS':
+                    return 'bg-blue-600 dark:bg-blue-500 text-white border-blue-700 dark:border-blue-400';
+                  case 'COMPLETED':
+                    return 'bg-green-600 dark:bg-green-500 text-white border-green-700 dark:border-green-400';
+                  case 'ALL':
+                    return 'bg-gray-800 dark:bg-gray-700 text-white border-gray-900 dark:border-gray-600';
+                  default:
+                    return 'bg-gray-800 dark:bg-gray-700 text-white';
+                }
+              } else {
+                return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600';
+              }
+            };
+
+            const count = statusCounts[tab.value] || 0;
+            return (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.value
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${getTabColors(tab.value, activeTab === tab.value)}`}
+                title={tab.description}
             >
               {tab.label}
+                {tab.value !== 'ALL' && (
+                  <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                    activeTab === tab.value 
+                      ? 'bg-white/20 text-white' 
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                  }`}>
+                    {count}
+                  </span>
+                )}
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -498,7 +693,7 @@ export default function ProcessPage() {
           <div className="mt-4 flex justify-end">
             <button
               onClick={handleAdd}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs font-medium whitespace-nowrap"
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs font-medium whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
               공정 등록
@@ -516,7 +711,7 @@ export default function ProcessPage() {
           <button
             onClick={handleBulkDelete}
             disabled={deletingOperationId === -1}
-            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            className="px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-xs font-medium"
           >
             {deletingOperationId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
           </button>
@@ -530,9 +725,9 @@ export default function ProcessPage() {
             <TableSkeleton />
           ) : (
             <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700">
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-12">
                     <input
                       type="checkbox"
                       checked={selectedIds.size > 0 && selectedIds.size === filteredOperations.length}
@@ -540,7 +735,7 @@ export default function ProcessPage() {
                       className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
                     />
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('operation_id')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -555,7 +750,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('operation_type')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -570,7 +765,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('input_item')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -585,7 +780,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('output_item')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -600,7 +795,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('input_quantity')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
@@ -615,7 +810,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('output_quantity')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-auto"
@@ -630,7 +825,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('efficiency')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
@@ -645,7 +840,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('status')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
@@ -660,7 +855,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <button
                       onClick={() => handleSort('operator')}
                       className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -675,7 +870,7 @@ export default function ProcessPage() {
                       )}
                     </button>
                   </th>
-                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     작업
                   </th>
                 </tr>
@@ -705,8 +900,15 @@ export default function ProcessPage() {
                       </td>
                       <td className="px-3 sm:px-6 py-4">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          {OPERATION_TYPE_LABELS[operation.operation_type]}
+                          {dataSource === 'coil_tracking' && operation.coil_process_type
+                            ? operation.coil_process_type
+                            : OPERATION_TYPE_LABELS[operation.operation_type]}
                         </div>
+                        {dataSource === 'coil_tracking' && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                            코일 추적
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 sm:px-6 py-4">
                         <div className="text-sm text-gray-900 dark:text-white">
@@ -749,7 +951,9 @@ export default function ProcessPage() {
                       </td>
                       <td className="px-3 sm:px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          {/* Quick action buttons based on status */}
+                          {/* Quick action buttons based on status (공정 작업만) */}
+                          {dataSource === 'process_operations' && (
+                            <>
                           {operation.status === 'PENDING' && (
                             <ProcessStartButton
                               operationId={operation.operation_id}
@@ -762,6 +966,8 @@ export default function ProcessPage() {
                               operationId={operation.operation_id}
                               onComplete={fetchOperations}
                             />
+                              )}
+                            </>
                           )}
 
                           {/* Standard Edit/Delete actions */}

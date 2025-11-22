@@ -63,6 +63,15 @@ export async function GET(
           current_stock,
           unit,
           spec
+        ),
+        coil_process:coil_process_history!coil_process_id (
+          process_id,
+          process_type,
+          status,
+          process_date,
+          yield_rate,
+          scrap_rate,
+          notes
         )
       `)
       .eq('operation_id', operationId)
@@ -129,6 +138,17 @@ export async function GET(
         unit: data.output_item.unit,
         spec: data.output_item.spec,
       },
+      // Coil process tracking (bidirectional sync)
+      coil_process_id: data.coil_process_id,
+      coil_process: data.coil_process ? {
+        process_id: data.coil_process.process_id,
+        process_type: data.coil_process.process_type,
+        status: data.coil_process.status,
+        process_date: data.coil_process.process_date,
+        yield_rate: data.coil_process.yield_rate ? parseFloat(data.coil_process.yield_rate) : undefined,
+        scrap_rate: data.coil_process.scrap_rate ? parseFloat(data.coil_process.scrap_rate) : undefined,
+        notes: data.coil_process.notes,
+      } : undefined,
     };
 
     return createSuccessResponse(operation);
@@ -292,6 +312,15 @@ export async function PATCH(
           current_stock,
           unit,
           spec
+        ),
+        coil_process:coil_process_history!coil_process_id (
+          process_id,
+          process_type,
+          status,
+          process_date,
+          yield_rate,
+          scrap_rate,
+          notes
         )
       `)
       .single();
@@ -347,6 +376,17 @@ export async function PATCH(
         unit: updatedOp.output_item.unit,
         spec: updatedOp.output_item.spec,
       },
+      // Coil process tracking (bidirectional sync)
+      coil_process_id: updatedOp.coil_process_id,
+      coil_process: updatedOp.coil_process ? {
+        process_id: updatedOp.coil_process.process_id,
+        process_type: updatedOp.coil_process.process_type,
+        status: updatedOp.coil_process.status,
+        process_date: updatedOp.coil_process.process_date,
+        yield_rate: updatedOp.coil_process.yield_rate ? parseFloat(updatedOp.coil_process.yield_rate) : undefined,
+        scrap_rate: updatedOp.coil_process.scrap_rate ? parseFloat(updatedOp.coil_process.scrap_rate) : undefined,
+        notes: updatedOp.coil_process.notes,
+      } : undefined,
     };
 
     console.log(`[INFO] Process operation updated: ${operation.operation_id} → ${operation.status}`);

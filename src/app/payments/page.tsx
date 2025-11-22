@@ -17,7 +17,8 @@ import {
   ChevronUp,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown
+  ArrowUpDown,
+  RotateCcw
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/contexts/ToastContext';
@@ -79,8 +80,6 @@ export default function PaymentsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortColumn, setSortColumn] = useState<string>('payment_date');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
   const [summary, setSummary] = useState({
     totalOutstanding: 0,     // 총 미지급금
     overdueCount: 0,          // 30일 이상 미처리
@@ -167,7 +166,6 @@ export default function PaymentsPage() {
     if (!confirmed) return;
 
     try {
-      setDeletingPaymentId(payment.payment_id);
       const { safeFetchJson } = await import('@/lib/fetch-utils');
       const result = await safeFetchJson(`/api/payments?id=${payment.payment_id}`, {
         method: 'DELETE',
@@ -178,11 +176,6 @@ export default function PaymentsPage() {
       });
 
       if (result.success) {
-        setSelectedIds(prev => {
-          const next = new Set(prev);
-          next.delete(payment.payment_id);
-          return next;
-        });
         showToast('지급 내역이 삭제되었습니다', 'success');
         fetchPayments();
       } else {
@@ -191,78 +184,21 @@ export default function PaymentsPage() {
     } catch (error) {
       console.error('Error deleting payment:', error);
       showToast('삭제 중 오류가 발생했습니다', 'error');
-    } finally {
-      setDeletingPaymentId(null);
     }
   };
 
-  // 전체 선택/해제
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(filteredPayments.map(p => p.payment_id)));
-    } else {
-      setSelectedIds(new Set());
-    }
+  // 날짜 범위 변경 핸들러
+  const handleDateRangeChange = (start: string, end: string) => {
+    setStartDate(start);
+    setEndDate(end);
   };
 
-  // 개별 선택/해제
-  const handleSelectItem = (paymentId: number, checked: boolean) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(paymentId);
-      } else {
-        next.delete(paymentId);
-      }
-      return next;
-    });
-  };
-
-  // 일괄 삭제
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-
-    const confirmed = await confirm({
-      title: '일괄 삭제',
-      message: `선택한 ${selectedIds.size}개 지급 내역을 삭제하시겠습니까?\n매입 거래의 지급 금액이 조정됩니다.`,
-      confirmText: '삭제',
-      cancelText: '취소'
-    });
-
-    if (!confirmed) return;
-
-    const idsToDelete = Array.from(selectedIds);
-    setDeletingPaymentId(-1); // 일괄 삭제 중 표시
-
-    try {
-      const { safeFetchJson } = await import('@/lib/fetch-utils');
-      const deletePromises = idsToDelete.map(id =>
-        safeFetchJson(`/api/payments?id=${id}`, {
-          method: 'DELETE'
-        }, {
-          timeout: 15000,
-          maxRetries: 2,
-          retryDelay: 1000
-        })
-      );
-
-      const results = await Promise.allSettled(deletePromises);
-      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-
-      if (failed.length > 0) {
-        showToast(`${failed.length}개 지급 내역 삭제에 실패했습니다`, 'error');
-      } else {
-        showToast(`${idsToDelete.length}개 지급 내역이 삭제되었습니다`, 'success');
-      }
-
-      setSelectedIds(new Set());
-      fetchPayments();
-    } catch (error) {
-      console.error('Bulk delete error:', error);
-      showToast('일괄 삭제 중 오류가 발생했습니다', 'error');
-    } finally {
-      setDeletingPaymentId(null);
-    }
+  // 필터 초기화
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setFilterPaymentMethod('');
+    setStartDate('');
+    setEndDate('');
   };
 
   // 폼 저장
@@ -500,6 +436,14 @@ export default function PaymentsPage() {
           />
         </div>
 
+        {/* 빠른 날짜 선택 */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            빠른 날짜 선택
+          </label>
+          <QuickDateSelector onDateRangeChange={handleDateRangeChange} />
+        </div>
+
         <div className="mt-4 flex justify-end gap-1.5">
           <button
             onClick={handleExcelDownload}
@@ -507,6 +451,13 @@ export default function PaymentsPage() {
           >
             <Download className="w-3.5 h-3.5" />
             Excel 다운로드
+          </button>
+          <button
+            onClick={handleResetFilters}
+            className="flex items-center gap-1 px-2 py-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs whitespace-nowrap"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            필터 초기화
           </button>
           <button
             onClick={handleAdd}
@@ -556,22 +507,6 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* 일괄 삭제 버튼 */}
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
-          <span className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-            {selectedIds.size}개 항목 선택됨
-          </span>
-          <button
-            onClick={handleBulkDelete}
-            disabled={deletingPaymentId === -1}
-            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            {deletingPaymentId === -1 ? '삭제 중...' : `선택 항목 삭제 (${selectedIds.size}개)`}
-          </button>
-        </div>
-      )}
-
       {/* Section 3: Data Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         {/* 뷰 전환 토글 (모바일만) */}
@@ -609,14 +544,6 @@ export default function PaymentsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                  <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size > 0 && selectedIds.size === filteredPayments.length}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
-                    />
-                  </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                     <button
                       onClick={() => handleSort('payment_date')}
@@ -743,14 +670,6 @@ export default function PaymentsPage() {
                 ) : (
                   filteredPayments.map((payment) => (
                     <tr key={payment.payment_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-6 py-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(payment.payment_id)}
-                          onChange={(e) => handleSelectItem(payment.payment_id, e.target.checked)}
-                          className="rounded border-gray-300 text-gray-600 focus:ring-gray-400 dark:focus:ring-gray-500"
-                        />
-                      </td>
                       <td className="px-6 py-4 overflow-hidden">
                         <div className="text-sm text-gray-900 dark:text-gray-100">
                           <div className="flex flex-col">

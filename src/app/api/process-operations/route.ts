@@ -29,8 +29,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[DEBUG] GET /api/process-operations called');
     const supabase = getSupabaseClient();
+    console.log('[DEBUG] Supabase client created');
     const { searchParams } = new URL(request.url);
+    console.log('[DEBUG] Search params:', Object.fromEntries(searchParams.entries()));
 
     // Parse query parameters
     const operation_type = searchParams.get('operation_type');
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const offset = (page - 1) * limit;
 
-    // Build query
+    // Build query - items 관계만 포함 (coil_process는 별도 조회)
     let query = supabase
       .from('process_operations')
       .select(`
@@ -107,6 +110,28 @@ export async function GET(request: NextRequest) {
       query = query.or(`notes.ilike.%${search}%`);
     }
 
+    // Get status counts for all operations (before filtering and pagination)
+    const { data: statusCountsData, error: statusCountsError } = await supabase
+      .from('process_operations')
+      .select('status');
+
+    const statusCounts: Record<string, number> = {
+      PENDING: 0,
+      IN_PROGRESS: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+      ALL: 0
+    };
+
+    if (!statusCountsError && statusCountsData) {
+      statusCounts.ALL = statusCountsData.length;
+      statusCountsData.forEach((op: any) => {
+        if (op.status in statusCounts) {
+          statusCounts[op.status as keyof typeof statusCounts]++;
+        }
+      });
+    }
+
     // Apply sorting and pagination
     query = query
       .order(sortBy, { ascending: sortOrder === 'asc' })
@@ -125,8 +150,8 @@ export async function GET(request: NextRequest) {
       operation_type: op.operation_type,
       input_item_id: op.input_item_id,
       output_item_id: op.output_item_id,
-      input_quantity: parseFloat(op.input_quantity),
-      output_quantity: parseFloat(op.output_quantity),
+      input_quantity: parseFloat(op.input_quantity || 0),
+      output_quantity: parseFloat(op.output_quantity || 0),
       efficiency: op.efficiency ? parseFloat(op.efficiency) : undefined,
       operator_id: op.operator_id,
       started_at: op.started_at,
@@ -149,39 +174,63 @@ export async function GET(request: NextRequest) {
       quality_status: op.quality_status,
       scrap_quantity: op.scrap_quantity ? parseFloat(op.scrap_quantity) : undefined,
       scheduled_date: op.scheduled_date,
-      input_item: {
+      input_item: op.input_item ? {
         item_id: op.input_item.item_id,
-        item_name: op.input_item.item_name,
-        item_code: op.input_item.item_code,
-        current_stock: parseFloat(op.input_item.current_stock),
-        unit: op.input_item.unit,
-        spec: op.input_item.spec,
+        item_name: op.input_item.item_name || '-',
+        item_code: op.input_item.item_code || '-',
+        current_stock: parseFloat(op.input_item.current_stock || 0),
+        unit: op.input_item.unit || null,
+        spec: op.input_item.spec || null,
+      } : {
+        item_id: op.input_item_id,
+        item_name: '-',
+        item_code: '-',
+        current_stock: 0,
+        unit: null,
+        spec: null,
       },
-      output_item: {
+      output_item: op.output_item ? {
         item_id: op.output_item.item_id,
-        item_name: op.output_item.item_name,
-        item_code: op.output_item.item_code,
-        current_stock: parseFloat(op.output_item.current_stock),
-        unit: op.output_item.unit,
-        spec: op.output_item.spec,
+        item_name: op.output_item.item_name || '-',
+        item_code: op.output_item.item_code || '-',
+        current_stock: parseFloat(op.output_item.current_stock || 0),
+        unit: op.output_item.unit || null,
+        spec: op.output_item.spec || null,
+      } : {
+        item_id: op.output_item_id,
+        item_name: '-',
+        item_code: '-',
+        current_stock: 0,
+        unit: null,
+        spec: null,
       },
+      // Coil process tracking (bidirectional sync)
+      coil_process_id: op.coil_process_id || undefined,
+      coil_process: undefined, // coil_process는 필요시 별도 조회
     }));
 
     const totalCount = count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
-    return createSuccessResponse(operations, {
-      page,
-      limit,
-      totalPages,
-      totalCount,
+    return NextResponse.json({
+      success: true,
+      data: operations,
+      statusCounts, // 상태별 개수 추가
+      pagination: {
+        page,
+        limit,
+        totalPages,
+        totalCount,
+      },
     });
   } catch (error) {
     console.error('[ERROR] Unexpected error in GET /api/process-operations:', error);
+    console.error('[ERROR] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : '공정 작업 목록을 조회하는 중 오류가 발생했습니다.',
+        details: error instanceof Error ? error.stack : String(error),
       },
       { status: 500 }
     );
@@ -410,6 +459,75 @@ export async function POST(request: NextRequest) {
       return handleSupabaseError('insert', 'process_operations', createError);
     }
 
+    // ============================================================================
+    // 코일 추적 이력 자동 생성 및 연결 (BLANKING 공정인 경우)
+    // ============================================================================
+    let coilProcessId: number | null = null;
+    
+    if (body.operation_type === 'BLANKING') {
+      try {
+        // 입력 품목이 코일인지 확인 (coil_specs 테이블에 존재하는지 확인)
+        const { data: coilSpec, error: coilSpecError } = await supabase
+          .from('coil_specs')
+          .select('item_id')
+          .eq('item_id', body.input_item_id)
+          .single();
+
+        // 코일인 경우에만 coil_process_history 생성
+        if (!coilSpecError && coilSpec) {
+          // process_type 매핑: BLANKING -> '블랭킹'
+          const processType = '블랭킹';
+          
+          // 수율 계산
+          const yieldRate = calculateEfficiency(body.input_quantity, body.output_quantity);
+
+          // coil_process_history 생성
+          const { data: coilProcess, error: coilProcessError } = await supabase
+            .from('coil_process_history')
+            .insert({
+              source_item_id: body.input_item_id,
+              target_item_id: body.output_item_id,
+              process_type: processType,
+              input_quantity: body.input_quantity,
+              output_quantity: body.output_quantity,
+              yield_rate: yieldRate,
+              process_date: new Date().toISOString().split('T')[0],
+              status: body.status || 'PENDING',
+              operator_id: operatorId,
+              notes: body.notes || null
+            })
+            .select('process_id')
+            .single();
+
+          if (!coilProcessError && coilProcess) {
+            coilProcessId = coilProcess.process_id;
+            console.log(`[INFO] Coil process history created: ${coilProcessId} for operation ${newOperation.operation_id}`);
+
+            // process_operations에 coil_process_id 연결
+            const { error: updateError } = await supabase
+              .from('process_operations')
+              .update({ coil_process_id: coilProcessId })
+              .eq('operation_id', newOperation.operation_id);
+
+            if (updateError) {
+              console.error('[WARN] Failed to link coil_process_id:', updateError);
+              // 연결 실패해도 공정 작업은 성공한 것으로 처리
+            } else {
+              console.log(`[INFO] Linked coil_process_id ${coilProcessId} to operation ${newOperation.operation_id}`);
+            }
+          } else {
+            console.error('[WARN] Failed to create coil_process_history:', coilProcessError);
+            // 코일 추적 이력 생성 실패해도 공정 작업은 성공한 것으로 처리
+          }
+        } else {
+          console.log(`[INFO] Input item ${body.input_item_id} is not a coil, skipping coil_process_history creation`);
+        }
+      } catch (error) {
+        console.error('[WARN] Error in coil process history creation:', error);
+        // 에러가 발생해도 공정 작업은 성공한 것으로 처리
+      }
+    }
+
     // Transform response
     const operation: ProcessOperationWithItems = {
       operation_id: newOperation.operation_id,
@@ -440,6 +558,8 @@ export async function POST(request: NextRequest) {
       quality_status: newOperation.quality_status,
       scrap_quantity: newOperation.scrap_quantity ? parseFloat(newOperation.scrap_quantity) : undefined,
       scheduled_date: newOperation.scheduled_date,
+      // Coil traceability link
+      coil_process_id: coilProcessId || newOperation.coil_process_id || undefined,
       input_item: {
         item_id: newOperation.input_item.item_id,
         item_name: newOperation.input_item.item_name,

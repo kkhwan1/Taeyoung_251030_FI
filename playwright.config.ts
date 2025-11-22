@@ -1,79 +1,63 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * 태창 ERP 시스템 Playwright E2E 테스트 설정
- *
+ * Playwright 테스트 설정
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
+  // 테스트 디렉토리
   testDir: './tests/e2e',
 
-  /* 병렬 실행 설정 */
+  // 병렬 실행 설정
   fullyParallel: true,
-  workers: 1, // 단일 워커로 실행 (테스트 간 격리 보장)
 
-  /* 실패 시 재시도 */
-  retries: process.env.CI ? 2 : 1,
+  // CI에서 재시도 금지
+  forbidOnly: !!process.env.CI,
 
-  /* 타임아웃 설정 */
-  timeout: 90 * 1000, // 각 테스트 90초
-  expect: {
-    timeout: 15 * 1000, // 각 assertion 15초
-  },
+  // 실패 시 재시도 횟수
+  retries: process.env.CI ? 2 : 0,
 
-  /* 리포터 설정 */
+  // 병렬 워커 수
+  workers: process.env.CI ? 1 : undefined,
+
+  // 리포터 설정
   reporter: [
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/junit.xml' }],
-    ['list'],
+    ['html', { outputFolder: 'playwright-report' }],
+    ['list']
   ],
 
-  /* 공통 테스트 설정 */
+  // 공통 설정
   use: {
-    /* 기본 URL */
+    // 기본 URL
     baseURL: 'http://localhost:5000',
 
-    /* 스크린샷 및 비디오 */
+    // 추적 설정 (실패 시에만)
+    trace: 'on-first-retry',
+
+    // 스크린샷 설정
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-    trace: 'retain-on-failure',
 
-    /* 한글 지원 */
-    locale: 'ko-KR',
-    timezoneId: 'Asia/Seoul',
+    // 비디오 설정
+    video: 'on-first-retry',
 
-    /* 네비게이션 타임아웃 */
-    navigationTimeout: 45 * 1000,
-    actionTimeout: 15 * 1000,
+    // 타임아웃
+    actionTimeout: 10000,
+    navigationTimeout: 30000,
   },
 
-  /* 브라우저 설정 */
+  // 프로젝트 설정 (브라우저별)
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1920, height: 1080 },
-      },
-    },
-
-    /* 모바일 반응형 테스트 */
-    {
-      name: 'mobile-chrome',
-      use: {
-        ...devices['Pixel 5'],
-      },
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 
-  /* 개발 서버 설정 */
+  // 개발 서버 설정 (테스트 전 자동 시작)
   webServer: {
-    command: 'npm run dev:safe',
+    command: 'npm run dev',
     url: 'http://localhost:5000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    stdout: 'pipe',
-    stderr: 'pipe',
+    timeout: 120000,
   },
 });

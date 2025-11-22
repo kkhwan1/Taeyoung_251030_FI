@@ -52,7 +52,13 @@
       "Bash(npm run build:*)",
       "Bash(codex ps:*)",
       "Bash(nul)",
-      "Bash(vercel logs:*)"
+      "Bash(vercel logs:*)",
+      "Bash(playwright.config.ts)",
+      "Bash(src/app/sales/page.tsx)",
+      "Bash(src/app/purchases/page.tsx)",
+      "Bash(src/app/collections/page.tsx)",
+      "Bash(src/app/payments/page.tsx)",
+      "SlashCommand(/sc:cleanup)"
     ],
     "deny": [],
     "ask": []

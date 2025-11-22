@@ -26,7 +26,9 @@ import {
   DollarSign,
   ShoppingCart,
   TrendingUp,
-  Users
+  Users,
+  Search,
+  RotateCcw
 } from 'lucide-react';
 import KPICard from '@/components/accounting/KPICard';
 import { VirtualTable } from '@/components/ui/VirtualTable';
@@ -64,6 +66,11 @@ export default function AccountingSummaryPage() {
     new Date().toISOString().slice(0, 7) // Format: YYYY-MM
   );
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
   const [data, setData] = useState<AccountingSummaryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +156,17 @@ export default function AccountingSummaryPage() {
       setExporting(false);
     }
   }
+
+  // 필터 초기화 함수
+  const handleResetFilters = () => {
+    setSelectedMonth(new Date().toISOString().slice(0, 7));
+    setSelectedCategory('');
+    setStartDate('');
+    setEndDate('');
+    setSearchTerm('');
+    setMinAmount('');
+    setMaxAmount('');
+  };
 
   // Format month for display (YYYY년 MM월)
   const formatMonthDisplay = (monthStr: string): string => {
@@ -449,19 +467,35 @@ export default function AccountingSummaryPage() {
           </div>
 
           {/* Filter Bar */}
-          <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div
+            className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+            data-testid="filter-container"
+          >
+            {/* 첫 번째 행: 검색 및 카테고리 필터 */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <label
-                htmlFor="category-filter"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                업체 구분:
-              </label>
+              {/* 검색 입력 */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="거래처명 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  data-testid="search-input"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+                             bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                             focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
+                             focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* 카테고리 필터 */}
               <select
                 id="category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="flex-1 sm:flex-none px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+                data-testid="category-filter"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
                            bg-white dark:bg-gray-900 text-gray-900 dark:text-white
                            focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
                            focus:border-transparent transition-all"
@@ -481,14 +515,83 @@ export default function AccountingSummaryPage() {
                 </option>
               </select>
 
-              {selectedCategory && (
-                <button
-                  onClick={() => setSelectedCategory('')}
-                  className="text-sm text-gray-700 dark:text-gray-300 hover:underline"
-                >
-                  필터 초기화
-                </button>
-              )}
+              {/* 필터 초기화 버튼 */}
+              <button
+                onClick={handleResetFilters}
+                data-testid="reset-filters-button"
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400
+                           hover:text-gray-900 dark:hover:text-white
+                           border border-gray-300 dark:border-gray-700 rounded-lg
+                           hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>초기화</span>
+              </button>
+            </div>
+
+            {/* 두 번째 행: 날짜 범위 및 금액 필터 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+              {/* 시작일 */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">시작일</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="start-date-input"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+                             bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                             focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
+                             focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* 종료일 */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">종료일</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="end-date-input"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+                             bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                             focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
+                             focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* 최소 금액 */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">최소 금액</label>
+                <input
+                  type="number"
+                  placeholder="최소 금액"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  data-testid="min-amount-input"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+                             bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                             focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
+                             focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* 최대 금액 */}
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">최대 금액</label>
+                <input
+                  type="number"
+                  placeholder="최대 금액"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                  data-testid="max-amount-input"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+                             bg-white dark:bg-gray-900 text-gray-900 dark:text-white
+                             focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500
+                             focus:border-transparent transition-all"
+                />
+              </div>
             </div>
           </div>
 

@@ -120,11 +120,6 @@ const menuItems: MenuItem[] = [
         href: '/process'
       },
       {
-        id: 'coil-tracking',
-        title: '코일 공정 추적',
-        href: '/process/coil-tracking'
-      },
-      {
         id: 'traceability',
         title: '추적성 조회',
         href: '/traceability'
@@ -196,14 +191,26 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    // 사용자 역할 조회 (실패해도 페이지는 정상 작동)
     fetch('/api/auth/me')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          // 401, 500 등의 에러는 조용히 처리 (로그인하지 않은 상태일 수 있음)
+          return null;
+        }
+        return res.json();
+      })
       .then(data => {
-        if (data.success) {
+        if (data?.success) {
           setUserRole(data.user.role);
         }
       })
-      .catch(err => console.error('Failed to fetch user role:', err));
+      .catch(err => {
+        // 네트워크 에러는 조용히 처리 (개발 모드에서만 로그)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to fetch user role (non-critical):', err);
+        }
+      });
   }, []);
 
   // 메뉴 아이템 필터링

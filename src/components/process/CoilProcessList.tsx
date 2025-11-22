@@ -13,6 +13,13 @@ export default function CoilProcessList() {
   const [processes, setProcesses] = useState<CoilProcessHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({
+    PENDING: 0,
+    IN_PROGRESS: 0,
+    COMPLETED: 0,
+    CANCELLED: 0,
+    ALL: 0
+  });
 
   // 필터 상태
   const [filters, setFilters] = useState({
@@ -46,6 +53,28 @@ export default function CoilProcessList() {
       }
 
       setProcesses(result.data || []);
+      
+      // API에서 받은 상태별 개수 사용 (없으면 로컬 계산)
+      if (result.statusCounts) {
+        setStatusCounts(result.statusCounts);
+      } else {
+        // 폴백: 로컬에서 계산
+        const counts: Record<string, number> = {
+          PENDING: 0,
+          IN_PROGRESS: 0,
+          COMPLETED: 0,
+          CANCELLED: 0,
+          ALL: result.data?.length || 0
+        };
+        
+        (result.data || []).forEach((p: CoilProcessHistory) => {
+          if (p.status in counts) {
+            counts[p.status as keyof typeof counts]++;
+          }
+        });
+        
+        setStatusCounts(counts);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
@@ -143,7 +172,7 @@ export default function CoilProcessList() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">공정 관리</h1>
         <button
           onClick={() => router.push('/process/coil-tracking/new')}
-          className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-2"
+          className="bg-gray-800 dark:bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
           새 공정 등록
@@ -156,56 +185,57 @@ export default function CoilProcessList() {
         <div>
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">상태</h3>
           <div className="flex flex-wrap gap-2">
+            {[
+              { value: '', label: '전체', description: '모든 상태의 공정' },
+              { value: 'PENDING', label: '대기', description: '등록만 된 공정' },
+              { value: 'IN_PROGRESS', label: '진행중', description: '작업이 시작된 공정' },
+              { value: 'COMPLETED', label: '완료', description: '완료된 공정' },
+              { value: 'CANCELLED', label: '취소', description: '취소된 공정' }
+            ].map((tab) => {
+              const getTabColors = (value: string, isActive: boolean) => {
+                if (isActive) {
+                  switch (value) {
+                    case 'PENDING':
+                      return 'bg-gray-600 text-white border-gray-700';
+                    case 'IN_PROGRESS':
+                      return 'bg-blue-600 text-white border-blue-700';
+                    case 'COMPLETED':
+                      return 'bg-green-600 text-white border-green-700';
+                    case 'CANCELLED':
+                      return 'bg-red-600 text-white border-red-700';
+                    case '':
+                      return 'bg-gray-800 text-white border-gray-900';
+                    default:
+                      return 'bg-gray-800 text-white';
+                  }
+                } else {
+                  return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600';
+                }
+              };
+
+              const count = tab.value === '' ? statusCounts.ALL : (statusCounts[tab.value] || 0);
+              const isActive = filters.status === tab.value;
+
+              return (
             <button
-              onClick={() => setFilters({ ...filters, status: '' })}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filters.status === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              전체
+                  key={tab.value || 'ALL'}
+                  onClick={() => setFilters({ ...filters, status: tab.value })}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${getTabColors(tab.value, isActive)}`}
+                  title={tab.description}
+                >
+                  {tab.label}
+                  {tab.value !== '' && (
+                    <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                      isActive 
+                        ? 'bg-white/20 text-white' 
+                        : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {count}
+                    </span>
+                  )}
             </button>
-            <button
-              onClick={() => setFilters({ ...filters, status: 'PENDING' })}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filters.status === 'PENDING'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              대기
-            </button>
-            <button
-              onClick={() => setFilters({ ...filters, status: 'IN_PROGRESS' })}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filters.status === 'IN_PROGRESS'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              진행중
-            </button>
-            <button
-              onClick={() => setFilters({ ...filters, status: 'COMPLETED' })}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filters.status === 'COMPLETED'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              완료
-            </button>
-            <button
-              onClick={() => setFilters({ ...filters, status: 'CANCELLED' })}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filters.status === 'CANCELLED'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              취소
-            </button>
+              );
+            })}
           </div>
         </div>
 
@@ -217,7 +247,7 @@ export default function CoilProcessList() {
               onClick={() => setFilters({ ...filters, process_type: '' })}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filters.process_type === ''
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-gray-800 text-white dark:bg-gray-700'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
@@ -227,7 +257,7 @@ export default function CoilProcessList() {
               onClick={() => setFilters({ ...filters, process_type: '블랭킹' })}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filters.process_type === '블랭킹'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-gray-800 text-white dark:bg-gray-700'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
@@ -237,7 +267,7 @@ export default function CoilProcessList() {
               onClick={() => setFilters({ ...filters, process_type: '전단' })}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filters.process_type === '전단'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-gray-800 text-white dark:bg-gray-700'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
@@ -247,7 +277,7 @@ export default function CoilProcessList() {
               onClick={() => setFilters({ ...filters, process_type: '절곡' })}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filters.process_type === '절곡'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-gray-800 text-white dark:bg-gray-700'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
@@ -257,7 +287,7 @@ export default function CoilProcessList() {
               onClick={() => setFilters({ ...filters, process_type: '용접' })}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filters.process_type === '용접'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-gray-800 text-white dark:bg-gray-700'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
@@ -307,18 +337,18 @@ export default function CoilProcessList() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">전체 공정</div>
-          <div className="text-2xl font-bold mt-1 text-gray-900 dark:text-gray-100">{processes.length}</div>
+          <div className="text-2xl font-bold mt-1 text-gray-900 dark:text-gray-100">{statusCounts.ALL}</div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">완료</div>
           <div className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
-            {processes.filter(p => p.status === 'COMPLETED').length}
+            {statusCounts.COMPLETED}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">진행중</div>
           <div className="text-2xl font-bold mt-1 text-blue-600 dark:text-blue-400">
-            {processes.filter(p => p.status === 'IN_PROGRESS').length}
+            {statusCounts.IN_PROGRESS}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">

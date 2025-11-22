@@ -13,6 +13,10 @@ export const dynamic = 'force-dynamic';
  * - 상류(upstream): 이 품목을 생산한 공정들 (target_item_id = [item_id])
  * - 하류(downstream): 이 품목을 사용한 공정들 (source_item_id = [item_id])
  * - 완전한 추적성 체인 반환
+ *
+ * Query Parameters:
+ * - start_date: 시작일 (YYYY-MM-DD) - 선택사항
+ * - end_date: 종료일 (YYYY-MM-DD) - 선택사항
  */
 export const GET = createValidatedRoute(
   async (
@@ -21,6 +25,11 @@ export const GET = createValidatedRoute(
   ) => {
     try {
       const item_id = parseInt(params.item_id);
+
+      // 날짜 필터 파라미터 추출
+      const searchParams = request.nextUrl.searchParams;
+      const startDate = searchParams.get('start_date');
+      const endDate = searchParams.get('end_date');
 
       if (isNaN(item_id)) {
         return NextResponse.json(
@@ -53,7 +62,7 @@ export const GET = createValidatedRoute(
 
       // Get upstream processes (processes that produced this item)
       // This item is the target_item (output) of these processes
-      const { data: upstreamProcesses, error: upstreamError } = await supabase
+      let upstreamQuery = supabase
         .from('coil_process_history')
         .select(`
           process_id,
@@ -67,9 +76,26 @@ export const GET = createValidatedRoute(
           source_item:items!coil_process_history_source_item_id_fkey(
             item_code,
             item_name
+          ),
+          process_operation:process_operations!coil_process_id(
+            operation_id,
+            lot_number,
+            chain_id,
+            chain_sequence,
+            parent_operation_id
           )
         `)
-        .eq('target_item_id', item_id)
+        .eq('target_item_id', item_id);
+
+      // 날짜 필터 적용 (upstream)
+      if (startDate) {
+        upstreamQuery = upstreamQuery.gte('process_date', startDate);
+      }
+      if (endDate) {
+        upstreamQuery = upstreamQuery.lte('process_date', endDate);
+      }
+
+      const { data: upstreamProcesses, error: upstreamError } = await upstreamQuery
         .order('process_date', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -86,7 +112,7 @@ export const GET = createValidatedRoute(
 
       // Get downstream processes (processes that used this item)
       // This item is the source_item (input) of these processes
-      const { data: downstreamProcesses, error: downstreamError } = await supabase
+      let downstreamQuery = supabase
         .from('coil_process_history')
         .select(`
           process_id,
@@ -100,9 +126,26 @@ export const GET = createValidatedRoute(
           target_item:items!coil_process_history_target_item_id_fkey(
             item_code,
             item_name
+          ),
+          process_operation:process_operations!coil_process_id(
+            operation_id,
+            lot_number,
+            chain_id,
+            chain_sequence,
+            parent_operation_id
           )
         `)
-        .eq('source_item_id', item_id)
+        .eq('source_item_id', item_id);
+
+      // 날짜 필터 적용 (downstream)
+      if (startDate) {
+        downstreamQuery = downstreamQuery.gte('process_date', startDate);
+      }
+      if (endDate) {
+        downstreamQuery = downstreamQuery.lte('process_date', endDate);
+      }
+
+      const { data: downstreamProcesses, error: downstreamError } = await downstreamQuery
         .order('process_date', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -134,7 +177,14 @@ export const GET = createValidatedRoute(
           output_quantity: p.output_quantity,
           yield_rate: p.yield_rate,
           process_date: p.process_date,
-          status: p.status
+          status: p.status,
+          process_operation: p.process_operation ? {
+            operation_id: p.process_operation.operation_id,
+            lot_number: p.process_operation.lot_number,
+            chain_id: p.process_operation.chain_id,
+            chain_sequence: p.process_operation.chain_sequence,
+            parent_operation_id: p.process_operation.parent_operation_id
+          } : null
         })),
 
         // Downstream: Processes that used this item
@@ -148,7 +198,14 @@ export const GET = createValidatedRoute(
           output_quantity: p.output_quantity,
           yield_rate: p.yield_rate,
           process_date: p.process_date,
-          status: p.status
+          status: p.status,
+          process_operation: p.process_operation ? {
+            operation_id: p.process_operation.operation_id,
+            lot_number: p.process_operation.lot_number,
+            chain_id: p.process_operation.chain_id,
+            chain_sequence: p.process_operation.chain_sequence,
+            parent_operation_id: p.process_operation.parent_operation_id
+          } : null
         }))
       };
 

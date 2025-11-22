@@ -17,6 +17,7 @@ import {
 import StockAdjustmentForm from '@/components/StockAdjustmentForm';
 import { StockExportButton } from '@/components/ExcelExportButton';
 import CategoryFilter from '@/components/CategoryFilter';
+import { CompanyFilterSelect } from '@/components/filters';
 import { useCompanyFilter } from '@/contexts/CompanyFilterContext';
 
 interface StockItem {
@@ -192,7 +193,16 @@ export default function StockPage() {
     setLoading(true);
     }
     try {
-      const response = await fetch('/api/stock/history');
+      // company filter 파라미터 적용
+      const params = new URLSearchParams();
+      if (companyFilter && companyFilter !== 'ALL') {
+        const parsed = parseInt(companyFilter);
+        if (!Number.isNaN(parsed)) {
+          params.append('company_id', parsed.toString());
+        }
+      }
+      const url = `/api/stock/history${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url);
       const result = await response.json();
 
       if (result.success) {
@@ -255,6 +265,8 @@ export default function StockPage() {
   useEffect(() => {
     if (activeTab === 'current') {
       fetchStockItems();
+    } else if (activeTab === 'history' || activeTab === 'adjustment') {
+      fetchStockHistory();
     }
   }, [companyFilter]);
 
@@ -1070,6 +1082,13 @@ export default function StockPage() {
                   />
                 </div>
               </div>
+
+              <CompanyFilterSelect
+                value={companyFilter}
+                onChange={(value) => setCompanyFilter(String(value))}
+                width="w-64"
+                testId="history-company-filter"
+              />
             </div>
           </div>
 
@@ -1286,6 +1305,13 @@ export default function StockPage() {
                         />
                       </div>
                     </div>
+
+                    <CompanyFilterSelect
+                      value={companyFilter}
+                      onChange={(value) => setCompanyFilter(String(value))}
+                      width="w-64"
+                      testId="adjustment-company-filter"
+                    />
                   </div>
 
                   <button

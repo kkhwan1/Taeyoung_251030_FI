@@ -48,6 +48,8 @@
     "test:api": "jest src/__tests__/api",
     "test:lib": "jest src/__tests__/lib",
     "test:all": "node scripts/test-all.js",
+    "test:process-scenarios": "node scripts/test-process-operations-scenarios.js",
+    "test:process-browser": "node scripts/test-process-scenarios-browser.js",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",

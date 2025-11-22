@@ -16,6 +16,7 @@ export const GET = createValidatedRoute(
     const itemId = searchParams.get('itemId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const companyId = searchParams.get('company_id');
 
     // Get pagination parameters
     const paginationInput = getPaginationFromSearchParams(searchParams);
@@ -56,6 +57,10 @@ export const GET = createValidatedRoute(
 
     if (endDate) {
       query = query.lte('transaction_date', endDate);
+    }
+
+    if (companyId) {
+      query = query.eq('company_id', parseInt(companyId));
     }
 
     // Apply ordering and pagination
@@ -111,6 +116,10 @@ export const GET = createValidatedRoute(
 
     if (endDate) {
       countQuery = countQuery.lte('transaction_date', endDate);
+    }
+
+    if (companyId) {
+      countQuery = countQuery.eq('company_id', parseInt(companyId));
     }
 
     const { count: totalCount, error: countError } = await countQuery;

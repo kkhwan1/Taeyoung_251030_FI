@@ -9,7 +9,8 @@
  * - Reusable query builder
  */
 
-import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PostgrestQuery = any;
 
 /**
  * Table-specific FK column mapping
@@ -105,12 +106,12 @@ export function extractCompanyId(
  * query = applyCompanyFilter(query, 'sales_transactions', companyId, 'customer');
  * ```
  */
-export function applyCompanyFilter<T>(
-  query: PostgrestFilterBuilder<any, T, any>,
+export function applyCompanyFilter(
+  query: PostgrestQuery,
   tableName: string,
   companyId: number | null,
   filterType: 'customer' | 'supplier' | 'company' = 'company'
-): PostgrestFilterBuilder<any, T, any> {
+): PostgrestQuery {
   // If no company filter, return all records
   if (!companyId) {
     return query;

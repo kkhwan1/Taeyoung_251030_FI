@@ -142,7 +142,8 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
 
   // 과거 평균 수율 기반 산출수량 자동 계산
   useEffect(() => {
-    if (formData.input_item_id && formData.output_item_id && formData.input_quantity > 0) {
+    const inputQty = formData.input_quantity;
+    if (formData.input_item_id && formData.output_item_id && inputQty && inputQty > 0) {
       const fetchAverageEfficiency = async () => {
         try {
           const url = `/api/process-operations/average-efficiency?input_item_id=${formData.input_item_id}&output_item_id=${formData.output_item_id}&operation_type=${formData.operation_type}`;
@@ -152,7 +153,7 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
           if (result.success && result.data.average_efficiency) {
             const avgEff = result.data.average_efficiency;
             setAverageEfficiency(avgEff);
-            const suggested = formData.input_quantity * (avgEff / 100);
+            const suggested = inputQty * (avgEff / 100);
             setSuggestedOutputQuantity(Math.round(suggested * 100) / 100);
           } else {
             setAverageEfficiency(null);
@@ -283,7 +284,7 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
         setErrors({});
       } else {
         // 기존 방식: 공정 작업 등록만 (완료 처리는 별도)
-        await onSave(formData);
+      await onSave(formData);
       }
     } catch (error: any) {
       alert(`오류: ${error.message}`);
@@ -389,23 +390,23 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
             투입수량 <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <input
-              type="number"
-              name="input_quantity"
-              value={formData.input_quantity}
-              onChange={handleChange}
-              min="0"
-              step="0.01"
-              className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.input_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-              }`}
-              required
-            />
+          <input
+            type="number"
+            name="input_quantity"
+            value={formData.input_quantity}
+            onChange={handleChange}
+            min="0"
+            step="0.01"
+            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.input_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+            }`}
+            required
+          />
             {suggestedInputQuantity && suggestedInputQuantity !== formData.input_quantity && (
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, input_quantity: suggestedInputQuantity }))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-gray-800 text-white rounded hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
                 title="코일 스펙 기반 자동 계산값 적용"
               >
                 {suggestedInputQuantity} 적용
@@ -428,23 +429,23 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
             산출수량 <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <input
-              type="number"
-              name="output_quantity"
-              value={formData.output_quantity}
-              onChange={handleChange}
-              min="0"
-              step="0.01"
-              className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.output_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-              }`}
-              required
-            />
+          <input
+            type="number"
+            name="output_quantity"
+            value={formData.output_quantity}
+            onChange={handleChange}
+            min="0"
+            step="0.01"
+            className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.output_quantity ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+            }`}
+            required
+          />
             {suggestedOutputQuantity && suggestedOutputQuantity !== formData.output_quantity && (
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, output_quantity: suggestedOutputQuantity }))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs bg-gray-800 text-white rounded hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
                 title="과거 평균 수율 기반 자동 계산값 적용"
               >
                 {suggestedOutputQuantity} 적용
@@ -511,7 +512,7 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
               type="button"
               onClick={() => handleStatusChange('IN_PROGRESS')}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="w-4 h-4" />
               작업 시작
@@ -522,7 +523,7 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
               type="button"
               onClick={() => handleStatusChange('COMPLETED')}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle className="w-4 h-4" />
               작업 완료
@@ -533,7 +534,7 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
               type="button"
               onClick={() => handleStatusChange('CANCELLED')}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <XCircle className="w-4 h-4" />
               작업 취소
@@ -552,11 +553,7 @@ export default function ProcessOperationForm({ operation, onSave, onCancel }: Pr
           <button
             type="submit"
             disabled={loading}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              quickMode
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
+            className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>

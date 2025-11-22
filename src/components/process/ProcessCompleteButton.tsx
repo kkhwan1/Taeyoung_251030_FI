@@ -47,7 +47,7 @@ export default function ProcessCompleteButton({
     <>
       <button
         onClick={() => setShowConfirm(true)}
-        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors dark:bg-green-700 dark:hover:bg-green-800"
+        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors dark:bg-green-600 dark:hover:bg-green-700"
         type="button"
       >
         공정 완료

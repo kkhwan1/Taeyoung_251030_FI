@@ -298,6 +298,28 @@ export const GET = createValidatedRoute(
         );
       }
 
+      // Get status counts for all processes (before filtering)
+      const { data: statusCountsData, error: statusCountsError } = await supabase
+        .from('coil_process_history')
+        .select('status');
+
+      const statusCounts: Record<string, number> = {
+        PENDING: 0,
+        IN_PROGRESS: 0,
+        COMPLETED: 0,
+        CANCELLED: 0,
+        ALL: 0
+      };
+
+      if (!statusCountsError && statusCountsData) {
+        statusCounts.ALL = statusCountsData.length;
+        statusCountsData.forEach((p: any) => {
+          if (p.status in statusCounts) {
+            statusCounts[p.status as keyof typeof statusCounts]++;
+          }
+        });
+      }
+
       // Transform data to CoilProcessWithDetails format
       const processesWithDetails: CoilProcessWithDetails[] = (processes || []).map((p: any) => ({
         ...p,
@@ -309,7 +331,8 @@ export const GET = createValidatedRoute(
       return NextResponse.json({
         success: true,
         data: processesWithDetails,
-        count: processesWithDetails.length
+        count: processesWithDetails.length,
+        statusCounts // 상태별 개수 추가
       });
 
     } catch (error) {

@@ -248,6 +248,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ============================================================================
+    // 코일 추적 이력 자동 생성 및 연결 (BLANKING 공정인 경우)
+    // ============================================================================
+    let coilProcessId: number | null = null;
+    
+    if (operation_type === 'BLANKING') {
+      try {
+        // 입력 품목이 코일인지 확인 (coil_specs 테이블에 존재하는지 확인)
+        const { data: coilSpec, error: coilSpecError } = await supabase
+          .from('coil_specs')
+          .select('item_id')
+          .eq('item_id', input_item_id)
+          .single();
+
+        // 코일인 경우에만 coil_process_history 생성
+        if (!coilSpecError && coilSpec) {
+          // process_type 매핑: BLANKING -> '블랭킹'
+          const processType = '블랭킹';
+          
+          // coil_process_history 생성
+          const { data: coilProcess, error: coilProcessError } = await supabase
+            .from('coil_process_history')
+            .insert({
+              source_item_id: input_item_id,
+              target_item_id: output_item_id,
+              process_type: processType,
+              input_quantity: input_quantity,
+              output_quantity: output_quantity,
+              yield_rate: efficiency,
+              process_date: new Date().toISOString().split('T')[0],
+              status: 'COMPLETED', // 간편 등록은 바로 완료 상태
+              operator_id: operatorId,
+              notes: notes || null
+            })
+            .select('process_id')
+            .single();
+
+          if (!coilProcessError && coilProcess) {
+            coilProcessId = coilProcess.process_id;
+            console.log(`[INFO] Coil process history created: ${coilProcessId} for quick operation ${newOperation.operation_id}`);
+
+            // process_operations에 coil_process_id 연결
+            const { error: updateError } = await supabase
+              .from('process_operations')
+              .update({ coil_process_id: coilProcessId })
+              .eq('operation_id', newOperation.operation_id);
+
+            if (updateError) {
+              console.error('[WARN] Failed to link coil_process_id:', updateError);
+              // 연결 실패해도 공정 작업은 성공한 것으로 처리
+            } else {
+              console.log(`[INFO] Linked coil_process_id ${coilProcessId} to quick operation ${newOperation.operation_id}`);
+            }
+          } else {
+            console.error('[WARN] Failed to create coil_process_history:', coilProcessError);
+            // 코일 추적 이력 생성 실패해도 공정 작업은 성공한 것으로 처리
+          }
+        } else {
+          console.log(`[INFO] Input item ${input_item_id} is not a coil, skipping coil_process_history creation`);
+        }
+      } catch (error) {
+        console.error('[WARN] Error in coil process history creation:', error);
+        // 에러가 발생해도 공정 작업은 성공한 것으로 처리
+      }
+    }
+
     // Step 2: Get stock history created by trigger
     const { data: stockHistory } = await supabase
       .from('stock_history')
@@ -280,7 +346,8 @@ export async function POST(request: NextRequest) {
           output: updatedOutputItem
         },
         efficiency: efficiency,
-        lot_number: lotNumber
+        lot_number: lotNumber,
+        coil_process_id: coilProcessId || undefined
       }
     }, { status: 201 });
 

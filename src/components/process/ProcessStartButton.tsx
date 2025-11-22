@@ -18,10 +18,9 @@ export default function ProcessStartButton({
   const handleStart = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/process/start', {
+      const response = await fetch(`/api/process-operations/${operationId}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation_id: operationId })
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
       });
 
       // UTF-8 pattern for Korean text handling
@@ -47,7 +46,7 @@ export default function ProcessStartButton({
     <>
       <button
         onClick={() => setShowConfirm(true)}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors dark:bg-blue-700 dark:hover:bg-blue-800"
+        className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
         type="button"
       >
         공정 시작
@@ -80,7 +79,7 @@ export default function ProcessStartButton({
               <button
                 onClick={handleStart}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors dark:bg-blue-700 dark:hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 type="button"
               >
                 {loading ? '처리 중...' : '확인'}
