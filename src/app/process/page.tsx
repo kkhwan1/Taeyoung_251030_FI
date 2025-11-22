@@ -216,10 +216,8 @@ export default function ProcessPage() {
       }
 
       // 기본: 공정 작업 데이터 조회
-      // 탭별 상태 필터링 (명확하게 구분)
-      if (activeTab !== 'ALL') {
-        params.append('status', activeTab);
-      }
+      // activeTab 필터는 클라이언트에서 적용하여 모든 탭의 정확한 카운트 표시
+      // API에서는 전체 데이터를 가져옴 (status 파라미터 제거)
       if (searchTerm) params.append('search', searchTerm);
       if (filterType) params.append('operation_type', filterType);
       if (startDate) params.append('start_date', startDate);
@@ -451,6 +449,11 @@ export default function ProcessPage() {
   const filteredOperations = useMemo(() => {
     let filtered = [...operations];
 
+    // activeTab 필터 적용 (클라이언트 측)
+    if (activeTab !== 'ALL') {
+      filtered = filtered.filter(op => op.status === activeTab);
+    }
+
     // 검색 필터
     if (searchTerm) {
       filtered = filtered.filter(op => 
@@ -535,7 +538,59 @@ export default function ProcessPage() {
     });
 
     return filtered;
-  }, [operations, searchTerm, filterType, startDate, endDate, sortColumn, sortOrder]);
+  }, [operations, activeTab, searchTerm, filterType, startDate, endDate, sortColumn, sortOrder]);
+
+  // 원본 operations에서 필터(검색, 날짜 등)만 적용한 상태별 카운트 계산
+  // activeTab 필터는 제외하여 모든 탭에서 정확한 카운트 표시
+  const filteredStatusCounts = useMemo(() => {
+    // activeTab 필터를 제외한 필터링 (검색, 날짜, 공정 유형만)
+    let filtered = [...operations];
+
+    // 검색 필터
+    if (searchTerm) {
+      filtered = filtered.filter(op => 
+        op.operation_id.toString().includes(searchTerm) ||
+        op.input_item?.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        op.output_item?.item_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // 공정 유형 필터
+    if (filterType) {
+      filtered = filtered.filter(op => op.operation_type === filterType);
+    }
+
+    // 날짜 필터
+    if (startDate) {
+      filtered = filtered.filter(op => {
+        const opDate = op.started_at || op.created_at || '';
+        return opDate >= startDate;
+      });
+    }
+    if (endDate) {
+      filtered = filtered.filter(op => {
+        const opDate = op.started_at || op.created_at || '';
+        return opDate <= endDate;
+      });
+    }
+
+    // 상태별 카운트 계산
+    const counts: Record<string, number> = {
+      PENDING: 0,
+      IN_PROGRESS: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+      ALL: filtered.length
+    };
+
+    filtered.forEach((op) => {
+      if (op.status in counts) {
+        counts[op.status as keyof typeof counts]++;
+      }
+    });
+
+    return counts;
+  }, [operations, searchTerm, filterType, startDate, endDate]);
 
   return (
     <div className="space-y-6">
@@ -602,7 +657,9 @@ export default function ProcessPage() {
               }
             };
 
-            const count = statusCounts[tab.value] || 0;
+            // 필터링된 데이터(검색, 날짜 등)에서 해당 상태의 개수 표시
+            // activeTab 필터는 제외하여 모든 탭에서 정확한 카운트 표시
+            const count = filteredStatusCounts[tab.value] || 0;
             return (
             <button
               key={tab.value}

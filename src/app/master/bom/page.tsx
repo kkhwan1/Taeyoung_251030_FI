@@ -116,7 +116,7 @@ export default function BOMPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sortColumn, setSortColumn] = useState<string>('parent_item_code');
 
-  const { success, error, info } = useToast();
+  const { success, error, info, warning } = useToast();
   const { warningConfirm, deleteWithToast, ConfirmDialog } = useConfirm();
   const { companies, loading: companiesLoading } = useCompanyFilter();
 
